@@ -1,7 +1,31 @@
-*.ss~
-*.ss#*
-.#*.ss
+# === OS & System Junk ===
+.DS_Store
+Thumbs.db
+*.swp
+*~
 
-*.scm~
-*.scm#*
-.#*.scm
+# === Common Lisp / Scheme Artifacts ===
+*.fasl
+*.lib
+*.dx64fsl
+*.out
+.ext/
+.quicklisp/
+
+# === Koivu Project Specific Outputs ===
+# Ignore compiled binaries from the Stage 1 & Stage 2 bootstrap steps
+bootstrap/stage1-asm/koivu-seed
+bootstrap/stage2-macro/*.bytecode
+
+# Ignore output assembly, objects, and executables generated during test passes
+tests/scratch/
+*.s
+*.o
+*.elf
+*.macho
+*.bin
+
+# Ignore heavy Unity Build and temporary scratch artifacts (e.g., Unreal Engine parsing tests)
+*.unity.cpp
+logs/
+*.log
