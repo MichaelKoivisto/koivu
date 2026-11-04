@@ -61,4 +61,4 @@ To prevent semantic confusion, documentation must adhere to strict term boundari
 Mandatory Helping Verbs:
 * Use **“must”** to express a mandatory requirement.
 * Use **“will”** to express a future requirement.
-* Use **“may”** or “can” to express optional action or capability.
+* Use **“may”** or **“can”** to express optional action or capability.
