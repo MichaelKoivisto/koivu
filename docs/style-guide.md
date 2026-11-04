@@ -24,7 +24,6 @@ Every document inside the `docs/` repository must begin with a uniform header bl
 
 > **Status:** [Research Track / Architecture Specification / Draft]  
 > **Component:** [Stage 1 Core / Midend / Global]  
-> **Last Updated:** November 2026  
 ```
 
 ---
