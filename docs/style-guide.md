@@ -57,3 +57,9 @@ To prevent semantic confusion, documentation must adhere to strict term boundari
 * **S-Expression:** Refers strictly to the symbolic nested lists processed by the interpreter and macros. Do not use generic "code trees."
 * **Pass-Based Arena:** Refers strictly to memory buffers that undergo a complete pointer reset to zero at the termination of a compilation pass. Do not call this a "heap partition."
 * **Lowering:** The explicit act of translating higher-level Intermediate Representation (IR) symbols down into raw target-specific hardware instructions.
+
+Mandatory Helping Verbs:
+* Use **must** to express a mandatory requirement.
+* Use **will** to express a future requirement.
+* Use **may** or **can** to express optional action or capability.
+
