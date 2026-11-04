@@ -32,7 +32,7 @@ The operational scale of the project is bounded by two distinct delivery thresho
 
 ## 3. Bootstrapping Analysis: Engineering Trade-offs
 
-The core motivations of the Koivu bootstrap pipeline align entirely with the GNU Bootstrapping Project: ensuring system reproducibility, trust, and resilience against upstream binary compromises. Additionally, providing an engine that boots from a uniform, tiny seed across multiple target operating systems significantly reduces development friction on individual workspaces.
+The core motivations of the Koivu bootstrap pipeline align entirely with the GNU Bootstrapping Project: ensuring system reproducibility, trust, and resilience against upstream binary compromises (Thompson's "Trusting Trust" attack vectors). Additionally, providing an engine that boots from a uniform, tiny seed across multiple target operating systems significantly reduces development friction on individual workspaces.
 
 While the GNU Bootstrapping Project has successfully proven the viability of secure builds, its practical deployment reveals specific engineering constraints that Koivu attempts to address:
 
