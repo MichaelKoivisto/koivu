@@ -1,25 +1,60 @@
-Rationel behind Koivu compiler infrastructure
+# Architectural Rationale: The Koivu Compiler Infrastructure
 
-The goals of Koivu project are two-fold: compact, elegant and powerfull compiler hacking tools, 
-and simple and secure bootstraping from a tiny amount of human-readable and human-inspectable machine assembly or binary code. 
+> **Status:** Project Vision Blueprint  
 
-Koivu project is planned to borrow heavily from LLVM and to be fully compatible with LLVM IR. 
-The ultimate goal is to implement all of LLVM's IR tools (including IR lowering to target architectures), Clang and several compilers 
-for popular program languages, including C++, Swift, Hylo, Rust and Jai. The minimum goal is to implement a full-fledged C compiler. 
-Also Koivu plans to make its compilers fully compatible with Clang command-line tools, config tools and formats etc. 
+---
 
-The bootstrapping goal has mostly the same motivations as the GNU Bootstrapping Project: trust, reproducibility, security and resilence. 
-In addition to this, having a compiler infrastructure easily bootable from small seed on all platforms is just very convinient for development community.
-With all due respect, the GNU Bootstrapping Project in its current form has shortcomings: it is not easy to maintain bootstrappers for exotic platforms, 
-and bootstrappint tools are cumbersome and motley (a mix of platform-specific machine assembly, antique C compilers and List interpreter at various stages).
-Koivu tries to provide a cleaner, more compact and cross-platform bootstrapping path. 
+## 1. Project Statement and Objectives
 
-Lisp is chosen as the main language for all levels of Koivu compiler infrastructure because it is the only programming language 
-that meets both of Koivu's goals. Lisp is very powerfull high-level language with demonstrated ability for elegant code for parsers and code optimization passes. 
-(One prominent example from the past is Chez Scheme with its native code generator and nano-passes design.) 
-At the same time, Lisp is simple in its code. A basic Lisp interpreter is easy to implement in a small amount of human-readable machine assembly. 
-Originally specified in 1958, Lisp is the second-oldest high-level programming language still in common use, after Fortran.
-Frequently discussed shortcomings of Lisp are quite solvable. Slow execution speed should not be an issue for specialised Lisp AOT compiler with data-driven design 
-and custom memory management strategies tailored for parsing and optimization passes. 
+The Koivu Project intends to develop a compact, portable compiler infrastructure. The design path serves a dual objective:
 
+1. **Toolchain Expressiveness:** To provide a small, maintainable, and syntactically elegant toolchain optimized for compiler engineering and optimization passes.
+2. **Minimalist Bootstrapping:** To establish a verifiably clear path to full self-hosting, initiated from a tiny, human-inspectable machine assembly or binary seed.
+
+---
+
+## 2. Functional Targets and LLVM Alignment
+
+Koivu builds directly upon the established conventions of LLVM, maintaining fundamental compatibility with LLVM Intermediate Representation (IR). 
+
+The operational scale of the project is bounded by two distinct delivery thresholds:
+
+### 2.1 Minimum Capability Threshold
+* **Target:** A fully compliant, functional C compiler.
+* **Scope:** Generation of stable native machine code from standard C sources, completely integrated into the self-hosting loop.
+
+### 2.2 Extended Development Objective
+* **Target:** Drop-in compatibility with the modern systems ecosystem.
+* **Scope:** Implementation of all core LLVM IR tools (including low-level machine architecture lowering), a Clang-compatible frontend, and native frontends for **C++, Swift, Hylo, Rust, and Jai**. 
+* **Compatibility:** The final binaries are engineered to respond identically to Clang command-line interfaces, diagnostic flags, and static formats.
+
+---
+
+## 3. Bootstrapping Analysis: Engineering Trade-offs
+
+The core motivations of the Koivu bootstrap pipeline align entirely with the GNU Bootstrapping Project: ensuring system reproducibility, trust, and resilience against upstream binary compromises. Additionally, providing an engine that boots from a uniform, tiny seed across multiple target operating systems significantly reduces development friction on individual workspaces.
+
+While the GNU Bootstrapping Project has successfully proven the viability of secure builds, its practical deployment reveals specific engineering constraints that Koivu attempts to address:
+
+* **Maintenance Overhead on Diverse Hardware:** Porting and maintaining custom bootstrap layers across less common or emerging CPU architectures remains operationally complex.
+* **Tooling Fragmentation:** The existing path relies on a varied sequence of platform-specific assembly templates, antique C compilers, and specialized interpreters. This heterogeneity increases the surface area that a single engineer must master.
+
+Koivu seeks to provide an alternative path by utilizing a single, uniform language abstraction layer from Stage 1 through production, ensuring the compilation path remains compact and cross-platform.
+
+---
+
+## 4. Rationale for Selection of the Lisp Dialect
+
+Lisp is selected as the primary language layer for all stages of the Koivu infrastructure. It represents the most pragmatic choice to fulfill both project goals within a singular language framework.
+
+### 4.1 High-Level Expressiveness
+Compilers are fundamentally string-to-tree and tree-to-array translation systems. Lisp excels at this domain. Historical implementations, most notably **Chez Scheme**, have demonstrated that a native code generator built on a disciplined sequence of small, isolated passes (the "nanopass" design) can achieve excellent compilation throughput. Originally specified in 1958, Lisp remains the second-oldest high-level language still in active use, drawing on decades of optimization literature.
+
+### 4.2 Low-Level Simplicity
+At the foundational level, the mechanics of a basic Lisp evaluator are remarkably straightforward. A functional interpreter seed can be written in a few hundred lines of clear, target-independent assembly or LLVM IR, allowing complete human verification of the initial execution state.
+
+### 4.3 Mitigation of Performance Overhead
+Traditional criticisms regarding Lisp's performance—specifically garbage collection latency and variable execution speed—are structural problems of general-purpose, interactive system profiles. Because Koivu is an **ahead-of-time (AOT) batch compiler**, these issues are mitigated by architectural isolation:
+1. **Pass-Isolated Arenas:** Generic runtime garbage collection is omitted. Memory is managed via localized blocks that are reset to zero instantly between compiler passes.
+2. **Data-Driven Architecture:** Code representations are stored in flat, cash-aligned arrays rather than deep pointer graphs, maximizing raw execution velocity directly on modern hardware.
 
