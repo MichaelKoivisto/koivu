@@ -59,7 +59,6 @@ To prevent semantic confusion, documentation must adhere to strict term boundari
 * **Lowering:** The explicit act of translating higher-level Intermediate Representation (IR) symbols down into raw target-specific hardware instructions.
 
 Mandatory Helping Verbs:
-* Use **must** to express a mandatory requirement.
-* Use **will** to express a future requirement.
-* Use **may** or **can** to express optional action or capability.
-
+* Use **“must”** to express a mandatory requirement.
+* Use **“will”** to express a future requirement.
+* Use **“may”** or “can” to express optional action or capability.
