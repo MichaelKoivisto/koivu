@@ -45,7 +45,7 @@ Stage 3 Koivu Scheme needs exactly six core data structures (subject to further 
 
 ## Low-Level Tagging Layout
 
-To keep memory management minimal and maximize execution performance, Stage 3 may use a simple 3-bit low-tagging scheme hidden directly inside the lower bits of every 64-bit pointer. Since memory addresses on modern architectures are aligned to 8 bytes, the lowest 3 bits of a pointer are always 000. Kiovu Scheme may use these bits to store the type tag:
+To keep memory management minimal and maximize execution performance, Stage 3 may use a simple 3-bit low-tagging scheme hidden directly inside the lower bits of every 64-bit pointer. Since memory addresses on modern architectures are aligned to 8 bytes, the lowest 3 bits of a pointer are always 000. Koivu Scheme may use these bits to store the type tag:
 
 ```
 [61 Bits: Memory Pointer or Immediate Value] [3 Bits: Type Tag]
@@ -139,7 +139,7 @@ Additional source of information on Data-Oriented Design for compilers: Chandler
 ## Stage 3 Library
 
 The Stage 3 Koivu Scheme compiler may need additional system calls for high-precision profiling of itself when running and for detecting system date/time. 
-This is the subject of ongoing reseach. 
+This is the subject of ongoing research. 
 
 
 
