@@ -4,6 +4,13 @@
 ; SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 ; ============================================================================
 
+; Cannot rely on the syscall assembly instruction because Windows will break between builds and macOS deprecates direct syscalls entirely.
+; Therefore using these glue functions.
+declare i32 @sys_write(i32 %fd, i8* %buf, i32 %count)
+declare i32 @sys_read(i32 %fd, i8* %buf, i32 %count)
+declare i8* @sys_alloc(i64 %size)
+declare void @sys_exit(i32 %status)
+
 ; Define generic, opaque pointers for all Koivu Lisp Objects
 %LispObject = type opaque
 %LispCell   = type { %LispObject*, %LispObject* }
