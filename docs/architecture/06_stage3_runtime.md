@@ -1,51 +1,48 @@
 # Koivu Structural Blueprint - Stage 3 (Production Core)
 
-Stage 3 Compiler is a highly specialized, ultra-lean Domain-Specific Language (DSL) for writing compilers. 
-Koivu will use a nanopass approach inspired by the design of Chez Scheme compiler:
+**Status:** Architecture Specification  
+**Component:** Stage 3 Production Core  
 
-```
-[Compiler Source Code] ➔ [AST Parser] ➔ [Nanopass Transform Pipeline (LLVM IR)] ➔ [Retargetable LLVM-style Code Generator] ➔ [Machine Code Binary]
-```
+The Stage 3 Compiler is a lean Domain-Specific Language (DSL) for compiler engineering, utilizing a nanopass architecture inspired by Chez Scheme.
+
+---
 
 ## Data Types
 
-Stage 3 Koivu Scheme needs exactly six core data structures (subject to further research):
+Stage 3 Koivu Scheme implements six core data structures: 
 
 1. Fixnums (Machine-Sized Integers)
 
-* What it is: A raw 64-bit integer mapped directly to a hardware register.
-* Why the compiler needs it: For tracking array indices, byte offsets in binary generation, memory allocation sizes, and immediate values in code emission.
-* Simplification: No bignums (arbitrary-precision integers) or floating-point numbers (floats). Compilers do not need to do calculus or high-precision financial math.
+   A raw 64-bit integer mapped directly to a hardware register, for tracking array indices, byte offsets in binary generation, memory allocation sizes, and immediate values in code emission.
 
 2. Symbols (Unique Names)
 
-* What it is: An immutable string pointer backed by an internal global table (an interned string).
-* Why the compiler needs it: Symbols are the backbone of Lisp's symbolic processing. Intermediate Representation (IR) will represent variable names and CPU instructions as pure symbols (e.g., 'v1, 'rax, 'if, 'primitive-+). Comparing symbols is blazing fast because the compiler only compares their memory addresses (eq?), never the character strings themselves.
+   An immutable string pointer backed by an internal global table (an interned string). Intermediate Representation (IR) will represent variable names and CPU instructions as pure symbols. Comparing symbols is fast because the compiler only compares their memory addresses (eq?), never the character strings themselves.
 
 3. Cons Cells (The Core Pair)
 
-* What it is: A simple structural record containing exactly two pointers: a CAR (Contents of Address Register) and a CDR (Contents of Decrement Register).
-* Why the compiler needs it: Cons cells naturally build singly linked lists and binary trees. Since source code, Abstract Syntax Trees (ASTs), and nested Intermediate Representations are structurally just trees, Cons cells allow to represent code natively without manual tree-node allocation logic.
+   A simple structural record containing exactly two pointers: a CAR (Contents of Address Register) and a CDR (Contents of Decrement Register).
 
 4. Records / Structs (Heterogeneous Objects)
 
-* What it is: A fixed-size contiguous block of memory containing typed fields.
-* Why the compiler needs it: While Cons cells are great for trees, Koivu Scheme language needs explicit records to cleanly represent structured compiler metadata without writing messy, unreadable chains of car and cdr. Koivu may use records to define structures like (struct interval (vreg start end phys-reg)) or (struct function-metadata (name args stack-size)).
+   A fixed-size contiguous block of memory containing typed fields. While Cons cells are great for trees, Koivu Scheme language needs explicit records 
+   to cleanly represent structured compiler metadata without writing messy, unreadable chains of car and cdr. Koivu may use records 
+   to define structures like (struct interval (vreg start end phys-reg)) or (struct function-metadata (name args stack-size)).
 
 5. Vectors (Homogeneous Fixed-Size Arrays)
 
-* What it is: A contiguous indexable block of memory pointers.
-* Why the compiler needs it: For highly performance-sensitive indexing tasks where linked lists are too slow. Register allocator's live range arrays, block instruction listings, and symbol hash tables will be backed by raw vectors to ensure O(1) lookups.
+   A contiguous indexable block of memory pointers, useful for highly performance-sensitive indexing tasks where linked lists are too slow. 
+   Register allocator's live range arrays, block instruction listings, and symbol hash tables will be backed by raw vectors to ensure O(1) lookups.
 
 6. Core Closures (Lexical Blocks)
 
-* What it is: A pair containing a pointer to compiled machine code instructions and a pointer to the environment frame holding captured variables.
-* Why the compiler needs it: Closures enable functional programming, passing pass-behaviors dynamically, and handling lexical scoping cleanly throughout compiler infrastructure pipeline.
+   A pair containing a pointer to compiled machine code instructions and a pointer to the environment frame holding captured variables. 
+   Closures enable functional programming, passing pass-behaviors dynamically, and handling lexical scoping cleanly throughout compiler infrastructure pipeline.
 
 
 ## Low-Level Tagging Layout
 
-To keep memory management minimal and maximize execution performance, Stage 3 may use a simple 3-bit low-tagging scheme hidden directly inside the lower bits of every 64-bit pointer. Since memory addresses on modern architectures are aligned to 8 bytes, the lowest 3 bits of a pointer are always 000. Koivu Scheme may use these bits to store the type tag:
+Stage 3 uses a 3-bit low-tagging scheme embedded in the lower bits of 64-bit words, where `000` is reserved for Fixnums and non-zero tags (`001` through `101`) represent Cons cells, symbols, vectors, records, and closures.
 
 ```
 [61 Bits: Memory Pointer or Immediate Value] [3 Bits: Type Tag]
@@ -60,14 +57,12 @@ To keep memory management minimal and maximize execution performance, Stage 3 ma
 | 100 | Record / Struct | Points to a structured block. The first word is a symbol indicating the struct type.|
 | 101 | Closure | Points to a block containing the executable code address and environment pointer.|
 
-By limiting the scope of Stage 3 to this ultra-lean set of data structures, we completely avoid writing:
+By limiting the scope of Stage 3 to this lean set of data structures, we completely avoid writing:
 * Hash-table collision resolution layers (use basic open-addressing vectors instead).
 * String-manipulation libraries (symbols are enough for text processing inside a compiler frontend).
 * Dynamic type-coercion matrices (e.g., adding an integer to a float — Stage 3 only calculates integers).
 
 ## Memory Allocation Strategies for Stage 3 
-
-Why Traditional Compiler Designs Fail: Traditional compilers (like traditional C++ frontends) rely heavily on Abstract Syntax Trees (ASTs) built out of scattered, heap-allocated node objects with heavy pointer indirection. This structure is cache-hostile, causing frequent CPU cache misses and wasting precious memory bandwidth.
 
 Stage 3 will completely reject general-purpose garbage collection and adopt the hyper-optimized memory strategies used in AAA game engines and embedded systems.
 
@@ -138,7 +133,7 @@ Additional source of information on Data-Oriented Design for compilers: Chandler
 
 ## Stage 3 Library
 
-The Stage 3 Koivu Scheme compiler may need additional system calls for high-precision profiling of itself when running and for detecting system date/time. 
+The Stage 3 Koivu Scheme compiler may need additional system calls for high-precision profiling of itself when running and for system clock reads. 
 This is the subject of ongoing research. 
 
 
