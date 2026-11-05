@@ -1,4 +1,4 @@
-# Koivu Compiler Infrastructure Structural Blueprint
+# Koivu Structural Blueprint
 
 Minimum OS platforms for Koivu project are 64-bit Windows, Linus and macOS, in that order of priority. Initial set of target architectures are x86_64 and arm64. 
 
