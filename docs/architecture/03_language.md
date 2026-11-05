@@ -1,4 +1,4 @@
-# Koivu Structural Blueprint - Main Language: Koivu Scheme
+# Koivu Structural Blueprint - Koivu Scheme
 
 Foundational component of Koivu is a programming language called Koivu Scheme (a diallect of Scheme which in turn is a diallect of Lisp). 
 Koivu Infrastructure will use it for writing compilers (and related tools) for other languages, 
@@ -14,4 +14,12 @@ and an ahead-of-time (AOT) batch compiler. Both flavours will be compatible in t
 To minimize dependancy on legacy tools and simplify the build process, Koivu build system will use only Koivu Scheme for all of build management. 
 
 Koivu Scheme must use an absolute minimum amount of system calls. Its libraries also must be minimalistic: only the code required for compiler work. 
+
+Koivu library will have at least the following components:
+
+* Framework for writing parsers 
+* Framework for writing Nanopasses and a collection of useful Nanopasses
+* Framework for lowering generic LLVM IR to target machine code
+* Utilities for various transformations to and from LLVM IR
+* Functions for build management
 
