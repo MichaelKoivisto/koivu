@@ -37,7 +37,7 @@ Current understanding is that the Stage 1 interpreter needs just 4 system calls:
 * Process Exit
 
 Since target operating systems are somewhat different (Windows vs. Linux and MacOS), interpreter's source code (in generic LLVM IR) 
-needs to abstract system calls via platform-specific glue code. 
+needs to abstract system calls via glue code. 
 
 ## Capabilities Stage 1 must support:
 
