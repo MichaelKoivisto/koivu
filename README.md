@@ -32,3 +32,8 @@ The infrastructure operates via a multi-stage execution model designed to achiev
 ## License
 
 This project is licensed under the Apache License v2.0 with LLVM Exceptions. See the `LICENSE` file for details.
+
+## AI Disclosure
+
+AI disclosure: see [AI_DISCLOSURE.md](AI_DISCLOSURE.md).
+
