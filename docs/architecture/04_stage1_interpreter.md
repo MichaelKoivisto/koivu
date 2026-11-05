@@ -36,7 +36,40 @@ Current understanding is that the Stage 1 interpreter needs just 4 system calls:
 * Memory Allocation
 * Process Exit
 
-Since target operating systems are somewhat different (Windows vs. Linux and MacOS), 
-interpreter's source code (in generic LLVM IR) needs to abstract system calls via platform-specific glue code. 
+Since target operating systems are somewhat different (Windows vs. Linux and MacOS), interpreter's source code (in generic LLVM IR) 
+needs to abstract system calls via platform-specific glue code. 
 
+## Capabilities Stage 1 must support:
+
+### 1. Fundamental Special Forms
+
+The core `EVAL` loop of Stage 1 requires basic execution flow and definition capabilities:
+* `quote` – To handle literal data structures and symbols.
+* `if` – The fundamental primitive conditional node.
+* `set!` – Mandatory for tracking mutable bindings during variable mapping.
+* `define` – To register global definitions and functions.
+* `lambda` – Essential to create lexical closures. Stage 1 must support basic lexically scoped variable capture to allow the Stage 2 expander to manage scope layers.
+
+### 2. Primitive Data Type Predicates & Manipulators
+
+To let Stage 2 break down expressions and manipulate syntax structures:
+* **Symbol Operations:** `symbol?` and `eq?`. Fast identifier validation is critical since comparing macro symbols down to memory pointer addresses (eq?) is the core engine of a compiler.
+* **Cons Cell Navigation:** `cons`, `car`, `cdr`, `pair?`, `null?`, `set-car!`, and `set-cdr!`. Stage 2 will read code as nested S-expressions; it must be able to destructure lists and dynamically mutate AST graphs.
+* **Fixnum Arithmetic:** Basic operators (`+`, `-`, `<`, `=`) and `integer?`. Required to validate syntax list lengths, handle error tracking bounds, and index lookup tables.
+
+### 3. Basic I/O Primitives
+
+To feed the source text through the bootstrapping pipeline:
+* `read` – A simple recursive-descent S-expression parser written into the Stage 1 seed to ingest Stage 2's source files.
+* `write` / `display` – To emit the expanded code text to stdout or a temporary staging file.
+
+### 4. Tail-Call Optimization (TCO)
+
+* **Execution Invariant:** TCO must be natively baked into the Stage 1 `EVAL` loop. Because macro expansion of large codebases involves extensive deep recursion through nested expressions, an interpreter without TCO will quickly trigger a hardware stack overflow long before finishing the Stage 2 bridge compilation pass.
+
+## What Stage 1 will completely ignore:
+
+* **No `syntax-rules` or `syntax-case` primitives inside Stage 1:** Stage 1 does not need to understand macros natively. It runs a macro-expander written as a collection of raw Stage 1 functions and pattern matchers. Stage 1 evaluates this expander program, which reads R6RS text and spits out pure, macro-eliminated Scheme code.
+* **No multiple return values (`values`, `call-with-values`):** Pass records or cons pairs instead.
+* **No complex error systems:** A simple structural primitive like `(error)` that prints a message and calls the host OS `Exit` system call is sufficient.
 
