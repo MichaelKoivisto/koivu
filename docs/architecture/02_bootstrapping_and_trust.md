@@ -18,6 +18,8 @@ There will be two major paths for bootstrapping:
 * Simple Path: bootstrap from assembly of seed interpreter on some consumer-grade operating system. 
 * Secure Path: bootstrap from machine binary of seed interpreter in a secure bootstrapping environment, similar to GNU Bootstrapping Project. 
 
+## Simple Path
+
 > Capt. Barbossa: I must admit, Jack, I thought I had you figured. But it turns out you're a hard man to predict.<br>
 > Capt. Jack Sparrow: Me? I'm dishonest. And a dishonest man you can always trust to be dishonest. Honestly. It's the honest ones you want to watch out for, because you can never predict when they're going to do something incredibly... stupid.
 
@@ -33,6 +35,8 @@ Simple Path is not truly secure/trustable. It is only as secure as the operating
 a particular instance of consumer-grade operating system may have various kinds of malicious code waiting to attack the compiler infrastructure: from random viruses to elaborate 
 malicious code engineered by OS provider/seller. However, most people trust their OS provider/seller and use antivirus software to guard against viruses. 
 So this bootstrapping path is good enough for majority of users. 
+
+## Secure Path
 
 > Capt. Barbossa: "Boiled beef, mustard, a bit of caviar... and an apple, one of those."<br>
 > Elizabeth: (Suspicious) "What is it, poisoned?"
