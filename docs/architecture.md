@@ -33,7 +33,7 @@ Bootstrapping will work in three stages:
 
 All architectural modules must conform to these design priorities:
 
-* **Minimalist Kernel Surface:** The infrastructure must maintain an absolute minimum interface dependency on the host operating system. Core utilities must map exclusively to basic input, output, allocation, and exit operations. Builds must be managed by Koivu Scheme scripts. 
+* **Minimalist Kernel Surface:** The infrastructure must maintain an absolute minimum interface dependency on the host operating system. Builds must be managed by Koivu Scheme scripts. 
 
 Production modules (Stage 3 and onward) must conform to additional design priorities:
 
