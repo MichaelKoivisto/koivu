@@ -119,7 +119,9 @@ Details of Stage 2 are being researched.
 Stage 3 Compiler is a highly specialized, ultra-lean Domain-Specific Language (DSL) for writing compilers. 
 Koivu will use a nanopass approach inspired by the design of Chez Scheme compiler:
 
+```
 [Compiler Source Code] ➔ [AST Parser] ➔ [Nanopass Transform Pipeline (LLVM IR)] ➔ [Retargetable LLVM-style Code Generator] ➔ [Machine Code Binary]
+```
 
 #### Data Types
 
@@ -138,31 +140,32 @@ Stage 3 Koivu Scheme needs exactly six core data structures (subject to further 
 
 3. Cons Cells (The Core Pair)
 
-• What it is: A simple structural record containing exactly two pointers: a CAR (Contents of Address Register) and a CDR (Contents of Decrement Register).
-• Why the compiler needs it: Cons cells naturally build singly linked lists and binary trees. Since source code, Abstract Syntax Trees (ASTs), and nested Intermediate Representations are structurally just trees, Cons cells allow to represent code natively without manual tree-node allocation logic.
+* What it is: A simple structural record containing exactly two pointers: a CAR (Contents of Address Register) and a CDR (Contents of Decrement Register).
+* Why the compiler needs it: Cons cells naturally build singly linked lists and binary trees. Since source code, Abstract Syntax Trees (ASTs), and nested Intermediate Representations are structurally just trees, Cons cells allow to represent code natively without manual tree-node allocation logic.
 
 4. Records / Structs (Heterogeneous Objects)
 
-• What it is: A fixed-size contiguous block of memory containing typed fields.
-• Why the compiler needs it: While Cons cells are great for trees, Koivu Scheme language needs explicit records to cleanly represent structured compiler metadata without writing messy, unreadable chains of car and cdr. Koivu may use records to define structures like (struct interval (vreg start end phys-reg)) or (struct function-metadata (name args stack-size)).
+* What it is: A fixed-size contiguous block of memory containing typed fields.
+* Why the compiler needs it: While Cons cells are great for trees, Koivu Scheme language needs explicit records to cleanly represent structured compiler metadata without writing messy, unreadable chains of car and cdr. Koivu may use records to define structures like (struct interval (vreg start end phys-reg)) or (struct function-metadata (name args stack-size)).
 
 5. Vectors (Homogeneous Fixed-Size Arrays)
 
-• What it is: A contiguous indexable block of memory pointers.
-• Why the compiler needs it: For highly performance-sensitive indexing tasks where linked lists are too slow. Register allocator's live range arrays, block instruction listings, and symbol hash tables will be backed by raw vectors to ensure O(1) lookups.
+* What it is: A contiguous indexable block of memory pointers.
+* Why the compiler needs it: For highly performance-sensitive indexing tasks where linked lists are too slow. Register allocator's live range arrays, block instruction listings, and symbol hash tables will be backed by raw vectors to ensure O(1) lookups.
 
 6. Core Closures (Lexical Blocks)
 
-• What it is: A pair containing a pointer to compiled machine code instructions and a pointer to the environment frame holding captured variables.
-• Why the compiler needs it: Closures enable functional programming, passing pass-behaviors dynamically, and handling lexical scoping cleanly throughout compiler infrastructure pipeline.
+* What it is: A pair containing a pointer to compiled machine code instructions and a pointer to the environment frame holding captured variables.
+* Why the compiler needs it: Closures enable functional programming, passing pass-behaviors dynamically, and handling lexical scoping cleanly throughout compiler infrastructure pipeline.
 
 
 #### Low-Level Tagging Layout
 
 To keep memory management minimal and maximize execution performance, Stage 3 may use a simple 3-bit low-tagging scheme hidden directly inside the lower bits of every 64-bit pointer. Since memory addresses on modern architectures are aligned to 8 bytes, the lowest 3 bits of a pointer are always 000. Kiovu Scheme may use these bits to store the type tag:
 
+```
 [61 Bits: Memory Pointer or Immediate Value] [3 Bits: Type Tag]
-
+```
 
 Tag Bits (Binary)	Type	Representation
 000	Fixnum	The upper 61 bits hold the raw integer shifted left by 3. No allocation needed.
@@ -172,10 +175,10 @@ Tag Bits (Binary)	Type	Representation
 100	Record / Struct	Points to a structured block. The first word is a symbol indicating the struct type.
 101	Closure	Points to a block containing the executable code address and environment pointer.
 
-By limiting the scope of Stage 3 to this ultra-lean set of data structures, we may completely avoid writing:
-• Hash-table collision resolution layers (use basic open-addressing vectors instead).
-• String-manipulation libraries (symbols are enough for text processing inside a compiler frontend).
-• Dynamic type-coercion matrices (e.g., adding an integer to a float — Stage 3 only calculates integers).
+By limiting the scope of Stage 3 to this ultra-lean set of data structures, we completely avoid writing:
+* Hash-table collision resolution layers (use basic open-addressing vectors instead).
+* String-manipulation libraries (symbols are enough for text processing inside a compiler frontend).
+* Dynamic type-coercion matrices (e.g., adding an integer to a float — Stage 3 only calculates integers).
 
 #### Memory Allocation Strategies for Stage 3 
 
@@ -185,8 +188,10 @@ Stage 3 will completely reject general-purpose garbage collection and adopt the 
 
 1. Pass-Based Arenas for Stage 3:
 
+```
 [Source Code] ──> [Parser Arena] ──> [Optimize Arena] ──> [Codegen Arena] ──> [Binary Emit]
                      (Reset)            (Reset)            (Reset)
+```
 
 * The Strategy: Assign a dedicated, contiguous memory arena to every single compiler pass (e.g., Parsing, Type Checking, Register Allocation).
 * The Performance Win: When a pass executes, it bump-allocates everything it needs (new AST nodes, variable intervals) with zero tracking overhead. Once the pass finishes and hands its output to the next stage, Stage 3 Koivu Scheme instantly resets the entire arena's bump pointer to zero.
@@ -197,9 +202,13 @@ Stage 3 will completely reject general-purpose garbage collection and adopt the 
 Embedded systems require deterministic runtime performance with zero memory fragmentation. They achieve this using Fixed-Size Storage Pools (sometimes called Object Pools or Slab Allocators).
 Stage 3 Lisp only deals with a few highly predictable, core structures (like Cons cells and fixed Record shapes).
 
+```
 Cons Pool:   [ Cell 1 ] ➔ [ Cell 2 ] ➔ [ Cell 3 ] ➔ [ Cell 4 ]  (All exactly 16 bytes)
+```
 
+```
 Struct Pool: [ Node 1 ] ➔ [ Node 2 ] ➔ [ Node 3 ] ➔ [ Node 4 ]  (All exactly 32 bytes)
+```
 
 * The Strategy: At compiler startup, pre-allocate massive arrays dedicated strictly to individual object types—one giant block exclusively for 16-byte Cons cells, and separate blocks for  specific AST Record sizes. Maintain a simple Free List (a linked chain of empty slots) for each pool.
 * The Performance Win: Allocation and deallocation become basic pointer-swapping arithmetic. If you delete a Cons cell, you simply prepend it to the Cons Free List.
@@ -232,7 +241,7 @@ Stage 3 compiler will break the nodes apart into separate, flat vectors organize
 
 Why this works: When a compiler pass runs to check types or look for dead code, it usually only needs to look at the type-tags or symbols fields. In a traditional structure, the CPU cache is wasted loading unrelated data like line-number columns. In an SoA layout, a single CPU cache line can hold dozens of sequential type-tags at once, accelerating tree-walking and scanning passes by orders of magnitude.
 
-Stage 3 memory Allocation Summary: 
+##### Stage 3 memory Allocation Summary: 
 
 By blending these disciplines, Stage 3 Lisp compiler achieves maximum performance through architectural specialization:
 * Temporary pass data uses Pass-Based Arenas (allocated instantly, wiped instantly).
