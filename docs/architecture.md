@@ -186,7 +186,7 @@ Why Traditional Compiler Designs Fail: Traditional compilers (like traditional C
 
 Stage 3 will completely reject general-purpose garbage collection and adopt the hyper-optimized memory strategies used in AAA game engines and embedded systems.
 
-1. Pass-Based Arenas for Stage 3:
+##### Pass-Based Arenas for Stage 3:
 
 ```
 [Source Code] ──> [Parser Arena] ──> [Optimize Arena] ──> [Codegen Arena] ──> [Binary Emit]
@@ -197,7 +197,7 @@ Stage 3 will completely reject general-purpose garbage collection and adopt the 
 * The Performance Win: When a pass executes, it bump-allocates everything it needs (new AST nodes, variable intervals) with zero tracking overhead. Once the pass finishes and hands its output to the next stage, Stage 3 Koivu Scheme instantly resets the entire arena's bump pointer to zero.
 * Deallocation Speed: Absolute zero. Reclaims gigabytes of memory in a single CPU instruction (mov heap_ptr, arena_start).
 
-2. Fixed-Size Object Pools for Stage 3:
+##### Fixed-Size Object Pools for Stage 3:
 
 Embedded systems require deterministic runtime performance with zero memory fragmentation. They achieve this using Fixed-Size Storage Pools (sometimes called Object Pools or Slab Allocators).
 Stage 3 Lisp only deals with a few highly predictable, core structures (like Cons cells and fixed Record shapes).
@@ -217,7 +217,7 @@ Struct Pool: [ Node 1 ] ➔ [ Node 2 ] ➔ [ Node 3 ] ➔ [ Node 4 ]  (All exact
 Components like identifier tables and cycle-detection routines (which traditionally lean heavily on dynamic hash tables or depth-first searches with frequent collisions) will be redesigned around predictable, linear memory insertions and batch processing.
 
 
-3. Data-Oriented Design (DOD) - Struct of Arrays (SoA) for Stage3:
+##### Data-Oriented Design (DOD) - Struct of Arrays (SoA) for Stage3:
 
 Both high-performance gamedev (ECS architectures) and embedded systems favor Data-Oriented Design, which organizes data based on how the CPU cache reads it, rather than how humans conceptualize it.
 
