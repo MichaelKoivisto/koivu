@@ -20,7 +20,7 @@ Koivu builds directly upon the established conventions of LLVM, maintaining fund
 The operational scale of the project is bounded by two distinct delivery thresholds:
 
 ### 2.1 Minimum Capability Threshold
-* **Target:** A fully compliant, functional C compiler.
+* **Target:** A fully compliant, functional C compiler on major operating systems (Windows, Linux, macOS). No dependancy on legacy tools like old C compilers, MSYS2, Visual Studio etc.
 * **Scope:** Generation of stable native machine code from standard C sources, completely integrated into the self-hosting loop.
 
 ### 2.2 Extended Development Objective
