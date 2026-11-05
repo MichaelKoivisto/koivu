@@ -226,35 +226,18 @@ Instead of representing IR or AST as pointer-linked tree nodes or an array of ob
 
 ```lisp
 ;; Traditional Array of Structures (Bad for CPU Cache)
-(define-record-type ast-node
-  (make-ast-node type-tag line-number variable-symbol value-pointer)
-  ast-node?
-  (type-tag        ast-node-type-tag)
-  (line-number     ast-node-line-number)
-  (variable-symbol ast-node-variable-symbol)
-  (value-pointer   ast-node-value-pointer))
+(struct ast-node (type-tag line-number variable-symbol value-pointer))
 ```
 
 Stage 3 compiler will break the nodes apart into separate, flat vectors organized by attribute (Struct of Arrays - SoA), paired with parallel side arrays for secondary attributes via compressed indices:
 
 ```lisp
 ;; Data-Oriented Structure (Excellent for CPU Cache)
-(define-record-type ast-pool
-  ;; Constructor with default factory fields
-  (%make-ast-pool type-tags line-nums symbols values)
-  ast-pool?
-  (type-tags ast-pool-type-tags)
-  (line-nums ast-pool-line-nums)
-  (symbols   ast-pool-symbols)
-  (values    ast-pool-values))
-
-;; Clean constructor wrapper that mimics CL's default initialization
-(define (make-ast-pool)
-  (%make-ast-pool
-    (make-s64vector 100000 0)          ; 64-bit signed fixnum array
-    (make-s64vector 100000 0)          ; 64-bit signed fixnum array
-    (make-vector 100000 'empty-symbol) ; Symbol vector (initialized to a default symbol)
-    (make-vector 100000 #f)))          ; Value/Pointer vector (initialized to false/null)
+(struct ast-pool (
+  [type-tags (make-s64vector 100000 0)]
+  [line-nums (make-s64vector 100000 0)]
+  [symbols   (make-vector 100000 'empty)]
+  [values    (make-vector 100000 #f)]))
 ```
 
 Why this works: When a compiler pass runs to check types or look for dead code, it usually only needs to look at the type-tags or symbols fields. In a traditional structure, the CPU cache is wasted loading unrelated data like line-number columns. In an SoA layout, a single CPU cache line can hold dozens of sequential type-tags at once, accelerating tree-walking and scanning passes by orders of magnitude.
