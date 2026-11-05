@@ -57,6 +57,9 @@ To prevent semantic confusion, documentation must adhere to strict term boundari
 * **S-Expression:** Refers strictly to the symbolic nested lists processed by the interpreter and macros. Do not use generic "code trees."
 * **Pass-Based Arena:** Refers strictly to memory buffers that undergo a complete pointer reset to zero at the termination of a compilation pass. Do not call this a "heap partition."
 * **Lowering:** The explicit act of translating higher-level Intermediate Representation (IR) symbols down into raw target-specific hardware instructions.
+* **x86_64:** The 64-bit extension of the 32-bit x86 instruction set architecture. (Also known as amd64 and x64.) Please avoid using amd64 as it is too easy to misread, 
+especially seeing arm64 and amd64 in the same document.
+
 
 Mandatory Helping Verbs:
 * Use **“must”** to express a mandatory requirement.
