@@ -167,13 +167,14 @@ To keep memory management minimal and maximize execution performance, Stage 3 ma
 [61 Bits: Memory Pointer or Immediate Value] [3 Bits: Type Tag]
 ```
 
-Tag Bits (Binary)	Type	Representation
-000	Fixnum	The upper 61 bits hold the raw integer shifted left by 3. No allocation needed.
-001	Cons Cell	Points directly to a 16-byte block on the heap (CAR + CDR).
-010	Symbol	Points to an immutable string object in the global symbol table.
-011	Vector	Points to a heap memory block. The first word is the raw size; subsequent words are data.
-100	Record / Struct	Points to a structured block. The first word is a symbol indicating the struct type.
-101	Closure	Points to a block containing the executable code address and environment pointer.
+| Tag Bits (Binary) | Type | Representation |
+| --- | --- | --- |
+| 000 | Fixnum | The upper 61 bits hold the raw integer shifted left by 3. No allocation needed.|
+| 001 | Cons Cell | Points directly to a 16-byte block on the heap (CAR + CDR).|
+| 010 | Symbol | Points to an immutable string object in the global symbol table.|
+| 011 | Vector | Points to a heap memory block. The first word is the raw size; subsequent words are data.|
+| 100 | Record / Struct | Points to a structured block. The first word is a symbol indicating the struct type.|
+| 101 | Closure | Points to a block containing the executable code address and environment pointer.|
 
 By limiting the scope of Stage 3 to this ultra-lean set of data structures, we completely avoid writing:
 * Hash-table collision resolution layers (use basic open-addressing vectors instead).
@@ -223,14 +224,14 @@ Both high-performance gamedev (ECS architectures) and embedded systems favor Dat
 
 Instead of representing IR or AST as pointer-linked tree nodes or an array of objects (Array of Structures - AoS):
 
-```scheme
+```lisp
 ;; Traditional Array of Structures (Bad for CPU Cache)
 (struct ast-node (type-tag line-number variable-symbol value-pointer))
 ```
 
 Stage 3 compiler will break the nodes apart into separate, flat vectors organized by attribute (Struct of Arrays - SoA), paired with parallel side arrays for secondary attributes via compressed indices:
 
-```scheme
+```lisp
 ;; Data-Oriented Structure (Excellent for CPU Cache)
 (defstruct ast-pool
   (type-tags   (make-array 100000 :element-type 'fixnum))
