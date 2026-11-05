@@ -65,7 +65,7 @@ By limiting the scope of Stage 3 to this lean set of data structures, we complet
 * String-manipulation libraries (symbols are enough for text processing inside a compiler frontend).
 * Dynamic type-coercion matrices (e.g., adding an integer to a float — Stage 3 only calculates integers).
 
-## Memory Allocation Strategies for Stage 3 
+## Memory Allocation Strategies and Performance Optimizations for Stage 3 
 
 Stage 3 will completely reject general-purpose garbage collection and adopt the hyper-optimized memory strategies used in AAA game engines and embedded systems.
 
