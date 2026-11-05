@@ -6,6 +6,9 @@
 
 ; Cannot rely on the syscall assembly instruction because Windows will break between builds and macOS deprecates direct syscalls entirely.
 ; Therefore using these glue functions.
+; Count in read/write calls is i32 to improve compatibility:
+; Windows API (kernel32.dll) explicitly limits single I/O chunk operations to 32-bit sizes;
+; Linux caps single read/write calls to 0x7ffff000 bytes (2.1 GB, which safely fits inside a signed 32-bit integer) due to internal kernel limitations.
 declare i32 @sys_write(i32 %fd, i8* %buf, i32 %count)
 declare i32 @sys_read(i32 %fd, i8* %buf, i32 %count)
 declare i8* @sys_alloc(i64 %size)
