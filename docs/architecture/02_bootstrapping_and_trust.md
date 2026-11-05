@@ -1,7 +1,8 @@
 # Koivu Structural Blueprint - Bootstrapping Paths and Trust
 
-> *"Bootstrap's bootstraps..."*
-> <p align="right"><i>— Ragetti, right before sinking "Bootstrap Bill" Turner to the bottom of the ocean, only to later realize they needed his blood to break the Curse of the Black Pearl.</i></p>
+> Pintel: *"So, what Barbossa did is, he tied a cannon to Bootstrap's bootstraps."*
+> Ragetti: *"Bootstrap's bootstraps..."*
+> <p align="right"><i>— right before sinking "Bootstrap Bill" Turner to the bottom of the ocean, only to later realize they needed his blood to break the Curse of the Black Pearl.</i></p>
 
 Bootstrapping will start from a simple Lisp interpreter written in pure, generic LLVM IR. 
 Koivu project will also keep (as part of its source code) target-dependent machine assembly files for popular platforms (x64, arm64 and possibly others) for seed lisp interpreter. 
