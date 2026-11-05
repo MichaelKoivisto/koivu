@@ -42,7 +42,10 @@ Stage 3 Koivu Scheme implements six core data structures:
 
 ## Low-Level Tagging Layout
 
-Stage 3 uses a 3-bit low-tagging scheme embedded in the lower bits of 64-bit words, where `000` is reserved for Fixnums and non-zero tags (`001` through `101`) represent Cons cells, symbols, vectors, records, and closures.
+Stage 3 uses a 3-bit low-tagging scheme embedded in the lower bits of 64-bit words, where `000` is reserved for Fixnums 
+and non-zero tags (`001` through `101`) represent Cons cells, symbols, vectors, records, and closures. 
+Heap addresses must never float around untagged. When a storage slab or a Pass-Based Arena allocates a block of memory, 
+the allocation engine must immediately bitwise OR the target type tag onto the raw address before returning the pointer to the evaluator.
 
 ```
 [61 Bits: Memory Pointer or Immediate Value] [3 Bits: Type Tag]
