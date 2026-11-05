@@ -12,6 +12,8 @@ scope: |
   Most code and documentation is AI-generated with manual review. 
   Specific versions and providers are not tracked or maintained.
   Portions of code and documentation are hand-written.
+  Notable contributions from AI tools are sometimes jokingly refered to in commit comments 
+  as "help from my friend Konstantin Robogozin" (named after a robot from Birchpunk/Cybervillage comedy series). 
 last-updated: 2026-11-05
 ---
 
