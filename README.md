@@ -13,7 +13,7 @@ The project is currently establishing its core bootstrap pipeline layers. It is 
 
 ## Architecture Pipeline
 
-The infrastructure operates via a multi-stage execution model designed to achieve native speed while minimizing hand-written machine instructions:
+The infrastructure bootstraps and operates via a multi-stage execution model:
 
 1. **Stage 1 (Seed):** A minimal S-expression interpreter written in raw target assembly language, relying on a non-compacting Page-Based Arena allocation model.
 2. **Stage 2 (Bridge):** A core macro-expanding compiler written in Stage 1 Lisp, adding support for hygienic macros and structured lexical closures.
@@ -21,6 +21,7 @@ The infrastructure operates via a multi-stage execution model designed to achiev
 
 ## Repository Directory Overview
 
+* `docs/` — [Architecture](docs/architecture.md) specifications, [Vision](docs/vision.md) and documentation [Style Guide](docs/style-guide.md).
 * `bootstrap/` - Initial self-hosting environments (Assembly interpreter seed and macro-expansion bridges).
 * `src/` - Stage 3 production infrastructure.
   * `frontends/` - AST generation targets (including structural interfaces for C/C++).
