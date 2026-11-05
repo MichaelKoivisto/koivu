@@ -21,7 +21,7 @@ The infrastructure bootstraps and operates via a multi-stage execution model:
 
 ## Repository Directory Overview
 
-* `docs/` — [Architecture](docs/architecture.md) specifications, [Vision](docs/vision.md) and documentation [Style Guide](docs/style-guide.md).
+* `docs/` — [Architecture](docs/architecture.md) specifications, [Vision](docs/vision.md), and documentation [Style Guide](docs/style-guide.md).
 * `bootstrap/` - Initial self-hosting environments (Assembly interpreter seed and macro-expansion bridges).
 * `src/` - Stage 3 production infrastructure.
   * `frontends/` - AST generation targets (including structural interfaces for C/C++).
