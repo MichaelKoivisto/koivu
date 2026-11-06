@@ -9,9 +9,16 @@ This document defines the structural, typographic, and stylistic rules for the K
 
 ## 1. Tone and Voice
 
+> Elizabeth: "Captain Barbossa, I am here to negotiate the cessation of hostilities against Port Royal!"<br>
+> Capt. Barbossa: "There are a lot of long words in there, miss; we're naught but humble pirates. What is it that you want?"<br>
+> Elizabeth: "I want you to leave and never come back!"<br>
+> Capt. Barbossa: "I'm disinclined to acquiesce to your request... Means 'no'."
+
 * **Be Direct and Analytical:** Write in the active voice using short, punchy sentences. Avoid passive, winding prose.
-* **Reject Hyperbole:** Koivu is an internal research infrastructure asset. Do not use marketing jargon or promotional language. Describe the systems as they exist or as they are mathematically planned.
+* **Document Complexity:** Record critical design decisions and technical rationale.
 * **The "Hacker-Classic" Aesthetic:** Maintain the sober, authoritative tone of early computing manifestos (e.g., early GNU, Linux, and Emacs design specifications). 
+* **Reject Hyperbole:** Koivu is an internal research infrastructure asset. Do not use marketing jargon or promotional language. Describe the systems as they exist or as they are mathematically planned.
+* Pirate jokes are welcome as epigraphs in internal documentation as long as you quote them with a `>`.
 
 ---
 
