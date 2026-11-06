@@ -31,7 +31,7 @@ Here are examples of domain-specific data structures, taken from Carbon document
 
 #### Token Entry
 
-```
+```llvm
 ; --- Lex::TokenizedBuffer (Token Entry) ---
 ; Total Size: 12 bytes.
 ; Every single token in a source file maps directly to this uniform 12-byte layout.
@@ -46,7 +46,7 @@ Here are examples of domain-specific data structures, taken from Carbon document
 
 #### String Pool Entry
 
-```
+```llvm
 ; --- IdentifierList (String Pool Blueprint) ---
 ; Carbon keeps text data unified to avoid internal string allocations and pointer-chasing.
 %IdentifierList.Entry = type {
@@ -136,7 +136,7 @@ Access to the example stream will use the following syntax:
 
 Compiler will expand this to:
 
-```
+```lisp
 (raw-mem-read-u32 (growable-table-raw-ptr my-buffer) (+ (* token-id 12) 8))
 ```
 
