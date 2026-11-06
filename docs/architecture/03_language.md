@@ -99,12 +99,12 @@ Here are examples of domain-specific data structures, taken from Carbon document
 
 Koivu Scheme intoduces two macros:
 
-1. **`define-data-stream:`** Declares the layout of an indexable, growable table.
+1. **`define-data-stream:`** Declares the layout of an indexable, growable stream.
 2. **`for-each-node:`** Combines a high-speed iterative loop, pointer/offset folding, and pattern matching into a single construct. It automatically binds field variables to the current item in the array without manual index math or offsets.
 
 Full API and implementation details for growable tables is under development.
 
-The `define-data-stream` macro works like this:
+The `define-data-stream` macro allows the following declaration as an example:
 
 ```lisp
 ;; Define our TokenizedBuffer layout
@@ -115,7 +115,8 @@ The `define-data-stream` macro works like this:
   (payload u32 8))
 ```
 
-Koivu compiler will create the following data structure in LLVM IR for working with `token-buffer`:
+Koivu compiler will registers the structure's name and layout into compile-time environment 
+and will use the following data structure in LLVM IR for working with `token-buffer` growable stream:
 
 ```llvm
 ; --- Custom Dialect Growable Stream Container ---
@@ -125,6 +126,18 @@ Koivu compiler will create the following data structure in LLVM IR for working w
     i32,    ; 1: total_active_tokens - The exact length of active records currently used
     i32     ; 2: current_capacity    - Max element allocation threshold before reallocation
 }
+```
+
+Access to the example stream will use the following syntax:
+
+```lisp
+(table-ref my-buffer token-buffer token-id 'payload)
+```
+
+Compiler will expand this to:
+
+```
+(raw-mem-read-u32 (growable-table-raw-ptr my-buffer) (+ (* token-id 12) 8))
 ```
 
 ### Example: An Identity Validation Pass
