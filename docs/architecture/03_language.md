@@ -140,7 +140,7 @@ Compiler will expand this to:
 (raw-mem-read-u32 (growable-table-raw-ptr my-buffer) (+ (* token-id 12) 8))
 ```
 
-### Example: An Identity Validation Pass
+#### Example: An Identity Validation Pass
 
 Let's write a realistic front-end compiler algorithm: An Identifier Verification Pass.
 The pass loops over the entire token-buffer linearly. If it encounters a token of kind 42 (representing an Identifier), 
