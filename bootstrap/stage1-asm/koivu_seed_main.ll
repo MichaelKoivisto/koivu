@@ -15,6 +15,9 @@ declare i32 @sys_read(i32 %fd, ptr %buf, i32 %count)
 declare ptr @sys_alloc(i64 %size)
 declare void @sys_exit(i32 %status)
 
+; App name
+@.str = private unnamed_addr constant [5 x i8] c"Koivu"
+
 ; Define generic, opaque pointers for all Koivu Lisp Objects
 %LispObject = type opaque
 %LispCell   = type { %LispObject*, %LispObject* }
@@ -30,6 +33,10 @@ entry:
 
     ; 2. Boot into the Read-Eval-Print / Bootstrap loop
     call void @koivu_repl()
+
+    ; Print "Hello" (5 bytes) to stdout (fd = 1)
+    ; Assumes @.str is a global constant like: @.str = private unnamed_addr constant [5 x i8] c"Hello"
+    %bytes_written = call i32 @sys_write(i32 1, ptr @.str, i32 5)
 
     ; 3. Clean exit code 0
     ret i32 0
