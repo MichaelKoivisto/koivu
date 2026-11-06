@@ -115,7 +115,7 @@ The `define-data-stream` macro allows the following declaration as an example:
   (payload u32 8))
 ```
 
-Koivu compiler will registers the structure's name and layout into compile-time environment 
+Koivu compiler will registers the stream's name and layout into compile-time environment 
 and will use the following data structure in LLVM IR for working with `token-buffer` growable stream:
 
 ```llvm
