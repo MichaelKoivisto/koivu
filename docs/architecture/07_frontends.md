@@ -10,10 +10,11 @@ The Lexing phase transforms raw source text into a `flat-vector` of token inform
 
 ```lisp
 ;; Define our TokenizedBuffer layout
-(define-data-stream token-buffer :stride 12
-  (kind    s32)   ; 32-bit TokenKind enum (e.g., 1=Identifier, 2=Plus, 3=Fn)
-  (pos     s32)   ; 32-bit Source Position (byte offset into raw source file string)
-  (payload s32))  ; 32-bit Variant Context ID (e.g., IdentifierId, LiteralMapId, or Unused)
+(define-data-stream token-buffer 
+  :stride 12
+  (kind    s32 0)   ; 32-bit TokenKind enum (e.g., 1=Identifier, 2=Plus, 3=Fn)
+  (pos     s32 4)   ; 32-bit Source Position (byte offset into raw source file string)
+  (payload s32 8))  ; 32-bit Variant Context ID (e.g., IdentifierId, LiteralMapId, or Unused)
 ```
 
 The `pos` field tracks the exact byte offset in the file, allowing error diagnostic ranges to be calculated instantly on demand without bloating the token footprint.
