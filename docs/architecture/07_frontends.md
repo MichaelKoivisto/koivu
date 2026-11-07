@@ -16,13 +16,13 @@ The Lexing phase transforms raw source text into a `flat-vector` of token inform
   (payload s32))  ; 32-bit Variant Context ID (e.g., IdentifierId, LiteralMapId, or Unused)
 ```
 
+The `pos` field tracks the exact byte offset in the file, allowing error diagnostic ranges to be calculated instantly on demand without bloating the token footprint.
+
 Lexer runs completely to completion over a source file before parsing begins.
 
 Flyweight Tokens: A token handle (Lex::TokenIndex) is merely a 32-bit integer indexing into a global flat array.
 
 TODO: What if target language has a macro preprocessor and textual token-pasting (like C/C++)?
-
-The `pos` field tracks the exact byte offset in the file, allowing error diagnostic ranges to be calculated instantly on demand without bloating the token footprint.
 
 ### Lexer Execution Stages
 
