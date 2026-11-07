@@ -140,6 +140,14 @@ Compiler will expand this to:
 (raw-mem-read-u32 (growable-table-raw-ptr my-buffer) (+ (* token-id 12) 8))
 ```
 
+This output will map to the following getelementptr calculation in LLVM IR:
+
+```llvm
+; The macro replaces abstract fields with static struct indexes at compile-time
+%field_ptr = getelementptr %token_buffer.Entry, ptr %raw_bytes, i32 %token_id, i32 2
+```
+
+
 #### Example: An Identity Validation Pass
 
 Let's write a realistic front-end compiler algorithm: An Identifier Verification Pass.
