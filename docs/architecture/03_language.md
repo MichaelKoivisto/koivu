@@ -19,7 +19,7 @@ R6RS is selected over other specifications for three primary reasons:
 
 ## Domain-Specific Data Types 
 
-Koivu compilers will implement lexing, parsing and code emiting data-oriented algorithms similar to Carbon compiler, 
+Koivu compilers will implement lexing, parsing and code emiting data-oriented algorithms similar to [Carbon compiler](https://docs.carbon-lang.dev/toolchain/docs/), 
 and will use similar data structures and data types, built-in into the Koivu Scheme dialect. 
 
 Custom datatypes will follow the spirit of Scheme (minimalism, expressive macros, and pattern matching) 
