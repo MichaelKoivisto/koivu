@@ -95,14 +95,14 @@ Here are examples of domain-specific data structures, taken from Carbon document
 }
 ```
 
-### Syntax Design for Domain-Specific Datatypes
+### Syntax Design for Domain-Specific Data Types
 
-Koivu Scheme intoduces two macros:
+Koivu Scheme adds a built-in data type called `data-stream` and intoduces new macros:
 
 1. **`define-data-stream:`** Declares the layout of an indexable, growable stream.
 2. **`for-each-node:`** Combines a high-speed iterative loop, pointer/offset folding, and pattern matching into a single construct. It automatically binds field variables to the current item in the array without manual index math or offsets.
 
-Full API and implementation details for growable tables is under development.
+API and implementation details for data stream: [data-stream.md](data-stream.md).
 
 The `define-data-stream` macro allows the following declaration as an example:
 
@@ -116,14 +116,14 @@ The `define-data-stream` macro allows the following declaration as an example:
 ```
 
 Koivu compiler will registers the stream's name and layout into compile-time environment 
-and will use the following data structure in LLVM IR for working with `token-buffer` growable stream:
+and will use the following data structure in LLVM IR for working with stream data:
 
 ```llvm
-; --- Custom Dialect Growable Stream Container ---
+; --- Koivu Data Stream Container ---
 ; Structure tracking: [ Data Array Pointer, Active Count Element, Max Storage Capacity ]
-%struct.GrowableTable = type { 
-    ptr,    ; 0: raw_data_ptr - Opaque pointer to the start of the dense memory buffer
-    i32,    ; 1: total_active_tokens - The exact length of active records currently used
+%struct.KoivuDataStream = type { 
+    ptr,    ; 0: raw_data_ptr        - Opaque pointer to the start of the dense memory buffer
+    i32,    ; 1: current_length      - The exact length of active records currently used
     i32     ; 2: current_capacity    - Max element allocation threshold before reallocation
 }
 ```
@@ -131,20 +131,16 @@ and will use the following data structure in LLVM IR for working with `token-buf
 Access to the example stream will use the following syntax:
 
 ```lisp
-(table-ref my-buffer token-buffer token-id 'payload)
+;; Extracts a single field from an element slot at a specific index.
+;; Syntax: (data-stream-ref stream index 'field-name)
+(data-stream-ref token-buffer 14 'kind)
 ```
 
-Compiler will expand this to:
-
-```lisp
-(raw-mem-read-u32 (growable-table-raw-ptr my-buffer) (+ (* token-id 12) 8))
-```
-
-This output will map to the following getelementptr calculation in LLVM IR:
+Compiler will map this to the following `getelementptr` calculation in LLVM IR:
 
 ```llvm
 ; The macro replaces abstract fields with static struct indexes at compile-time
-%field_ptr = getelementptr %token_buffer.Entry, ptr %raw_bytes, i32 %token_id, i32 2
+%field_ptr = getelementptr %token_buffer.Entry, ptr %raw_bytes, i32 14, i32 0
 ```
 
 
