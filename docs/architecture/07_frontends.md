@@ -85,7 +85,7 @@ perfectly in a single allocation, completely eliminating resize/realloc overhead
   (subtree-size u32 8))  ; Offset distance to leap across children. (The number of total entries in the flat SmallVector that belong to this node’s entire syntactic subtree.)
 ```
 
-Default `capacity` for a parse-tree is 16 nodes.
+Default `capacity` for a `parse-tree` is 16 nodes.
 
 Postorder layout transforms tree-walking operations into linear iterations. For a given syntactic construct, the child operands 
 or body components are placed before the operator or declaration node in the vector.
