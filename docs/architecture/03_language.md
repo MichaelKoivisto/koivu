@@ -180,96 +180,11 @@ it grabs the payload (the IdentifierId) and fires a validation function. If it h
      #t)))
 ```
 
-Before compiling to LLVM IR, the macro system expands the declarative loops into an optimized tail-recursive index iterator operating on the raw underlying memory buffer:
+Before compiling to LLVM IR, the macro system expands the declarative loops into an optimized tail-recursive index iterator operating on the raw underlying memory buffer.
 
-```lisp
-(define (validate-all-identifiers buffer)
-  (let ((raw-ptr (growable-table-raw-ptr buffer))
-        (max-idx (growable-table-count buffer))) ; total number of tokens inside
-    (let loop ((index 0))
-      (when (< index max-idx)
-        (let* ((base-offset (* index 12))
-               (kind        (raw-mem-read-u32 raw-ptr base-offset))
-               (pos         (raw-mem-read-u32 raw-ptr (+ base-offset 4)))
-               (payload     (raw-mem-read-u32 raw-ptr (+ base-offset 8))))
-          (cond
-            ((= kind 42) (verify-identifier-id! payload pos))
-            ((= kind 99) (log-lex-error! pos)))
-          (loop (+ index 1)))))))
-```
-
-Koivu Scheme compiler maps the the expanded for-each-node macro block straight into highly structured LLVM IR blocks.
+Koivu Scheme compiler maps the the expanded `flat-vector-for-each` macro block straight into highly structured LLVM IR blocks.
 Because the stride is fixed (12 bytes) and fields are mapped directly to struct offsets, LLVM can utilize hardware registers 
-to carry the values of kind, pos, and payload inside a hot loop without memory fragmentation:
-
-```llvm
-; ==============================================================================
-; LOWERED IDENTIFIER VERIFICATION LOOP (MODERN LLVM IR WITH 'ptr')
-; ==============================================================================
-
-define void @validate_all_identifiers(ptr %buffer_obj) {
-entry:
-    ; 1. Extract tracking metadata from the GrowableTable structure wrapper
-    ; Calculate address of raw_data_ptr field (index 0, field 0)
-    %raw_ptr_loc = getelementptr %struct.GrowableTable, ptr %buffer_obj, i32 0, i32 0
-    %raw_bytes = load ptr, ptr %raw_ptr_loc, align 8
-
-    ; Calculate address of total_active_tokens field (index 0, field 1)
-    %count_ptr = getelementptr %struct.GrowableTable, ptr %buffer_obj, i32 0, i32 1
-    %total_tokens = load i32, i32* %count_ptr, align 4
-
-    ; 2. Guard against an empty token vector block early
-    %is_empty = icmp eq i32 %total_tokens, 0
-    br i1 %is_empty, label %loop_exit, label %loop_body
-
-loop_body:
-    ; PHI loop node tracking our absolute sequence iterator index
-    %index = phi i32 [ 0, %entry ], [ %next_index, %loop_continue ]
-
-    ; 3. Compute absolute element address at index using structural type layouts
-    ;    LLVM calculates: raw_bytes pointer + (%index * 12 bytes)
-    %entry_ptr = getelementptr %token_buffer.Entry, ptr %raw_bytes, i32 %index
-
-    ; Extract and stream individual 4-byte primitive components out of the block
-    %kind_ptr = getelementptr %token_buffer.Entry, ptr %entry_ptr, i32 0, i32 0
-    %kind = load i32, ptr %kind_ptr, align 4
-
-    %pos_ptr = getelementptr %token_buffer.Entry, ptr %entry_ptr, i32 0, i32 1
-    %pos = load i32, ptr %pos_ptr, align 4
-
-    %payload_ptr = getelementptr %token_buffer.Entry, ptr %entry_ptr, i32 0, i32 2
-    %payload = load i32, ptr %payload_ptr, align 4
-
-    ; 4. Direct structural matching branching using a fast switch layout table
-    switch i32 %kind, label %loop_continue [
-        i32 42, label %case_identifier
-        i32 99, label %case_error
-    ]
-
-case_identifier:
-    ; Call the verified compiler token consumer: (verify-identifier-id! payload pos)
-    call void @verify_identifier_id(i32 %payload, i32 %pos)
-    br label %loop_continue
-
-case_error:
-    ; Forward direct file offset mapping to error handler: (log-lex-error! pos)
-    call void @log_lex_error(i32 %pos)
-    br label %loop_continue
-
-loop_continue:
-    ; Increment tracking indices and confirm loop conditions are bound
-    %next_index = add i32 %index, 1
-    %loop_done = icmp eq i32 %next_index, %total_tokens
-    br i1 %loop_done, label %loop_exit, label %loop_body
-
-loop_exit:
-    ret void
-}
-
-; Scheme Toolchain Native Functions API Signatures
-declare void @verify_identifier_id(i32, i32)
-declare void @log_lex_error(i32)
-```
+to carry the values of kind, pos, and payload inside a hot loop without memory fragmentation.
 
 
 ## Other considerations
