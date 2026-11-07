@@ -32,7 +32,7 @@ This layout functions like an **Indexed Reverse Polish Notation (RPN)** stack ma
 ### Parse Tree Navigation without Chasing Pointers
 
 Because it's an array layout, how do you find a node's parent or children if you don't have pointers? Flat vector Parse Tree avoids backward/forward scanning by packing relative data directly inside the fixed-size `parse-tree` node struct:
-* Subtree Size / Offset: Each node records the size of its subtree (the number of array elements it spans). If the compiler is at a node and needs to skip past its entire subtree, it performs simple integer arithmetic: `current_index` - `subtree-size`.
+* Subtree Size / Offset: Each node records the size of its subtree (the number of array elements it spans). If the compiler is at a node and needs to skip past its entire subtree, it performs simple integer arithmetic: `current-index` - `subtree-size`.
 * Token Tracking: Because of the one-to-one token mapping, a node doesn't need complex source range objects (like line/column spans). It simply tracks its own token index. The exact source code boundary is resolved by looking at the child nodes or the neighboring token array.
 
 ### Token Tracking
