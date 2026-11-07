@@ -94,3 +94,48 @@ Optimized primitives that map to sequential vector processing operations:
   ((99 pos _)       (log-error! pos))
   (else             #t))
 ```
+
+Example usage of a `flat-vector-for-each` macro:
+
+```lisp
+(flat-vector-for-each token-stream token-buffer
+  (lambda (kind pos payload)
+    (when (= kind 99) 
+      (log-error! pos))))
+```
+
+The macro strips away the `lambda` abstraction entirely and expands the block into a low-level, tail-recursive loop that reads memory offsets directly:
+
+```lisp
+(let ((flat-vec token-stream))
+  ;; 1. Extract the raw pointer and element count from the native flat-vector object
+  (let ((ptr   (%flat-vector-raw-ptr flat-vec))
+        (count (%flat-vector-count flat-vec)))
+    
+    ;; 2. Execute a high-speed, tail-recursive index loop
+    (let loop ((idx 0))
+      (when (< idx count)
+        ;; 3. Calculate the absolute base byte offset for array[idx]
+        (let ((base-offset (* idx 12))) ; 12 is the stride fetched at compile-time
+          
+          ;; 4. Read raw unboxed primitives directly from the native pointer
+          ;;    No variable binding allocations, no Lisp boxing.
+          (let ((kind    (%raw-mem-read-s32 ptr (+ base-offset 0)))
+                (pos     (%raw-mem-read-s32 ptr (+ base-offset 4)))
+                (payload (%raw-mem-read-s32 ptr (+ base-offset 8))))
+            
+            ;; 5. Inline the developer's original lambda body directly here
+            (when (= kind 99)
+              (log-error! pos))))
+        
+        ;; 6. Advance the index
+        (loop (+ idx 1))))))
+```
+
+`%raw-mem-read-s32` and similar intrinsics map to LLVM IR instructions:
+
+```lisp
+; How %raw-mem-read-s32 looks when compiled by Koivo compiler backend
+%field_ptr = getelementptr i8, ptr %ptr, i32 %computed_offset
+%val = load i32, ptr %field_ptr, align 4
+```
