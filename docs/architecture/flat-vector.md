@@ -152,11 +152,11 @@ These O(1) routines unpack the structural metadata from native `flat-vector` typ
 	- **Input:** `flat-vector` handle
 	- **Output:** Raw `ptr` (Opaque memory address)
 	- **Purpose:** Locates the physical starting boundary of the data block.
-* **%flat-vector-count**
+* **`%flat-vector-count`**
 	- **Input:** `flat-vector` handle
 	- **Output:** `s32` integer
 	- **Purpose:** Returns the logical number of elements currently stored (used to bind loop iterations).
-* **%flat-vector-set-count!**
+* **`%flat-vector-set-count!`**
 	- **Input:** `flat-vector` handle, `s32` new-count
 	- **Output:** Void
 	- **Purpose:** Updates the logical count cursor (critical for actions like truncation, reset, or advancing sizes during appends).
