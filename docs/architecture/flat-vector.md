@@ -1,13 +1,12 @@
-# Koivu Scheme - Data Stream
+# Koivu Scheme - Flat Vector
 
 `flat-vector` is a built-in data type designed for use in lexing, parsing and code emiting data-oriented algorithms. 
 
-## Built-in Data Stream API Surface Area
+## Flat Vector API Surface Area
 
+### Declaring a `flat-vector` (Compile-Time)
 
-### Stream Declaration (Compile-Time)
-
-`define-flat-vector` is a macro. It registers stream layout properties with compiler type-checker and lowers directly to native engine structures.
+`define-flat-vector` is a macro. It registers `flat-vector` layout properties with compiler type-checker and lowers directly to native engine structures.
 
 ```lisp
 ;; Syntax: (define-flat-vector name :stride size (field-name hardware-type) ...)
@@ -19,7 +18,7 @@
 
 ### Allocation & Lifecycle
 
-These built-in operators construct the opaque stream objects and manage capacity sizing:
+These built-in operators construct the opaque `flat-vector` objects and manage capacity sizing:
 
 ```lisp
 ;; Instantiates a raw data stream.
@@ -139,3 +138,54 @@ The macro strips away the `lambda` abstraction entirely and expands the block in
 %field_ptr = getelementptr i8, ptr %ptr, i32 %computed_offset
 %val = load i32, ptr %field_ptr, align 4
 ```
+
+## Mandatory Intrinsics for a Functional `flat-vector`
+
+These intrinsics bridge the gap between Scheme handles and raw virtual memory addresses (`ptr`).
+They can be categorized into three critical execution vectors:
+
+### Container Inspector Intrinsics (Header Unpacking)
+
+These O(1) routines unpack the structural metadata from native `flat-vector` type descriptor header.
+
+* **`%flat-vector-raw-ptr`**
+	- **Input:** `flat-vector` handle
+	- **Output:** Raw `ptr` (Opaque memory address)
+	- **Purpose:** Locates the physical starting boundary of the data block.
+* **%flat-vector-count**
+	- **Input:** `flat-vector` handle
+	- **Output:** `s32` integer
+	- **Purpose:** Returns the logical number of elements currently stored (used to bind loop iterations).
+* **%flat-vector-set-count!**
+	- **Input:** `flat-vector` handle, `s32` new-count
+	- **Output:** Void
+	- **Purpose:** Updates the logical count cursor (critical for actions like truncation, reset, or advancing sizes during appends).
+
+### Bare-Metal Memory I/O Intrinsics
+
+These intrinsics map 1:1 to single CPU read/write assembly operations. They accept a raw pointer and a pre-calculated byte offset.
+
+* **`%raw-mem-read-s32`** / **`%raw-mem-write-s32!`**
+	- **Purpose:** Reads/writes signed 32-bit fields (used for IDs, tokens, kind enums, and `subtree_size` values).
+* **`%raw-mem-read-s16`** / **`%raw-mem-write-s16!`**
+	- **Purpose:** Reads/writes signed 16-bit fields (excellent for highly compressed modifier masks or smaller type configurations).
+* **`%raw-mem-read-u8`** / **`%raw-mem-write-u8!`**
+	- **Purpose:** Reads/writes unsigned 8-bit bytes (used for boolean flags, ASCII character iterations, or compact token variant properties).
+
+### Memory Lifecycle & Relocation Intrinsics
+
+When a flat-vector expands or initializes, it must bypass the standard Scheme heap and talk directly to the OS or C-level virtual memory manager.
+
+* **`%flat-vector-alloc-raw`**
+	- **Input:** `s32` byte-capacity
+	- **Output:** Raw `ptr`
+	- **Purpose:** Invokes a platform allocation (like a raw system `malloc`) to lease a brand-new contiguous block of physical RAM.
+* **`%flat-vector-realloc-raw!`**
+	- **Input:** `flat-vector` handle, `s32` new-byte-capacity
+	- **Output:** Void
+	- **Purpose:** Triggers a platform `realloc`. The system finds a larger memory block, automatically shifts the active data block, updates the internal memory descriptor pointers, and clears the old allocation safely—handling the entire Carbon-style amortized growth footprint inside a single intrinsic boundary.
+* **`%flat-vector-free-raw!`**
+	- **Input:** `flat-vector` handle
+	- **Output:** Void
+	- **Purpose:** Directly returns the array block to the operating system when a compiler pass clears or deallocates a module's file buffer, completely shielding the core Scheme garbage collector from tracking millions of dead array indexes.
+
