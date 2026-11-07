@@ -97,31 +97,44 @@ Here are examples of domain-specific data structures, taken from Carbon document
 
 ### Syntax Design for Domain-Specific Data Types
 
-Koivu Scheme adds a built-in data type called `data-stream` and intoduces new macros:
+Koivu Scheme adds a built-in data type called `flat-vector` and intoduces new macros:
 
-1. **`define-data-stream:`** Declares the layout of an indexable, growable stream.
-2. **`for-each-node:`** Combines a high-speed iterative loop, pointer/offset folding, and pattern matching into a single construct. It automatically binds field variables to the current item in the array without manual index math or offsets.
+1. **`define-flat-vector:`** Declares the layout of an indexable, growable, dense, flat array.
+2. **`flat-vector-for-each:`** Combines a high-speed iterative loop, pointer/offset folding, and pattern matching into a single construct. It automatically binds field variables to the current item in the array without manual index math or offsets.
 
-API and implementation details for data stream: [data-stream.md](data-stream.md).
+API and implementation details for `flat-vector`: [flat-vector.md](flat-vector.md).
 
-The `define-data-stream` macro allows the following declaration as an example:
+The `define-flat-vector` macro allows the following declaration as an example:
 
 ```lisp
 ;; Define our TokenizedBuffer layout
-(define-data-stream token-buffer
+(define-flat-vector token-buffer
   :stride 12
   (kind    u32 0)
   (pos     u32 4)
   (payload u32 8))
 ```
 
-Koivu compiler will registers the stream's name and layout into compile-time environment 
-and will use the following data structure in LLVM IR for working with stream data:
+Koivu compiler will registers the `token-buffer`'s name and layout into compile-time environment 
+and will use the following data structures in LLVM IR for working with stream data:
 
 ```llvm
-; --- Koivu Data Stream Container ---
+; --- Lex::TokenizedBuffer (Token Buffer Entry) ---
+; Total Size: 12 bytes.
+; Every single token in a source file maps directly to this uniform 12-byte layout.
+%struct.TokenBufferEntry = type {
+    i32,    ; 0: kind       - Lex::TokenKind enum (e.g., Identifier, Plus, Fn Keyword)
+    i32,    ; 1: pos        - Byte offset into the raw source code text buffer
+    i32     ; 2: payload    - Context-dependent 32-bit slot:
+            ;                 If Identifier: Stores IdentifierId index
+            ;                 If IntegerLiteral: Stores IntegerLiteralId index
+}
+```
+
+```llvm
+; --- Koivu flat-vector Container ---
 ; Structure tracking: [ Data Array Pointer, Active Count Element, Max Storage Capacity ]
-%struct.KoivuDataStream = type { 
+%struct.KoivuFlatVector = type { 
     ptr,    ; 0: raw_data_ptr        - Opaque pointer to the start of the dense memory buffer
     i32,    ; 1: current_length      - The exact length of active records currently used
     i32     ; 2: current_capacity    - Max element allocation threshold before reallocation
@@ -132,8 +145,8 @@ Access to the example stream will use the following syntax:
 
 ```lisp
 ;; Extracts a single field from an element slot at a specific index.
-;; Syntax: (data-stream-ref stream index 'field-name)
-(data-stream-ref token-buffer 14 'kind)
+;; Syntax: (flat-vector-ref stream index 'field-name)
+(flat-vector-ref token-buffer 14 'kind)
 ```
 
 Compiler will map this to the following `getelementptr` calculation in LLVM IR:
@@ -152,7 +165,7 @@ it grabs the payload (the IdentifierId) and fires a validation function. If it h
 
 ```lisp
 (define (validate-all-identifiers buffer)
-  (for-each-node buffer token-buffer
+  (flat-vector-for-each buffer token-buffer
     ;; Automatic loop state variables: 'index' is the current loop index
     ((42 pos payload)
      ;; Kind 42 = Identifier. Extract payload and pass it to validation
