@@ -4,6 +4,70 @@ Production frontends will be written in Koivu Scheme language, utilizing core fr
 
 Koivu will follow data-oriented approach to lexing, parsing and code generation similar to [Carbon compiler](https://docs.carbon-lang.dev/toolchain/docs/).
 
+## Lexing phase
+
+The Lexing phase transforms raw source text into a `flat-vector` of token information structs.
+
+```lisp
+;; Define our TokenizedBuffer layout
+(define-data-stream token-buffer :stride 12
+  (kind    s32)   ; 32-bit TokenKind enum (e.g., 1=Identifier, 2=Plus, 3=Fn)
+  (pos     s32)   ; 32-bit Source Position (byte offset into raw source file string)
+  (payload s32))  ; 32-bit Variant Context ID (e.g., IdentifierId, LiteralMapId, or Unused)
+```
+
+Lexer runs completely to completion over a source file before parsing begins.
+
+Flyweight Tokens: A token handle (Lex::TokenIndex) is merely a 32-bit integer indexing into a global flat array.
+
+TODO: What if target language has a macro preprocessor and textual token-pasting (like C/C++)?
+
+The `pos` field tracks the exact byte offset in the file, allowing error diagnostic ranges to be calculated instantly on demand without bloating the token footprint.
+
+### Lexer Execution Stages
+
+When the toolchain invokes Lexer::Lex(), the processing executes via three highly cohesive sweeps:
+
+#### Sweep A: Initial Line Mapping (`MakeLines`)
+
+Before reading any grammatical tokens, the lexer performs a lightning-fast initial scan over the source string buffer to construct an **index table of lines** (`MakeLines`).
+* This sweep heavily leverages SIMD vectorization (utilizing ARM NEON or x86 bitwise intrinsics) to identify newline boundaries, track line counts, and build line-end masks.
+* By counting total lines upfront, the toolchain can make highly accurate, proportional pre-allocation memory reservations for the main token and string buffers, preventing expensive realloc/doubling overhead entirely during token accumulation.
+
+#### Sweep B: Greedy Structural Dispatch Loops
+
+With memory reserved, the lexer iterates over the character array via a fast dispatch loop. 
+Compiler uses standard **maximal munch (greedy consumption)**—constantly extracting the longest valid sequence of characters that forms a valid lexical construct.
+* Whitespaces and Comments: Stripped entirely via inline bit-character masks (`SkipWhitespace`).
+* Variable-Length Literals: If the loop encounters complex data like string literals or floating-point structures, it intercepts them, parses their exact values immediately, caches the string content in a deduplicated **`IdentifierList` string pool**, and yields a compact 12-byte token tracking a 32-bit handle to that pool.
+
+#### Sweep C: Resilient Bracket Balancing & Synthesizing
+
+**Mismatched Bracket Recovery** is handled during the token accumulation loop.
+* The lexer actively tracks matching structural delimiters: (), [], and {}.
+* If it detects an unmatched delimiter (such as code with a missing closing brace), it runs a search over candidate repairs using indentation patterns and neighboring structural context.
+* It then **synthesizes and inserts** virtual recovery tokens into the array buffer.
+
+As an intentional structural invariant, the token buffer delivered by the lexer is guaranteed to have perfectly balanced brackets, even if the developer wrote invalid code.
+
+### Concrete Example of Lexical Resolution
+
+Consider this exceptional lexical parsing rule from [Carbon’s specification](https://docs.carbon-lang.dev/docs/design/lexical_conventions/):
+
+> When a numeric literal immediately follows a . or -> token with no whitespace, a real/float literal is **never** formed to avoid breaking tuple index accesses.
+
+If the lexer encounters: `tuple.1.2`
+1. It extracts `tuple` as an `Identifier` token.
+2. It hits the `.`. Since a number (`1`) follows with zero spaces, it isolates `.` as its own operator token.
+3. It extracts `1` as an integer literal token.
+4. It isolates the next `.` as an operator token.
+5. It extracts `2` as an integer literal token.
+
+This resolves cleanly to **five individual dense tokens**. Conversely, `tuple . 1.2` containing structural spaces is immediately grouped into three tokens (`tuple`, `.`, and the floating-point literal `1.2`).
+
+By offloading layout balancing, literal interning, and token flattening entirely to a specialized, vectorized lexer block, 
+the downstream Parse and Check phases can iterate through uniform memory vectors with pure linear efficiency.
+
 ## Parsing
 
 Every frontend will store the Parse Tree as a `flat-vector` of uniform structures arranged in a strict Postorder Traversal layout.
