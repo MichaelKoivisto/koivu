@@ -10,7 +10,7 @@ that make sense when writing compilers but useless in other domains.
 
 ## Dialect Baseline: R6RS Foundation
 
-Koivu Scheme adopts the **R6RS (Revised^6 Report on Scheme)** specification as its structural dialect baseline, strictly optimized to exclude non-compiler primitives. 
+Koivu Scheme adopts the [**R6RS (Revised^6 Report on Scheme)** specification](https://r6rs.org/) as its structural dialect baseline, strictly optimized to exclude non-compiler primitives. 
 R6RS is selected over other specifications for three primary reasons:
 
 * **Static Library Architecture:** The R6RS formal `(library ...)` syntax enforces explicit, compile-time separation between macro expansion and runtime code. This allows the Stage 3 Ahead-of-Time (AOT) batch compiler to statically analyze dependency graphs before code generation.
