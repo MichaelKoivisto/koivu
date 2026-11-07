@@ -174,7 +174,7 @@ These intrinsics map 1:1 to single CPU read/write assembly operations. They acce
 
 ### Memory Lifecycle & Relocation Intrinsics
 
-When a flat-vector expands or initializes, it must bypass the standard Scheme heap and talk directly to the OS or C-level virtual memory manager.
+When a `flat-vector` expands or initializes, it must bypass the standard Scheme heap and talk directly to the OS or C-level virtual memory manager.
 
 * **`%flat-vector-alloc-raw`**
 	- **Input:** `s32` byte-capacity
@@ -183,7 +183,7 @@ When a flat-vector expands or initializes, it must bypass the standard Scheme he
 * **`%flat-vector-realloc-raw!`**
 	- **Input:** `flat-vector` handle, `s32` new-byte-capacity
 	- **Output:** Void
-	- **Purpose:** Triggers a platform `realloc`. The system finds a larger memory block, automatically shifts the active data block, updates the internal memory descriptor pointers, and clears the old allocation safely—handling the entire Carbon-style amortized growth footprint inside a single intrinsic boundary.
+	- **Purpose:** Triggers a platform `realloc`. The system finds a larger memory block, automatically shifts the active data block, updates the internal memory descriptor pointers, and clears the old allocation safely—handling the entire *Carbon-style amortized growth footprint* inside a single intrinsic boundary.
 * **`%flat-vector-free-raw!`**
 	- **Input:** `flat-vector` handle
 	- **Output:** Void
