@@ -51,6 +51,30 @@ The 1:1 design introduces a unique challenge: What happens if the code has a syn
 
 To preserve the invariant that "every node corresponds to a token" and maintain a structurally valid tree, parser will inject synthetic placeholder tokens or error nodes. For example, if a developer forgets a closing parenthesis, the parser creates an error node linked to a dummy token to ensure the structural math (subtree_size jumping) remains mathematically perfect for downstream compiler optimization passes.
 
+### Name Resolution via NameId Integer Comparisons
+
+During the Lexing phase, every single variable name, function name, and type name will be parsed exactly once. 
+The characters will be stored sequentially in a massive, flat string buffer (IdentifierList).
+Each unique string will be assigned a 32-bit IdentifierId.
+
+* IdentifierId(0) = ""
+* IdentifierId(1) = "Int32"
+* IdentifierId(2) = "foo"
+* IdentifierId(3) = "x"
+
+Lookup tables (NameLookup) will not use string keys. They will use integer-to-integer maps.
+When the semantic analyzer (Check) processes a declaration like var x: Int32;, it maps the IdentifierId for "x" 
+to the SemIR::InstId that defines it inside the current scope block's flat map.
+When you reference a variable later in code:
+```
+foo(x);
+```
+* The compiler gets the IdentifierId for "x" (which is 3).
+* It looks up the integer 3 in the current scope's dense flat map.
+* If it matches, it immediately returns the InstId of the variable declaration.
+
+Because integer comparison is a single CPU instruction (cmp), checking if two identifiers are identical requires zero string processing or cache-unfriendly memory lookups.
+
 ## Semantic Analisys
 
 Semantic Intermediate Representation (SemIR) follows Data-Oriented Design (DOD) too.
