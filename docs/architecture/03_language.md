@@ -1,7 +1,10 @@
 # Koivu Scheme Language
 
-> **Status:** [Architecture Blueprint]  
-> **Component:** [Koivu Scheme]  
+**Status:** Architecture Blueprint  
+
+**Component:** Koivu Scheme  
+
+> Jack Sparrow: You seem somewhat familiar. Have I threatened you before?
 
 Foundational component of Koivu is a domain-specific programming language called Koivu Scheme (a dialect of Scheme which in turn is a dialect of Lisp). 
 Koivu Compiler Infrastructure will use it for writing compilers (and related tools), 
