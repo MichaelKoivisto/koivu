@@ -1,5 +1,8 @@
 
-# Koivu Structural Blueprint - Stage 1 (Seed) Interpreter
+# Koivu Structural Blueprint - Stage 1 (Seed) Compiler
+
+> **Status:** [Architecture Blueprint]  
+> **Component:** [Stage 1]  
 
 Koivu bootstrapping is designed to run on computers with at least 2 GB of RAM, which is a reasonably small amount of memory by modern standards. 
 There is nothing to be gained by requiring compiler bootstrapping to fit in smaller amount of memory: major modern platforms have plenty of memory, 
