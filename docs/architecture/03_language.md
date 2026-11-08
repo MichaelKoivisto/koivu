@@ -1,12 +1,18 @@
-# Koivu Structural Blueprint - Koivu Scheme
+# Koivu Scheme
 
-Foundational component of Koivu is a programming language called Koivu Scheme (a dialect of Scheme which in turn is a dialect of Lisp). 
-Koivu Infrastructure will use it for writing compilers (and related tools) for other languages, 
+> **Status:** [Architecture Blueprint]  
+> **Component:** [Koivu Scheme]  
+
+Foundational component of Koivu is a domain-specific programming language called Koivu Scheme (a dialect of Scheme which in turn is a dialect of Lisp). 
+Koivu Compiler Infrastructure will use it for writing compilers (and related tools), 
 and also for all three stages of bootstrapping and for all of build management. 
 
-Koivu Scheme is not a general-purpose programming language but rather a domain-specific language. It is intentionally stripped off many capabilities 
+Koivu Scheme is not a general-purpose programming language. It is intentionally stripped off many capabilities 
 to simplify the language and its libraries. It also features optimizations, specialized data types and memory management tools 
 that make sense when writing compilers but useless in other domains. 
+
+Custom datatypes in Koivu Scheme follow the spirit of Scheme (minimalism, expressive macros, and pattern matching) 
+while generating high-performance, linear LLVM IR under the hood.
 
 ## Dialect Baseline: R6RS Foundation
 
@@ -15,89 +21,71 @@ R6RS is selected over other specifications for three primary reasons:
 
 * **Static Library Architecture:** The R6RS formal `(library ...)` syntax enforces explicit, compile-time separation between macro expansion and runtime code. This allows the Stage 3 Ahead-of-Time (AOT) batch compiler to statically analyze dependency graphs before code generation.
 * **Hygienic Macro Tooling:** The R6RS macro model scales naturally from simple `syntax-rules` up to complex compile-time transformations, ensuring that the Stage 2 Bridge macro-expander smoothly upgrades to support advanced Stage 3 modular code pipelines.
-* **Chez Scheme Alignment:** Basing the dialect on R6RS mirrors the architecture of Chez Scheme, allowing some compiler transformations and nanopasses to be prototyped on industrial tools during early development.
+* **Chez Scheme Alignment:** Basing the dialect on R6RS mirrors the architecture of Chez Scheme, allowing compiler logic, transformations and nanopasses to be prototyped on industrial tools during early development.
 
-## Domain-Specific Data Types 
 
-Koivu compilers will implement lexing, parsing and code emiting data-oriented algorithms similar to [Carbon compiler](https://docs.carbon-lang.dev/toolchain/docs/), 
-and will use similar data structures and data types, built-in into the Koivu Scheme dialect. 
+## Data Types
 
-Custom datatypes will follow the spirit of Scheme (minimalism, expressive macros, and pattern matching) 
-while generating high-performance, linear LLVM IR under the hood.
+All Koivu stages are statically typed. 
 
-### Data Type Examples
+### Basic Data Types
 
-Here are examples of domain-specific data structures, taken from Carbon documentation (examples are in LLVM IR):
+All Koivu stages support three basic data types:
 
-#### Token Entry
+* Signed 32-bit Integers (Fixnums)
 
-```llvm
-; --- Lex::TokenizedBuffer (Token Entry) ---
-; Total Size: 12 bytes.
-; Every single token in a source file maps directly to this uniform 12-byte layout.
-%Lex.TokenLineInfo = type {
-    i32,    ; 0: token_kind - Lex::TokenKind enum (e.g., Identifier, Plus, Fn Keyword)
-    i32,    ; 1: source_pos - Byte offset into the raw source code text buffer
-    i32     ; 2: payload    - Context-dependent 32-bit slot:
-            ;                 If Identifier: Stores IdentifierId index
-            ;                 If IntegerLiteral: Stores IntegerLiteralId index
-}
-```
+   A raw signed 32-bit integer mapped directly to a hardware register, for tracking array indices, byte offsets in binary generation, 
+   memory allocation sizes, and immediate values in code emission.
 
-#### String Pool Entry
+* Symbols (Unique Names)
 
-```llvm
-; --- IdentifierList (String Pool Blueprint) ---
-; Carbon keeps text data unified to avoid internal string allocations and pointer-chasing.
-%IdentifierList.Entry = type {
-    i32,    ; 0: string_offset - Index tracking where the text begins in the global char array
-    i32     ; 1: string_length - The byte length of the identifier string
-}
-```
+   An immutable string pointer backed by an internal global table (an interned string). Intermediate Representation (IR) will represent 
+   variable names and CPU instructions as pure symbols. Comparing symbols is fast because the compiler only compares their memory addresses (eq?), 
+   never the character strings themselves.
 
-#### Parse Tree Node
+* Cons Cells (The Core Pair)
 
-```llvm
-; --- Parse::Tree::NodeImpl ---
-; Total Size: 12 bytes. Aligned to 4 bytes.
-; Layout: [ 4 bytes NodeKind ] [ 4 bytes TokenIndex ] [ 4 bytes SubtreeSize ]
-%Parse.Tree.NodeImpl = type {
-    i32,    ; 0: kind          - Parse::NodeKind enum (underlying type int32_t)
-    i32,    ; 1: token         - Lex::Token index wrapper
-    i32     ; 2: subtree_size  - Offset distance to leap across children
-}
-```
+   A simple structural record containing exactly two pointers: a CAR (Contents of Address Register) and a CDR (Contents of Decrement Register).
 
-#### Semantic IR Instruction
+Cons Cells do not use value tagging, compiler is expected to do type-checking and to issue correct instuctions.
 
-```llvm
-; --- SemIR::Inst ---
-; Total Size: 16 bytes. Aligned to 4 or 16 bytes.
-; Layout: [ 4 bytes InstKind ] [ 4 bytes TypeId ] [ 4 bytes Op0 ] [ 4 bytes Op1 ]
-; Note: In the compiler, this operates as a type-erased tagged union.
-%SemIR.Inst = type {
-    i32,    ; 0: kind          - SemIR::InstKind enum (underlying type int32_t)
-    i32,    ; 1: type_id       - SemIR::TypeId index tracking the interned type
-    i32,    ; 2: op0           - Operand 0 (e.g., lhs_id, integer payload index)
-    i32     ; 3: op1           - Operand 1 (e.g., rhs_id, element layout index)
-}
-```
 
-#### Semantic IR Side Table Reference
+### Stage 2 Data Types
+   
+Koivu Scheme Stage 2 and up compilers add following data types:
+   
+* Core Closures (Lexical Blocks)
 
-```llvm
-; --- SemIR::InstBlock (Side Table Reference) ---
-; Total Size: 8 bytes.
-; Used by 16-byte SemIR instructions when they need to reference an arbitrary list of child instructions.
-%SemIR.InstBlock = type {
-    i32,    ; 0: start_index - Index pointing into a global flat vector of 32-bit integers (llvm::SmallVector<InstId>)
-    i32     ; 1: size        - The number of sequential instructions belonging to this block
-}
-```
+   A pair containing a pointer to compiled machine code instructions and a pointer to the environment frame holding captured variables. 
+   Closures enable functional programming, passing pass-behaviors dynamically, and handling lexical scoping cleanly throughout compiler infrastructure pipeline.
 
-### Syntax Design for Domain-Specific Data Types
 
-Koivu Scheme adds a built-in data type called `flat-vector` and intoduces new macros:
+### Stage 3 Data Types
+
+Koivu Scheme Stage 3 adds following data types:
+
+* Unsigned 8-bit Integers
+* Unsigned 16-bit Integers
+* Signed 16-bit Integers
+* Unsigned 32-bit Integers
+* Signed 64-bit Integers
+* Unsigned 64-bit Integers
+
+When used for stand-alone variables, these data types are implemented just like traditional Fixnums. 
+
+Compiler makes a distinction between signed/unsigned integers of different sizes in the following cases:
+
+* Type checking. 
+
+* Creation of `flat-vector`s with binary buffers of proper size, stride and alignment.
+
+#### `flat-vector`
+
+Koivu production-level compilers will implement lexing, parsing and code emiting [data-oriented algorithms](data_oriented_design.md)
+similar to [Carbon compiler](https://docs.carbon-lang.dev/toolchain/docs/), 
+and will use similar data structures, built-in into the Koivu Stage 3 Scheme dialect. 
+
+Koivu Scheme Stage 3 adds a [built-in data type called `flat-vector`](flat-vector.md) and intoduces new macros:
 
 1. **`define-flat-vector:`** Declares the layout of an indexable, growable, dense, flat array.
 2. **`flat-vector-for-each:`** Combines a high-speed iterative loop, pointer/offset folding, and pattern matching into a single construct. It automatically binds field variables to the current item in the array without manual index math or offsets.

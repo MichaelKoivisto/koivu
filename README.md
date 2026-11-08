@@ -13,7 +13,7 @@ The project is currently establishing its core bootstrap pipeline layers. It is 
 
 The infrastructure bootstraps and operates via a multi-stage execution model:
 
-1. **Stage 1 (Seed):** A minimal S-expression compiler written in raw target assembly language, relying on a non-compacting Page-Based Arena allocation model.
+1. **Stage 1 (Seed):** A minimal S-expression compiler written in LLVM IR, relying on Arena Allocator and No-GC policy.
 2. **Stage 2 (Bridge):** A macro-expanding compiler written in Stage 1 Lisp, adding support for hygienic macros and structured lexical closures.
 3. **Stage 3 (Production Core):** A statically typed, ahead-of-time (AOT) compiled dialect of Scheme utilizing a Nanopass architectural design and `flat-vector` Intermediate Representations.
 

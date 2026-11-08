@@ -13,8 +13,8 @@ The complete technical design is distributed across the following specialized sp
 | :--- | :--- | :--- |
 | **01. Platforms and Targets** | Host/target matrices and related engineering priorities. | [docs/architecture/01_platforms.md](./architecture/01_platforms.md) |
 | **02. Bootstrapping Paths & Trust** | Simple vs. Secure compiler lineage. | [docs/architecture/02_bootstrapping_and_trust.md](./architecture/02_bootstrapping_and_trust.md) |
-| **03. Infrastructure Language: Scheme** | Core Domain-Specific Language. | [docs/architecture/03_language.md](./architecture/03_language.md) |
-| **04. Stage 1 (Seed) Interpreter** | A minimalist Lisp-1 interpreter. | [docs/architecture/04_stage1_interpreter.md](./architecture/04_stage1_interpreter.md) |
+| **03. Koivu Scheme** | Core Domain-Specific Language. | [docs/architecture/03_language.md](./architecture/03_language.md) |
+| **04. Stage 1 (Seed) Interpreter** | A minimalist Lisp-1 compiler. | [docs/architecture/04_stage1_interpreter.md](./architecture/04_stage1_interpreter.md) |
 | **05. Stage 2 (Bridge)** | Macro-expanding compiler written in Stage 1 Lisp. | [docs/architecture/05_stage2_bridge.md](./architecture/05_stage2_bridge.md) |
 | **06. Stage 3 (Production Core)** | Final compiler of compilers. | [docs/architecture/06_stage3_runtime.md](./architecture/06_stage3_runtime.md) |
 | **07. Production Compilers** | Frontends for target programming languages. | [docs/architecture/07_frontends.md](./architecture/07_frontends.md) |
@@ -25,7 +25,7 @@ The complete technical design is distributed across the following specialized sp
 
 Bootstrapping will work in three stages:
 
-* Stage 1 (Seed): A minimalist Lisp-1 interpreter written in pure, generic LLVM IR. 
+* Stage 1 (Seed): A minimalist Lisp-1 compiler written in pure, generic LLVM IR. 
 * Stage 2 (Bridge): A macro-expanding compiler written in Stage 1 Lisp. Its only purpose is to compile Stage 3 compiler to machine binary.
 * Stage 3 (Production Core): A statically typed, AOT-compiled Scheme dialect executing a highly modular pipeline of ~50 distinct Nanopass transformations.
 
