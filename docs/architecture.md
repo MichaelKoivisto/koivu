@@ -16,7 +16,7 @@ The complete technical design is distributed across the following specialized sp
 | **03. Koivu Scheme** | Core Domain-Specific Language. | [docs/architecture/03_language.md](./architecture/03_language.md) |
 | **04. Stage 1 (Seed)** | A minimalist Lisp-1 compiler. | [docs/architecture/04_stage1_seed.md](./architecture/04_stage1_seed.md) |
 | **05. Stage 2 (Bridge)** | Macro-expanding compiler written in Stage 1 Lisp. | [docs/architecture/05_stage2_bridge.md](./architecture/05_stage2_bridge.md) |
-| **06. Stage 3 (Production Core)** | Final compiler of compilers. | [docs/architecture/06_stage3_production_core.md](./architecture/06_stage3_producton_core.md) |
+| **06. Stage 3 (Production Core)** | Final compiler of compilers. | [docs/architecture/06_stage3_production_core.md](./architecture/06_stage3_production_core.md) |
 | **07. Production Compilers** | Frontends for target programming languages. | [docs/architecture/07_frontends.md](./architecture/07_frontends.md) |
 
 ---
