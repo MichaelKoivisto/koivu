@@ -76,8 +76,7 @@ Koivu Scheme Stage 2 and up compilers add following data types:
 #### `flat-vector`
 
 Koivu production-level compilers will implement lexing, parsing and code emiting [data-oriented algorithms](data_oriented_design.md)
-similar to [Carbon compiler](https://docs.carbon-lang.dev/toolchain/docs/), 
-and will use similar data structures, built-in into the Koivu Stage 3 Scheme dialect. 
+similar to [Carbon compiler](https://docs.carbon-lang.dev/toolchain/docs/), and will use similar data structures. 
 
 For this purpose Koivu Scheme Stage 2 adds a built-in data type called `flat-vector` and intoduces new macros:
 
