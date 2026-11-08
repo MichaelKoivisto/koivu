@@ -1,4 +1,4 @@
-# Koivu Scheme
+# Koivu Scheme Language
 
 > **Status:** [Architecture Blueprint]  
 > **Component:** [Koivu Scheme]  
@@ -11,7 +11,7 @@ Koivu Scheme is not a general-purpose programming language. It is intentionally 
 to simplify the language and its libraries. It also features optimizations, specialized data types and memory management tools 
 that make sense when writing compilers but useless in other domains. 
 
-Custom datatypes in Koivu Scheme follow the spirit of Scheme (minimalism, expressive macros, and pattern matching) 
+Custom datatypes (`flat-vector`) in Koivu Scheme follow the spirit of Scheme (minimalism, expressive macros, and pattern matching) 
 while generating high-performance, linear LLVM IR under the hood.
 
 ## Dialect Baseline: R6RS Foundation

@@ -1,4 +1,4 @@
-# Koivu Structural Blueprint - Bootstrapping Paths and Trust
+# Koivu Bootstrapping Paths and Trust
 
 > **Status:** [Architecture Blueprint]  
 > **Component:** [Global]  
@@ -6,7 +6,7 @@
 > Pintel: "So, what Barbossa did is, he tied a cannon to Bootstrap's bootstraps."<br>
 > Ragetti: "Bootstrap's bootstraps..."
 > 
-> *— right before sinking "Bootstrap Bill" Turner to the bottom of the ocean, only to later realize they needed his blood to break the Curse of the Black Pearl.*
+> *— reminiscing how they sent "Bootstrap Bill" Turner to the bottom of the ocean, only to later realize they needed his blood to break the Curse of the Black Pearl.*
 
 Bootstrapping will start from a simple Lisp compiler written in pure, generic LLVM IR. 
 Koivu project will also keep (as part of its source code) target-dependent machine assembly files for popular platforms (x64, arm64 and possibly others) for seed Lisp compiler. 
@@ -18,7 +18,7 @@ one important common property with generic IR seed: they all will be human-reada
 
 There will be two major paths for bootstrapping:
 
-* Simple Path: bootstrap from assembly of seed compiler on some consumer-grade operating system. 
+* Simple Path: bootstrap from assembly or binary of seed compiler on some consumer-grade operating system. 
 * Secure Path: bootstrap from machine binary of seed compiler in a secure bootstrapping environment, similar to GNU Bootstrapping Project. 
 
 ## Simple Path

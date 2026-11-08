@@ -1,4 +1,4 @@
-# Koivu Structural Blueprint - Platforms and Targets
+# Koivu Platforms and Targets
 
 > **Status:** [Architecture Blueprint]  
 > **Component:** [Global]  
