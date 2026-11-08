@@ -34,5 +34,6 @@ This project is licensed under the Apache License v2.0 with LLVM Exceptions. See
 
 ## AI Disclosure
 
-AI disclosure: see [AI_DISCLOSURE.md](AI_DISCLOSURE.md).
+AI disclosure: see [AI_DISCLOSURE.md](AI_DISCLOSURE.md). This project uses AI-generated human-reviewed code and documentation.
+
 
