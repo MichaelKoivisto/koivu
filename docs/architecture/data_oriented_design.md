@@ -6,7 +6,7 @@
 
 > Murtogg: Oh, the Dauntless is the power in these waters, true enough. But there's no ship as can match the Interceptor for speed.<br>
 > Jack Sparrow: I've heard of one, supposed to be very fast, nigh uncatchable: The Black Pearl.<br>
-> Mullroy: Well, there's no real ship as can match the Interceptor.<br>
+> Mullroy: Well, there's no *real* ship as can match the Interceptor.<br>
 > Murtogg: The Black Pearl is a real ship.<br>
 > Mullroy: No, it's not.<br>
 > Murtogg: Yes it is, I've seen it.<br>
