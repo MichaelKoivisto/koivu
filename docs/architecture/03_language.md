@@ -43,18 +43,18 @@ All Koivu stages support three basic data types:
    variable names and CPU instructions as pure symbols. Comparing symbols is fast because the compiler only compares their memory addresses (eq?), 
    never the character strings themselves.
 
-* Cons Cells (The Core Pair)
+* Cons Cells
 
    A simple structural record containing exactly two pointers: a CAR (Contents of Address Register) and a CDR (Contents of Decrement Register).
 
-Cons Cells do not use value tagging, compiler is expected to do type-checking and to issue correct instuctions.
+Cons Cells do not use value tagging, compiler must do type-checking and issue correct instuctions.
 
 
 ### Stage 2 Data Types
    
 Koivu Scheme Stage 2 and up compilers add following data types:
    
-* Core Closures (Lexical Blocks)
+* Core Closures
 
    A pair containing a pointer to compiled machine code instructions and a pointer to the environment frame holding captured variables. 
    Closures enable functional programming, passing pass-behaviors dynamically, and handling lexical scoping cleanly throughout compiler infrastructure pipeline.
@@ -85,12 +85,12 @@ Koivu production-level compilers will implement lexing, parsing and code emiting
 similar to [Carbon compiler](https://docs.carbon-lang.dev/toolchain/docs/), 
 and will use similar data structures, built-in into the Koivu Stage 3 Scheme dialect. 
 
-Koivu Scheme Stage 3 adds a [built-in data type called `flat-vector`](flat-vector.md) and intoduces new macros:
+For this purpose Koivu Scheme Stage 3 adds a built-in data type called `flat-vector` and intoduces new macros:
 
 1. **`define-flat-vector:`** Declares the layout of an indexable, growable, dense, flat array.
 2. **`flat-vector-for-each:`** Combines a high-speed iterative loop, pointer/offset folding, and pattern matching into a single construct. It automatically binds field variables to the current item in the array without manual index math or offsets.
 
-API and implementation details for `flat-vector`: [flat-vector.md](flat-vector.md).
+Full API and implementation details for `flat-vector`: [flat-vector.md](flat-vector.md).
 
 The `define-flat-vector` macro allows the following declaration as an example:
 
@@ -98,13 +98,13 @@ The `define-flat-vector` macro allows the following declaration as an example:
 ;; Define our TokenizedBuffer layout
 (define-flat-vector token-buffer
   :stride 12
-  (kind    u32 0)
-  (pos     u32 4)
-  (payload u32 8))
+  (kind    u32 0)   ; field offset is 0 bytes
+  (pos     u32 4)   ; field offset is 4 bytes
+  (payload u32 8))  ; field offset is 8 bytes
 ```
 
-Koivu compiler will registers the `token-buffer`'s name and layout into compile-time environment 
-and will use the following data structures in LLVM IR for working with stream data:
+Koivu compiler will register the `token-buffer`'s name and layout into compile-time environment 
+and will use the following data structures in LLVM IR for working with `token-buffer` binary data:
 
 ```llvm
 ; --- Lex::TokenizedBuffer (Token Buffer Entry) ---
@@ -116,16 +116,6 @@ and will use the following data structures in LLVM IR for working with stream da
     i32     ; 2: payload    - Context-dependent 32-bit slot:
             ;                 If Identifier: Stores IdentifierId index
             ;                 If IntegerLiteral: Stores IntegerLiteralId index
-}
-```
-
-```llvm
-; --- Koivu flat-vector Container ---
-; Structure tracking: [ Data Array Pointer, Active Count Element, Max Storage Capacity ]
-%struct.KoivuFlatVector = type { 
-    ptr,    ; 0: raw_data_ptr        - Opaque pointer to the start of the dense memory buffer
-    i32,    ; 1: current_length      - The exact length of active records currently used
-    i32     ; 2: current_capacity    - Max element allocation threshold before reallocation
 }
 ```
 
@@ -141,11 +131,11 @@ Compiler will map this to the following `getelementptr` calculation in LLVM IR:
 
 ```llvm
 ; The macro replaces abstract fields with static struct indexes at compile-time
-%field_ptr = getelementptr %token_buffer.Entry, ptr %raw_bytes, i32 14, i32 0
+%field_ptr = getelementptr %token_buffer.TokenBufferEntry, ptr %raw_bytes, i32 14, i32 0
 ```
 
 
-#### Example: An Identity Validation Pass
+##### Example: An Identity Validation Pass
 
 Let's write a realistic front-end compiler algorithm: An Identifier Verification Pass.
 The pass loops over the entire token-buffer linearly. If it encounters a token of kind 42 (representing an Identifier), 
@@ -176,9 +166,6 @@ to carry the values of kind, pos, and payload inside a hot loop without memory f
 
 
 ## Other considerations
-
-Koivu Scheme comes in two major flavours: a simple interpreter written in portable low-level LLVM IR for use in bootstrapping, 
-and an ahead-of-time (AOT) batch compiler. Both flavours will be compatible in terms of language syntax and data types, but may differ in some capabilities. 
 
 To minimize dependancy on legacy tools and simplify the build process, Koivu build system will use only Koivu Scheme for all of build management. 
 
