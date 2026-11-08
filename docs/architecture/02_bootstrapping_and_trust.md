@@ -1,10 +1,11 @@
 # Koivu Bootstrapping Paths and Trust
 
-> **Status:** [Architecture Blueprint]  
-> **Component:** [Global]  
+**Status:** Architecture Blueprint  
+
+**Component:** Global  
 
 > Pintel: "So, what Barbossa did is, he tied a cannon to Bootstrap's bootstraps."<br>
-> Ragetti: "Bootstrap's bootstraps..."
+> Ragetti: "Bootstrap's bootstraps..."<br>
 > 
 > *— reminiscing how they sent "Bootstrap Bill" Turner to the bottom of the ocean, only to later realize they needed his blood to break the Curse of the Black Pearl.*
 
