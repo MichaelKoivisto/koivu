@@ -59,11 +59,6 @@ Koivu Scheme Stage 2 and up compilers add following data types:
    A pair containing a pointer to compiled machine code instructions and a pointer to the environment frame holding captured variables. 
    Closures enable functional programming, passing pass-behaviors dynamically, and handling lexical scoping cleanly throughout compiler infrastructure pipeline.
 
-
-### Stage 3 Data Types
-
-Koivu Scheme Stage 3 adds following data types:
-
 * Unsigned 8-bit Integers
 * Unsigned 16-bit Integers
 * Signed 16-bit Integers
@@ -71,13 +66,12 @@ Koivu Scheme Stage 3 adds following data types:
 * Signed 64-bit Integers
 * Unsigned 64-bit Integers
 
-When used for stand-alone variables, these data types are implemented just like traditional Fixnums. 
-
-Compiler makes a distinction between signed/unsigned integers of different sizes in the following cases:
-
-* Type checking. 
-
-* Creation of `flat-vector`s with binary buffers of proper size, stride and alignment.
+  When used for stand-alone variables, integer data types are implemented just like traditional Fixnums. 
+  Compiler makes a distinction between signed/unsigned integers of different sizes in the following cases:
+  - Type checking. 
+  - Creation of `flat-vector`s with binary buffers of proper size, stride and alignment.
+  
+* `flat-vector`
 
 #### `flat-vector`
 
@@ -85,7 +79,7 @@ Koivu production-level compilers will implement lexing, parsing and code emiting
 similar to [Carbon compiler](https://docs.carbon-lang.dev/toolchain/docs/), 
 and will use similar data structures, built-in into the Koivu Stage 3 Scheme dialect. 
 
-For this purpose Koivu Scheme Stage 3 adds a built-in data type called `flat-vector` and intoduces new macros:
+For this purpose Koivu Scheme Stage 2 adds a built-in data type called `flat-vector` and intoduces new macros:
 
 1. **`define-flat-vector:`** Declares the layout of an indexable, growable, dense, flat array.
 2. **`flat-vector-for-each:`** Combines a high-speed iterative loop, pointer/offset folding, and pattern matching into a single construct. It automatically binds field variables to the current item in the array without manual index math or offsets.
@@ -135,7 +129,7 @@ Compiler will map this to the following `getelementptr` calculation in LLVM IR:
 ```
 
 
-##### Example: An Identity Validation Pass
+#### Example: An Identity Validation Pass
 
 Let's write a realistic front-end compiler algorithm: An Identifier Verification Pass.
 The pass loops over the entire token-buffer linearly. If it encounters a token of kind 42 (representing an Identifier), 
