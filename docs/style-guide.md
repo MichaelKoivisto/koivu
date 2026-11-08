@@ -24,14 +24,21 @@ This document defines the structural, typographic, and stylistic rules for the K
 
 ## 2. Document Metadata Banner
 
-Every document inside the `docs/` repository must begin with a uniform header block summarizing its context and operational scope:
+Documents inside the `docs/` repository may begin with a uniform header block summarizing context and operational scope:
 
 ```markdown
 # Document Title
 
-> **Status:** [Research Track / Architecture Specification / Draft]  
-> **Component:** [Stage 1 Core / Midend / Global]  
+> **Status:** [Architecture Blueprint / Specification / Developer Notes]  
+> **Component:** [Stage 1 Core / Midend / Global / etc.]  
 ```
+
+* *Architecture* Blueprint is a plan that outlines the most important design aspects of particular component. 
+
+* *Specification* is a formal document that should cover all the details of its topic.
+
+* *Developer Notes* are temporary documents and can have unstructured information that is useful in the process of development. 
+
 
 ---
 
