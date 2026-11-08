@@ -1,7 +1,17 @@
 # Koivu Platforms and Targets
 
-> **Status:** [Architecture Blueprint]  
-> **Component:** [Global]  
+**Status:** Architecture Blueprint  
+
+**Component:** Global  
+
+> Scarlet: Jack!<br>
+> Jack: Scarlet!<br>
+> (Scarlet promptly delivers a hard slap to Jack’s face and walks away angrily.)<br>
+> Jack: I'm not sure I deserved that.<br>
+> (Immediately, another woman named Giselle steps up to him.)<br>
+> Giselle: Who was she?!<br>
+> (Giselle slaps Jack hard across the opposite cheek and storms off.)<br>
+> Jack: I may have deserved that.
 
 Minimum OS platforms for Koivu project are 64-bit Windows, Linus and macOS. Initial set of target architectures are x86_64 and arm64. 
 

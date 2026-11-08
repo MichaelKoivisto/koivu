@@ -1,8 +1,17 @@
 
 # Koivu Scheme Stage 1 (Seed) Compiler
 
-> **Status:** [Architecture Blueprint]  
-> **Component:** [Stage 1]  
+**Status:** Architecture Blueprint  
+
+**Component:** Stage 1  
+
+> Barbossa: Jack... Jack! Did you not notice? That be the same island we made you the governor of on our last little trip.<br>
+> Jack Sparrow: I did notice.<br>
+> Barbossa: Perhaps you'll conjure up another miraculous escape, but I doubt it. Off you go.<br>
+> Jack Sparrow: The last time you left me a pistol with one shot.<br>
+> Barbossa: By the powers, you're right. Where be Jack's pistol? Bring it forward.<br>
+> Jack Sparrow: Seeing as there's two of us, a gentleman would give us a pair of pistols.<br>
+> Barbossa: It'll be one pistol as before, and you can be the gentleman and shoot the lady; and starve yourself to death.
 
 Koivu bootstrapping is designed to run on computers with at least 2 GB of RAM, which is a reasonably small amount of memory by modern standards. 
 There is nothing to be gained by requiring compiler bootstrapping to fit in smaller amount of memory: major modern platforms have plenty of memory, 

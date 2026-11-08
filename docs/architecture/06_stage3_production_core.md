@@ -1,7 +1,12 @@
 # Koivu Scheme Stage 3 (Production Core) Compiler
 
-> **Status:** Architecture Blueprint
-> **Component:** Stage 3  
+**Status:** Architecture Blueprint
+
+**Component:** Stage 3  
+
+> (Jack shows up alive after leaving him on the island a second time)<br>
+> Barbossa: Its not possible!<br>
+> Jack Sparrow: Not **probable**
 
 The Stage 3 Compiler is a lean Domain-Specific Language (DSL) for compiler engineering, 
 utilizing a [data-oriented design](data_oriented_design.md) and a nanopass architecture inspired by Chez Scheme.

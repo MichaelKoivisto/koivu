@@ -1,8 +1,17 @@
 # Koivu Scheme Stage 2 (Bridge) Compiler
 
-> **Status:** Architecture Blueprint  
-> **Component:** Stage 2  
+**Status:** Architecture Blueprint  
 
+**Component:** Stage 2  
+
+> Mr. Gibbs: Then, on the fourth day, he roped himself a couple of sea turtles, lashed 'em together and made a raft.<br>
+> Will Turner: He roped a couple of sea turtles.<br>
+> Mr. Gibbs: Aye. Sea turtles.<br>
+> Will Turner: What did he use for rope?<br>
+> Jack Sparrow: (from beside them) Human hair.<br>
+> (pause)<br>
+> Jack Sparrow: From my back.<br>
+    
 The Stage 2 Bridge Compiler is a dedicated macro-expanding utility written entirely in the minimalist Stage 1 Lisp subset. Its exclusive responsibility is to ingest the high-level, macro-heavy R6RS source files of the Stage 3 Production Core and emit macro-eliminated, statically structured Scheme code that can be easily parsed by a primitive compiler backend.
 
 ---

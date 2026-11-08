@@ -1,7 +1,23 @@
 # Data-Oriented Design for Production Compilers
 
-> **Status:** [Architecture Blueprint]  
-> **Component:** [Koivu Scheme]  
+**Status:** Architecture Blueprint  
+
+**Component:** Koivu Scheme  
+
+> Murtogg: Oh, the Dauntless is the power in these waters, true enough. But there's no ship as can match the Interceptor for speed.<br>
+> Jack Sparrow: I've heard of one, supposed to be very fast, nigh uncatchable: The Black Pearl.<br>
+> Mullroy: Well, there's no real ship as can match the Interceptor.<br>
+> Murtogg: The Black Pearl is a real ship.<br>
+> Mullroy: No, it's not.<br>
+> Murtogg: Yes it is, I've seen it.<br>
+> Mullroy: You've seen it?<br>
+> Murtogg: Yes.<br>
+> Mullroy: You haven't seen it.<br>
+> Murtogg: Yes, I have.<br>
+> Mullroy: You've seen a ship with black sails that's crewed by the damned, and captained by a man so evil that Hell itself spat him back out?<br>
+> Murtogg: No.<br>
+> Mullroy: No.<br>
+> Murtogg: But I have seen a ship with black sails.
 
 Koivu will follow data-oriented approach to lexing, parsing, semantic analysis and code generation similar to [Carbon compiler](https://docs.carbon-lang.dev/toolchain/docs/).
 
