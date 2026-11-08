@@ -1,5 +1,5 @@
 
-# Koivu Structural Blueprint - Stage 1 (Seed) Compiler
+# Koivu Scheme Stage 1 (Seed) Compiler
 
 > **Status:** [Architecture Blueprint]  
 > **Component:** [Stage 1]  

@@ -1,69 +1,12 @@
-# Koivu Structural Blueprint - Stage 3 (Production Core)
+# Koivu Scheme Stage 3 (Production Core) Compiler
 
-**Status:** Architecture Specification  
-**Component:** Stage 3 Production Core  
+**Status:** Architecture Blueprint
+**Component:** Stage 3  
 
-The Stage 3 Compiler is a lean Domain-Specific Language (DSL) for compiler engineering, utilizing a nanopass architecture inspired by Chez Scheme.
+The Stage 3 Compiler is a lean Domain-Specific Language (DSL) for compiler engineering, 
+utilizing a [data-oriented design](data_oriented_design.md) and a nanopass architecture inspired by Chez Scheme.
 
 ---
-
-## Data Types
-
-Stage 3 Koivu Scheme implements six core data structures: 
-
-1. Fixnums (Machine-Sized Integers)
-
-   A raw 64-bit integer mapped directly to a hardware register, for tracking array indices, byte offsets in binary generation, memory allocation sizes, and immediate values in code emission.
-
-2. Symbols (Unique Names)
-
-   An immutable string pointer backed by an internal global table (an interned string). Intermediate Representation (IR) will represent variable names and CPU instructions as pure symbols. Comparing symbols is fast because the compiler only compares their memory addresses (eq?), never the character strings themselves.
-
-3. Cons Cells (The Core Pair)
-
-   A simple structural record containing exactly two pointers: a CAR (Contents of Address Register) and a CDR (Contents of Decrement Register).
-
-4. Records / Structs (Heterogeneous Objects)
-
-   A fixed-size contiguous block of memory containing typed fields. While Cons cells are great for trees, Koivu Scheme language needs explicit records 
-   to cleanly represent structured compiler metadata without writing messy, unreadable chains of car and cdr. Koivu may use records 
-   to define structures like (struct interval (vreg start end phys-reg)) or (struct function-metadata (name args stack-size)).
-
-5. Vectors (Homogeneous Fixed-Size Arrays)
-
-   A contiguous indexable block of memory pointers, useful for highly performance-sensitive indexing tasks where linked lists are too slow. 
-   Register allocator's live range arrays, block instruction listings, and symbol hash tables will be backed by raw vectors to ensure O(1) lookups.
-
-6. Core Closures (Lexical Blocks)
-
-   A pair containing a pointer to compiled machine code instructions and a pointer to the environment frame holding captured variables. 
-   Closures enable functional programming, passing pass-behaviors dynamically, and handling lexical scoping cleanly throughout compiler infrastructure pipeline.
-
-
-## Low-Level Tagging Layout
-
-Stage 3 uses a 3-bit low-tagging scheme embedded in the lower bits of 64-bit words, where `000` is reserved for Fixnums 
-and non-zero tags (`001` through `101`) represent Cons cells, symbols, vectors, records, and closures. 
-Heap addresses must never float around untagged. When a storage slab or a Pass-Based Arena allocates a block of memory, 
-the allocation engine must immediately bitwise OR the target type tag onto the raw address before returning the pointer to the evaluator.
-
-```
-[61 Bits: Memory Pointer or Immediate Value] [3 Bits: Type Tag]
-```
-
-| Tag Bits (Binary) | Type | Representation |
-| --- | --- | --- |
-| 000 | Fixnum | The upper 61 bits hold the raw integer shifted left by 3. No allocation needed.|
-| 001 | Cons Cell | Points directly to a 16-byte block on the heap (CAR + CDR).|
-| 010 | Symbol | Points to an immutable string object in the global symbol table.|
-| 011 | Vector | Points to a heap memory block. The first word is the raw size; subsequent words are data.|
-| 100 | Record / Struct | Points to a structured block. The first word is a symbol indicating the struct type.|
-| 101 | Closure | Points to a block containing the executable code address and environment pointer.|
-
-By limiting the scope of Stage 3 to this lean set of data structures, we completely avoid writing:
-* Hash-table collision resolution layers (use basic open-addressing vectors instead).
-* String-manipulation libraries (symbols are enough for text processing inside a compiler frontend).
-* Dynamic type-coercion matrices (e.g., adding an integer to a float — Stage 3 only calculates integers).
 
 ## Memory Allocation Strategies and Performance Optimizations for Stage 3 
 
