@@ -7,6 +7,8 @@ Koivu will follow data-oriented approach to lexing, parsing, semantic analysis a
 
 This document describes ideas and data structures inspired by Carbon design and applicable to all programming languages supported by Koivu.
 
+Additional source of information on Data-Oriented Design for compilers: Chandler Carruth’s talks on the Carbon programming language at CppNow and NDC.
+
 ## Lexing phase
 
 The Lexing phase transforms raw source text into a `flat-vector` of token information structs.

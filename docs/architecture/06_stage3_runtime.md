@@ -132,8 +132,6 @@ By blending these disciplines, Stage 3 Lisp compiler achieves maximum performanc
 * Heavy Intermediate Representations (IR) are mapped to Flat Vectors (SoA) to keep the CPU cache completely saturated with useful instructions.
 This completely bypasses the need for a complex, generic runtime garbage collector, improving production compiler infrastructure performance.
 
-Additional source of information on Data-Oriented Design for compilers: Chandler Carruth’s talks on the Carbon programming language at CppNow and NDC.
-
 ## Stage 3 Library
 
 The Stage 3 Koivu Scheme compiler may need additional system calls for high-precision profiling of itself when running and for system clock reads. 
