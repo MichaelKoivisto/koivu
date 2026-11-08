@@ -1,7 +1,7 @@
 # Koivu Scheme Stage 2 (Bridge) Compiler
 
-**Status:** Architecture Blueprint  
-**Component:** Stage 2  
+> **Status:** Architecture Blueprint  
+> **Component:** Stage 2  
 
 The Stage 2 Bridge Compiler is a dedicated macro-expanding utility written entirely in the minimalist Stage 1 Lisp subset. Its exclusive responsibility is to ingest the high-level, macro-heavy R6RS source files of the Stage 3 Production Core and emit macro-eliminated, statically structured Scheme code that can be easily parsed by a primitive compiler backend.
 
