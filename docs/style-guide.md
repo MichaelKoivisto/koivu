@@ -33,7 +33,7 @@ Documents inside the `docs/` repository may begin with a uniform header block su
 > **Component:** [Stage 1 Core / Midend / Global / etc.]  
 ```
 
-* *Architecture* Blueprint is a plan that outlines the most important design aspects of particular component. 
+* *Architecture Blueprint* is a plan that outlines the most important design aspects of particular component. 
 
 * *Specification* is a formal document that should cover all the details of its topic.
 
