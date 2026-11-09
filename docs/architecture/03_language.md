@@ -181,8 +181,22 @@ Koivu's base reader syntax derives from the **R6RS Lexical Structure (Chapter 4)
 
 3. **Isolated Target Language Embeddings:**
    To facilitate writing frontends and backends for external languages, Koivu introduces custom block-dispatch macros. When encountered, the host reader pauses and immediately shifts context to a dedicated, stateless sub-parser.
-   * `#c{ ... }` $\rightarrow$ Invokes an isolated C syntax lexer/parser, returning a structural C-AST node directly into the host Scheme tree.
+   * `#llvm_ir{ ... }` $\rightarrow$ for human-readable textual IR blocks.
+   * `#llvm_bc{ ... }` $\rightarrow$ if you ever need to ingest raw compiled bitcode arrays.
+   * `#llvm_target{ ... }` $\rightarrow$ if you need to embed target data layouts.
    * `#asm[ ... ]` $\rightarrow$ Invokes a strict machine-instruction parser to build cache-aligned instruction sequences.
+   * `#c{ ... }` $\rightarrow$ Invokes an isolated C syntax lexer/parser, returning a structural C-AST node directly into the host Scheme tree.
+   
+   Example:
+   ```lisp
+    ;; Inside a Stage 3 Nanopass lowering pass:
+    (define (lower-native-addition x y)
+      ;; The sub-lexer immediately tokenizes the raw text as LLVM IR instruction nodes
+      #llvm_ir{
+        %res = add i32 , %y
+        ret i32 %res
+      })
+   ```
 
 ### Constraints & Anti-Patterns
 To protect code transparency and keep the parser loop predictable for human inspectors, the following extensions are strictly illegal in the Koivu codebase:
