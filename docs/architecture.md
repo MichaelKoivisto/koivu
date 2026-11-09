@@ -5,7 +5,9 @@
 
 This document serves as the top-level index and navigational map for the Koivu Compiler Infrastructure specifications. 
 
-## 1. Core Architectural Layout
+---
+
+## Core Architectural Layout
 
 The complete technical design is distributed across the following specialized documents:
 
@@ -24,15 +26,39 @@ The complete technical design is distributed across the following specialized do
 
 ---
 
-## 2. Bootstrapping Strategy
+## Bootstrapping Strategy
 
-Bootstrapping will work in three stages:
+Bootstrapping will work in multiple stages:
 
-* Stage 1 (Seed): A minimalist Lisp-1 compiler written in pure, generic LLVM IR. 
+* Stage 1 (Seed): A minimalist statically typed Lisp-1 compiler written in pure, generic LLVM IR. 
 * Stage 2 (Bridge): A macro-expanding compiler written in Stage 1 Lisp. Its only purpose is to compile Stage 3 compiler to machine binary.
 * Stage 3 (Production Core): A statically typed, AOT-compiled Scheme dialect executing a highly modular pipeline of ~50 distinct Nanopass transformations.
 
-## 3. Global Structural Principles
+The **Koivu** project relies heavily on bootstrapping, but this happens in two distinct contexts: during the project's **initial development phase** and later during **end-user installation**.
+
+### Bootstrapping Development (Achieving Self-Hosting)
+This is the process the **core developers** use to build the compiler infrastructure from scratch, moving from a foreign host environment to a self-sufficient ecosystem.
+
+* **The Starting Point:** The compiler does not exist yet. Developers write a tiny "seed" compiler (Stage 1) in external LLVM IR and use the system's LLVM toolchain (`llc`) to compile it.
+* **The Multi-Stage Bridge:** 
+  * Stage 1 compiles the source code of Stage 2 (adding macros and closures).
+  * Stage 2 compiles the source code of Stage 3 (the production Scheme dialect).
+* **The Goal (Self-Hosting):** Developers write a native machine code backend (e.g., x86_64) directly *in Stage 3 Scheme*. Once Stage 3 can compile its own source code without invoking LLVM, the development bootstrap is complete. The external LLVM scaffolding is dropped, creating a **meta-circular, self-hosting language**.
+
+### Bootstrapping the Build (End-User Installation)
+Once Koivu is fully self-hosting, **end-users** will need a way to build it from source on their own machines without needing an existing Koivu binary pre-installed. 
+
+* **The Problem:** A self-hosting compiler requires itself to build itself. An end-user downloading the source code only has text files, not the executable binary.
+* **The Solution (The Checked-in Seed):** To break this chicken-and-egg problem, the repository distributes a minimized, pre-compiled "bootstrap seed" or a highly portable interpreter alongside the source code.
+* **The End-User Build Flow:**
+  1. The user downloads the Koivu source code repository.
+  2. The build system executes the minimal, pre-baked bootstrap seed/interpreter.
+  3. This seed reads the Stage 3 Scheme source code and uses it to compile a basic, functioning Koivu compiler binary.
+  4. The newly compiled binary then recompiles the full source code a second time to generate the optimized, production-ready compiler.
+
+---
+
+## Global Structural Principles
 
 All architectural modules must conform to these design priorities:
 
