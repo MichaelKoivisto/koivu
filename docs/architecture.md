@@ -64,8 +64,15 @@ All architectural modules must conform to these design priorities:
 
 * **Minimalist Kernel Surface:** The infrastructure must maintain an absolute minimum interface dependency on the host operating system. Builds must be managed by Koivu Scheme scripts. 
 
+Seed compiler (Stage 1) must conform to a unique design priority:
+
+* **Simplicity:** Seed's source code (and resulting binaries) should be minimal in size and simple in design and logic, 
+to facilitate human review and inspection of both source code and binaries.
+
 Production modules (Stage 3 and onward) must conform to additional design priorities:
 
-* **Cache-Aligned Data Structures:** Tree data structures must be flattened into sequential matrices (Struct of Arrays layout) to optimize memory bandwidth and cache line saturation on prioritized target hardware.
-* **Zero Dynamic Garbage Collection:** The execution pipeline must remain completely free of global heap-scanning garbage collection overhead. Components must implement memory strategies native to their lifecycle (Stage 3 enforces Pass-Based Arenas and Fixed-Size Slab Arrays).
+* **Cache-Aligned Data Structures:** Tree data structures must be flattened into sequential arrays to optimize memory bandwidth and cache line saturation on prioritized target hardware.
+* **Minimum Dynamic Garbage Collection:** The execution pipeline must maintain precise control on global heap-scanning garbage collection overhead, going as far as No-GC policy when reasonable. Majority of data must live in flat arrays to minimize the number of entities requiring garbage collection. 
+
+
 
