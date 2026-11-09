@@ -186,8 +186,8 @@ Koivu's base reader syntax derives from the **R6RS Lexical Structure (Chapter 4)
 
 ### Constraints & Anti-Patterns
 To protect code transparency and keep the parser loop predictable for human inspectors, the following extensions are strictly illegal in the Koivu codebase:
-* **Global Table Mutation:** Code blocks cannot dynamically re-bind dispatch characters mid-file.
-* **Infix/Precedence Shifters:** Syntactic sugar that alters standard Lisp prefix structural hierarchy into infix mathematical notation is rejected to preserve clear tree-oriented design mapping.
+* **Global Table Mutation** (code blocks that dynamically re-bind dispatch characters mid-file).
+* **Infix/Precedence Shifters** (syntactic sugar that alters standard Lisp prefix structural hierarchy into infix mathematical notation).
 
 ## Other considerations
 
