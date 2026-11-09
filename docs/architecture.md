@@ -64,15 +64,15 @@ All architectural modules must conform to these design priorities:
 
 * **Minimalist Kernel Surface:** The infrastructure must maintain an absolute minimum interface dependency on the host operating system. Builds must be managed by Koivu Scheme scripts. 
 
-Seed compiler (Stage 1) must conform to a unique design priority:
+Seed compiler (Stage 1) must conform to a strict design priority:
 
-* **Simplicity:** Seed's source code (and resulting binaries) should be minimal in size and simple in design and logic, 
-to facilitate human review and inspection of both source code and binaries.
+* **Auditability & Simplicity:** The compiler's source code and resulting binaries must be minimal in footprint and transparent in design logic. This architectural minimalism ensures effortless human inspection and strict verification of the initial bootstrap layer.
 
-Production modules (Stage 3 and onward) must conform to additional design priorities:
+Production modules (Stage 3 and onward) must enforce performance-critical design priorities:
 
-* **Cache-Aligned Data Structures:** Tree data structures must be flattened into sequential arrays to optimize memory bandwidth and cache line saturation on prioritized target hardware.
-* **Minimum Dynamic Garbage Collection:** The execution pipeline must maintain precise control on global heap-scanning garbage collection overhead, going as far as No-GC policy when reasonable. Majority of data must live in flat arrays to minimize the number of entities requiring garbage collection. 
-
+* **Cache-Aligned Data Structures:** Tree data structures must be flattened into sequential vector arrays to maximize memory bandwidth utilization 
+and optimize cache-line saturation on targeted hardware architectures.
+* **Bounded Dynamic Allocation (Low/No-GC):** The execution pipeline must maintain rigid control over runtime memory overhead by prioritizing flat-array layouts 
+to eliminate heap-scanning garbage collection costs, defaulting to strict Arena Allocation and No-GC policies wherever practicable.
 
 
