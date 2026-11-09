@@ -1,4 +1,4 @@
-# Koivu Bootstrapping Architecture: T-Diagrams
+# Koivu Roadmap to Self-hosting
 
 **Status:** Architecture Blueprint  
 
