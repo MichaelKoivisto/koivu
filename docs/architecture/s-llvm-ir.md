@@ -1,19 +1,19 @@
-# Koivu S-Expression LLVM (S-LLVM) Architecture Blueprint
+# Koivu S-Expression LLVM IR (S-LLVM IR) Architecture Blueprint
 
 **Status:** Architecture Blueprint  
 
 **Component:** Koivu Backend  
 
 ## Design Purpose
-To fulfill the core constraint of **Stage 1 Simplicity & Auditability**, the Stage 2 compiler source code completely avoids parsing raw text-based LLVM IR string blocks via reader macros. Instead, LLVM IR statements are modeled natively as structured Lisp data layouts using a strict variant called **Koivu S-Expression LLVM (S-LLVM)**. 
+To fulfill the core constraint of **Stage 1 Simplicity & Auditability**, the Stage 2 compiler source code completely avoids parsing raw text-based LLVM IR string blocks via reader macros. Instead, LLVM IR statements are modeled natively as structured Lisp data layouts using a strict variant called **Koivu S-Expression LLVM IR (S-LLVM IR)**. 
 
-Because Stage 1 lacks a macro engine, S-LLVM code is written as standard Scheme lists. This ensures the Stage 1 seed compiler only needs a basic, minimalist S-expression `READ` loop. The mapping of S-LLVM structures down to human-readable `.ll` text format is handled entirely by explicit, deterministic formatting printers.
+Because Stage 1 lacks a macro engine, S-LLVM code is written as standard Scheme lists. This ensures the Stage 1 seed compiler only needs a basic, minimalist S-expression `READ` loop. The mapping of S-LLVM IR structures down to human-readable `.ll` text format is handled entirely by explicit, deterministic formatting printers.
 
 ---
 
 ## Grammar Blueprint & Structure
 
-An S-LLVM compilation unit is a flat sequence of function definitions, global declarations, and metadata lists. All identifiers mapped to registers (`%`) or global symbols (`@`) are represented directly as Lisp symbols.
+An S-LLVM IR compilation unit is a flat sequence of function definitions, global declarations, and metadata lists. All identifiers mapped to registers (`%`) or global symbols (`@`) are represented directly as Lisp symbols.
 
 ### 1. Function Declarations
 Functions define an explicit return type, a symbol name, a parameter type-signature list, and a linear body of basic blocks.
@@ -39,7 +39,7 @@ Value-producing operations utilize a uniform nesting layout where the destinatio
 
 ## Concrete Blueprint Example: High-Level Lowering Pass
 
-The following code illustrates how a Stage 2 compiler pass lowers a high-level math operation directly into S-LLVM primitives. It requires zero text parsing and uses only basic list constructors compatible with the Stage 1 binary:
+The following code illustrates how a Stage 2 compiler pass lowers a high-level math operation directly into S-LLVM-IR primitives. It requires zero text parsing and uses only basic list constructors compatible with the Stage 1 binary:
 
 ```scheme
 ;; Example: Lowering an integer subtraction operation down to S-LLVM structures
@@ -60,7 +60,7 @@ The following code illustrates how a Stage 2 compiler pass lowers a high-level m
 
 ## The Emission Pipeline (The String Printer)
 
-Because S-LLVM matches standard Lisp syntax, writing code generation tools is highly efficient. The Stage 2 compiler translates the structured list blocks into text using standard, loop-driven stream emitters. A human auditor can easily verify the correctness of the layout logic by inspecting this linear translation function:
+Because S-LLVM-IR matches standard Lisp syntax, writing code generation tools is highly efficient. The Stage 2 compiler translates the structured list blocks into text using standard, loop-driven stream emitters. A human auditor can easily verify the correctness of the layout logic by inspecting this linear translation function:
 
 ```scheme
 ;; Minimalist Stage 2 printer mapping S-LLVM structures directly to file text
