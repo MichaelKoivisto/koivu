@@ -17,6 +17,7 @@ The complete technical design is distributed across the following specialized do
 | [**Stage 1 (Seed)**](./architecture/04_stage1_seed.md) | A minimalist Lisp-1 compiler. |
 | [**Stage 2 (Bridge)**](./architecture/05_stage2_bridge.md) | Macro-expanding compiler written in Stage 1 Lisp. |
 | [**Stage 3 (Production Core)**](./architecture/06_stage3_production_core.md) | Final compiler of compilers. |
+| [**Data-Oriented Design**](./architecture/data_oriented_design.md) | Data-Oriented Design for compiler passes. |
 | [**Backend**](./architecture/backend.md) | Backend: emission of LLVM IR, optimizations, lowering. |
 | [**Production Frontends**](./architecture/07_frontends.md) | Frontends for target programming languages. |
 
