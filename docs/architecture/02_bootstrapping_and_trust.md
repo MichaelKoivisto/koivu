@@ -11,13 +11,13 @@
 
 Bootstrapping will start from a simple Lisp compiler written in pure, generic LLVM IR. 
 Koivu project will also keep (as part of its source code) target-dependent machine assembly files for popular platforms (x64, arm64 and possibly others) for seed Lisp compiler. 
-Those target-dependant assemby files will be obtained by translating generic IR implementation of seed compiler. At early stages of the project, we will use LLVM `lcc` static compiler 
-to translate LLVM IR to target assembly. Later, as Koivu project grows, this step will become self-hosted in a sense that we will use a Koivu tool (written in Lisp) for translation. 
+Those target-dependant assemby files will be obtained by translating generic IR implementation of seed compiler. At early stages of the project, Koivu will use LLVM `lcc` static compiler 
+to translate LLVM IR to target assembly. Later, as Koivu project grows, it will become completely self-hosting and will use a Koivu tool (written in Lisp) for translation. 
 
 The goal of portable Lisp compiler seed implementation in generic IR is to simplify the maintanance of Koivu project. Target-specific assembly seeds will still have 
 one important common property with generic IR seed: they all will be human-readable and human-inspectable, due to relatively small size. 
 
-There will be two major paths for bootstrapping:
+From security and trust point of view, there will be two major paths for bootstrapping:
 
 * Simple Path: bootstrap from assembly or binary of seed compiler on some consumer-grade operating system. 
 * Secure Path: bootstrap from machine binary of seed compiler in a secure bootstrapping environment, similar to GNU Bootstrapping Project. 
@@ -49,3 +49,52 @@ Secure Path is useful when full trust in compiler chain is an absolute requireme
 In that case, Koivu compiler infrastructure may serve as a drop-in replacement for the compiler seeding steps of GNU Bootstrapping Project. 
 Or you may design an even more elaborate simultaneous OS and compiler bootstrapping procedure. Particular details of such a bootstrapping procedure 
 are beyond the scope of Koivu project; Koivu's goal is to cover the compiler bootstrapping part only.
+
+---
+
+## Bootsrapping Build Steps
+
+Here is the step-by-step breakdown of execution flow during a build.
+
+### Step 1: Generating the Stage 2 Binary
+
+The Stage 1 compiler (a minimal S-expression evaluator/compiler) is an executable binary. Build system feeds the Stage 2 source code (which introduces macros, closures, and more advanced language features) into this Stage 1 executable.
+
+* Input: Stage 2 Source Code
+* Compiler running the work: Stage 1 Executable
+* Output: Stage 2 Binary
+
+```
++-----------------+      +--------------------+      +-----------------+
+
+| Stage 2 Source  | ---> | Stage 1 Executable | ---> | Stage 2 Binary  |
++-----------------+      +--------------------+      +-----------------+
+```
+
+### Step 2: Generating the Stage 3 Binary
+
+Now that we have the Stage 2 Binary, we can use it to process code that uses macros and advanced language syntax. 
+Build system feeds the Stage 3 source code into this freshly baked Stage 2 executable.
+
+* Input: Stage 3 Source Code
+* Compiler running the work: Stage 2 Executable
+* Output: Stage 3 Binary
+
+```
++-----------------+      +--------------------+      +-----------------+
+
+| Stage 3 Source  | ---> | Stage 2 Executable | ---> | Stage 3 Binary  |
++-----------------+      +--------------------+      +-----------------+
+```
+
+Why This Ordering is Mandatory:
+
+1. Language Compatibility: The Stage 3 source code is written using complex language features (like hygienic macros and complex passes). The Stage 1 evaluator is too simple and does not understand this syntax. If you try to feed Stage 3 directly into Stage 1, it will crash or fail to parse.
+2. The "Bridge" Principle: Stage 2 acts as the conceptual bridge. It is written in a simple enough subset of the language that Stage 1 can compile it, but its output (the Stage 2 binary) is smart enough to compile the full Stage 3 language.
+
+### The Final Step (Self-Hosting Verification)
+
+To prove the pipeline is completely correct and self-hosting, there is a final step called **Stage 4** (or a **fixpoint check**).
+
+Build system takes the Stage 3 Source Code and feeds it into the Stage 3 Binary created in Step 2. This outputs a new binary. If this final binary is byte-for-byte identical to the Stage 3 Binary that created it, compiler has achieved full, stable self-hosting.
+
