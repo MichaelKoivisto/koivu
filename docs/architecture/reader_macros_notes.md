@@ -77,3 +77,49 @@ Keeping Stage 3 traditional while writing DoD compilers creates a highly pragmat
 * **The Target Layer (The generated output):** Is pure Data-Oriented Design. Your traditional Stage 3 compiler emits tight, cache-aligned, flat-array representations for the downstream target infrastructure to execute at blistering speeds.
 
 This approach gives you the best of both worlds: you use the ultimate language-building tool (Lisp reader macros) to construct the ultimate performance engine (DoD frontends/backends).
+
+If you want the Stage 3 source code to use custom reader macros, the Stage 2 compiler's `READ` engine must be the one that defines and executes them. The compiler doing the work (Stage 2) must understand the text syntax of the file it is reading (Stage 3).
+
+---
+
+## Reader Macros Prone to Misuse
+
+However, because Stage 2 needs to stay strictly simple and human-auditable, you should be highly selective about which reader macros you allow. In a dedicated compiler infrastructure like Koivu, certain traditional reader macros are highly prone to misuse and can quickly ruin the codebase.
+
+Here are the reader macros most prone to misuse in compiler code, and how they disrupt your design goals:
+
+1. The Global "State-Mutating" Reader Macros
+
+* The Trap: Reader macros that alter the global reader table *mid-file* or modify a global variable during the read phase (e.g., `#+(set-version! 3)`).
+* Why it's a nightmare for compilers: Compilers process source files, and a fundamental invariant of a reliable compiler is **idempotent, order-independent reading**. If reading line 50 changes how line 100 is parsed, you create hidden temporal coupling.
+* The Koivu Penalty: This makes Stage 2 incredibly complex to audit because tracking down syntax bugs requires simulating the exact time-sequence of the parser state, destroying simplicity.
+
+2. Arbitrary Code Evaluation at Read-Time (`#.`)
+
+* The Trap: In Common Lisp, the `#.` macro evaluates the following S-expression *during the read phase* 
+and replaces it with the result (e.g., `(define max-ports #.(calculate-hardware-ports))`).
+* Why it's a nightmare for compilers: This turns your static parser into a live, unpredictable execution engine. 
+If the code inside `#.` has a bug, infinite loop, or touches a missing environment path, your compiler crashes during the basic `READ` phase 
+before it can even give you a proper syntax error or line number.
+* The Koivu Penalty: It completely breaks the separation of concerns. The parser should strictly be an AST generator, not an open-ended code executor.
+
+3. Read-Time Text Ingestion without Validation (`#include` equivalents)
+
+* The Trap: A macro that blindly injects raw text files or external strings straight into the token stream without syntactic sanitization.
+* Why it's a nightmare for compilers: If the external file has unescaped characters, mismatched parentheses, or formatting quirks, it will poison your AST. Because the injection happens at read-time, the resulting compiler error messages will point to the line numbers of your main source file, making it nearly impossible for a developer to figure out which external file actually caused the syntax breakage.
+
+4. Overly Permissive Custom Infix / Operator Precedence Shifters
+
+* The Trap: Implementing custom reader macros that change standard prefix Lisp syntax into inline mathematical expressions or custom bracket logic (e.g., writing `#infix(x + y * z)`).
+* Why it's a nightmare for compilers: When writing compiler passes (especially in a Nanopass architecture), you want your code transformations to look exactly like the tree structures they manipulate. Introducing arbitrary operator precedence rules at the text level creates cognitive dissonance. Team members reading the code have to mentally switch back and forth between Lisp tree-thinking and math-expression parsing rules.
+
+## The Recommended Scope for Koivu Stage 2
+
+To achieve your goals without inviting misuse, restrict Stage 2's reader macros exclusively to pure syntactic literals that map directly to fixed AST nodes.
+Allow only:
+
+1. Conditional compilation: (`#+` / `#-`) to toggle targets.
+2. Target embeddings: (`#c{...}` or `#asm[...]`) that immediately dispatch to isolated, well-defined target parsers.
+3. Strict fixed-width typing flags: (`42_u32`).
+
+Avoid any macro that allows the compiler code to dynamically rewrite its own host language grammar on the fly. This keeps your Stage 2 bridge small, beautiful, and completely auditable.
