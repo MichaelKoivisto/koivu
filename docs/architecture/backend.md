@@ -21,7 +21,6 @@ At the later development stages, Koivu will provide additional Scheme libraries 
 
 The rational for emiting LLVM IR AST is simplicity of interaction with later backend stages: later stages do not need to parse LLVM IR files. 
 
-
 ## Simple Code Generator
 
 The `koivu-simple-codegen` library does naive lowering of LLVM IR to target machine code. 
