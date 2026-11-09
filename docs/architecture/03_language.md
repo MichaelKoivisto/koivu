@@ -160,6 +160,34 @@ Koivu Scheme compiler maps the the expanded `flat-vector-for-each` macro block s
 Because the stride is fixed (12 bytes) and fields are mapped directly to struct offsets, LLVM can utilize hardware registers 
 to carry the values of kind, pos, and payload inside a hot loop without memory fragmentation.
 
+## Reader Macros & Syntactic Extensions
+
+### Design Invariant
+To preserve the absolute auditability and simplicity of the Stage 2 bridge compiler, the lexical `READ` phase enforces a strict separation of concerns. While Koivu Scheme utilizes reader macros to ease polyglot compiler implementation, the reader environment remains completely static and order-independent. 
+
+Unlike traditional Common Lisp reader tables, Koivu explicitly prohibits arbitrary execution of host-language code at read-time (e.g., standard Common Lisp `#.` syntax) and forbids runtime mutation of the reader table during a source scan. All reader macros must act as pure syntactic literals that instantly map text blocks onto precise Intermediate Representation (IR) nodes.
+
+### R6RS Interoperability & Adaptations
+Koivu's base reader syntax derives from the **R6RS Lexical Structure (Chapter 4)**, extending the standard dispatch character (`#`) for specialized compiler pipelines. 
+
+1. **Primitive Fixed-Width Numeric Literals (Extending R6RS 4.2.1):**
+   To support strict machine-type representations without dynamic type allocation, numbers can be suffixed with explicit bit-widths. The reader parses these directly into target integer constants.
+   * `42_u32` $\rightarrow$ Instantiates a 32-bit unsigned integer literal node.
+   * `-1024_s64` $\rightarrow$ Instantiates a 64-bit signed integer literal node.
+
+2. **Conditional Compilation Feature Flags:**
+   Koivu adopts standard Lisp structural filtering via `#+` and `#-` directly inside the recursive-descent character stream.
+   * `#+feature expression` $\rightarrow$ Evaluates the global compile-time symbol list. If the feature flag is absent, the reader completely skips the expression block at character level without allocating heap cells or pairs.
+
+3. **Isolated Target Language Embeddings:**
+   To facilitate writing frontends and backends for external languages, Koivu introduces custom block-dispatch macros. When encountered, the host reader pauses and immediately shifts context to a dedicated, stateless sub-parser.
+   * `#c{ ... }` $\rightarrow$ Invokes an isolated C syntax lexer/parser, returning a structural C-AST node directly into the host Scheme tree.
+   * `#asm[ ... ]` $\rightarrow$ Invokes a strict machine-instruction parser to build cache-aligned instruction sequences.
+
+### Constraints & Anti-Patterns
+To protect code transparency and keep the parser loop predictable for human inspectors, the following extensions are strictly illegal in the Koivu codebase:
+* **Global Table Mutation:** Code blocks cannot dynamically re-bind dispatch characters mid-file.
+* **Infix/Precedence Shifters:** Syntactic sugar that alters standard Lisp prefix structural hierarchy into infix mathematical notation is rejected to preserve clear tree-oriented design mapping.
 
 ## Other considerations
 
