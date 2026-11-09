@@ -1,6 +1,6 @@
 # Koivu Compiler Infrastructure Architecture Map
 
-**Status:** Architecture Specification  
+**Status:** Architecture Blueprint  
 **Component:** Global  
 
 This document serves as the top-level index and navigational map for the Koivu Compiler Infrastructure specifications. 
