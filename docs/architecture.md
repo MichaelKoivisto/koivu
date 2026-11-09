@@ -7,17 +7,18 @@ This document serves as the top-level index and navigational map for the Koivu C
 
 ## 1. Core Architectural Layout
 
-The complete technical design is distributed across the following specialized specifications:
+The complete technical design is distributed across the following specialized documents:
 
-| Component | Focus Area | Path |
-| :--- | :--- | :--- |
-| **01. Platforms and Targets** | Host/target matrices and related engineering priorities. | [docs/architecture/01_platforms.md](./architecture/01_platforms.md) |
-| **02. Bootstrapping Paths & Trust** | Simple vs. Secure compiler lineage. | [docs/architecture/02_bootstrapping_and_trust.md](./architecture/02_bootstrapping_and_trust.md) |
-| **03. Koivu Scheme** | Core Domain-Specific Language. | [docs/architecture/03_language.md](./architecture/03_language.md) |
-| **04. Stage 1 (Seed)** | A minimalist Lisp-1 compiler. | [docs/architecture/04_stage1_seed.md](./architecture/04_stage1_seed.md) |
-| **05. Stage 2 (Bridge)** | Macro-expanding compiler written in Stage 1 Lisp. | [docs/architecture/05_stage2_bridge.md](./architecture/05_stage2_bridge.md) |
-| **06. Stage 3 (Production Core)** | Final compiler of compilers. | [docs/architecture/06_stage3_production_core.md](./architecture/06_stage3_production_core.md) |
-| **07. Production Compilers** | Frontends for target programming languages. | [docs/architecture/07_frontends.md](./architecture/07_frontends.md) |
+| Component | Focus Area |
+| :--- | :--- |
+| [**Platforms and Targets**](./architecture/01_platforms.md) | Host/target matrices and related engineering priorities. |
+| **[Bootstrapping Paths & Trust](./architecture/02_bootstrapping_and_trust.md)** | Simple vs. Secure compiler lineage. |
+| [**Koivu Scheme**](./architecture/03_language.md) | Core Domain-Specific Language. |
+| [**Stage 1 (Seed)**](./architecture/04_stage1_seed.md) | A minimalist Lisp-1 compiler. |
+| [**Stage 2 (Bridge)**](./architecture/05_stage2_bridge.md) | Macro-expanding compiler written in Stage 1 Lisp. |
+| [**Stage 3 (Production Core)**](./architecture/06_stage3_production_core.md) | Final compiler of compilers. |
+| [**Backend**](./architecture/backend.md) | Backend: emission of LLVM IR, optimizations, lowering. |
+| [**Production Frontends**](./architecture/07_frontends.md) | Frontends for target programming languages. |
 
 ---
 
