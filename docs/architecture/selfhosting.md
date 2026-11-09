@@ -4,6 +4,10 @@
 
 **Component:** Global  
 
+> Capt. Barbossa: So you expect to leave me standing on some beach with nothing but a name and your word it's the one I need and watch you sail away on my ship?<br>
+> Capt. Jack Sparrow: No. I expect to leave you standing on some beach with absolutely no name at all, watching me sail away on *my* ship, and then I'll shout the name back to you. Savvy?<br>
+> Capt. Barbossa: But that still leaves us with the problem of me standing on some beach with naught but a name and your word it's the one I need.
+
 This document maps out the bootstrapping pipeline of the **Koivu** compiler infrastructure. It uses classic **T-diagrams** to show how the project transitions from an external host dependency (LLVM) to a fully self-hosting compiler.
 
 ### T-Diagram Notation Recap
@@ -35,7 +39,7 @@ In the initial phase, Stage 1 is written directly in **LLVM IR**. Because there 
                |  llc  |  <--- (External LLVM Static Compiler Executable)
                +-------+
 ```
-* **Status:** This is pure **bootstrapping via a host compiler**. There is no meta-circularity here.
+* **Status:** This is pure **bootstrapping via a host compiler**. 
 
 ---
 
@@ -92,7 +96,7 @@ Using the **Stage 2 Executable**, we compile the initial implementation of Stage
 ---
 
 ## 4. Achieving Meta-Circularity: The Self-Hosting Stage 3
-Once the Koivu project implements its native target backend directly inside the Stage 3 Scheme source code, the project can drop its LLVM dependency entirely. 
+Once the Koivu project implements its [native target backend](backend.md) directly inside the Stage 3 Scheme source code, the project can drop its LLVM dependency entirely. 
 
 To achieve full self-hosting and verify correctness, the compiler goes through a **cycle fixpoint test**:
 
