@@ -1,6 +1,7 @@
 # Koivu Compiler Infrastructure Architecture Map
 
 **Status:** Architecture Blueprint  
+
 **Component:** Global  
 
 This document serves as the top-level index and navigational map for the Koivu Compiler Infrastructure specifications. 
@@ -68,7 +69,11 @@ Seed compiler (Stage 1) must conform to a strict design priority:
 
 * **Auditability & Simplicity:** The compiler's source code and resulting binaries must be minimal in footprint and transparent in design logic. This architectural minimalism ensures effortless human inspection and strict verification of the initial bootstrap layer.
 
-Production modules (Stage 3 and onward) must enforce performance-critical design priorities:
+Koivu Scheme compilers (all stages) must conform to a very specific design priority:
+
+* **Maximum Language Expressiveness:**  Stay traditional, dynamic, and macro-rich. Provide maximum cognitive flexibility and clean, expressive notation to reason about code, transform graphs, and manipulate syntax.
+
+Production modules (with the exception of Lisp compilers) must enforce performance-critical design priorities:
 
 * **Cache-Aligned Data Structures:** Tree data structures must be flattened into sequential vector arrays to maximize memory bandwidth utilization 
 and optimize cache-line saturation on targeted hardware architectures.
