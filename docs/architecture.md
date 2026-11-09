@@ -13,6 +13,7 @@ The complete technical design is distributed across the following specialized do
 | :--- | :--- |
 | [**Platforms and Targets**](./architecture/01_platforms.md) | Host/target matrices and related engineering priorities. |
 | [**Bootstrapping Paths & Trust**](./architecture/02_bootstrapping_and_trust.md) | Simple vs. Secure compiler lineage. |
+| [**Self-hosting**](./architecture/selfhosting.md) | Roadmap to self-hosting. |
 | [**Koivu Scheme**](./architecture/03_language.md) | Core Domain-Specific Language. |
 | [**Stage 1 (Seed)**](./architecture/04_stage1_seed.md) | A minimalist Lisp-1 compiler. |
 | [**Stage 2 (Bridge)**](./architecture/05_stage2_bridge.md) | Macro-expanding compiler written in Stage 1 Lisp. |
