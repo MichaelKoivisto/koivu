@@ -49,10 +49,10 @@ This is the process the **core developers** use to build the compiler infrastruc
 Once Koivu is fully self-hosting, **end-users** will need a way to build it from source on their own machines without needing an existing Koivu binary pre-installed. 
 
 * **The Problem:** A self-hosting compiler requires itself to build itself. An end-user downloading the source code only has text files, not the executable binary.
-* **The Solution (The Checked-in Seed):** To break this chicken-and-egg problem, the repository distributes a minimized, pre-compiled "bootstrap seed" or a highly portable interpreter alongside the source code.
+* **The Solution (The Checked-in Seed):** To break this chicken-and-egg problem, the repository distributes a minimized, pre-compiled "bootstrap seed" Lisp compiler alongside the source code.
 * **The End-User Build Flow:**
   1. The user downloads the Koivu source code repository.
-  2. The build system executes the minimal, pre-baked bootstrap seed/interpreter.
+  2. The build system executes the minimal, pre-baked bootstrap seed.
   3. This seed reads the Stage 3 Scheme source code and uses it to compile a basic, functioning Koivu compiler binary.
   4. The newly compiled binary then recompiles the full source code a second time to generate the optimized, production-ready compiler.
 
