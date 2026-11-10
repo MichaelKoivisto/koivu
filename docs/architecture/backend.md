@@ -16,7 +16,7 @@ Koivu backend is closely aligned with LLVM backend architecture: follows the sam
 ### Simple Generic LLVM IR Emiter
 
 An absolute minimum backend emits generic LLVM IR from Lisp code via [`(koivu backend s-llvm-ir)` Scheme library](s-llvm-ir.md). 
-The library creates a generic LLVM IR abstract syntax tree (AST) (conforming to [`ast-s-llvm-ir-` data schema](ast-s-llvm.md)) 
+The library creates a generic LLVM IR abstract syntax tree (AST) (conforming to [`ast-s-llvm-ir-` data schema](ast-s-llvm-ir.md)) 
 via **Koivu S-Expression LLVM IR (S-LLVM IR) syntax** rather then printing LLVM IR directly. 
 
 At the early stages of Koivu project development, backend uses resulting LLVM IR AST to print a pretty-formatted LLVM IR source code to a `.ll` file. 
@@ -44,6 +44,18 @@ Simplified target descriptions only support instructions required by Stage 1 See
 ### Production Generic LLVM IR Emiter
 
 Stage 3 and other production compilers will emit LLVM IR via `(koivu backend syntax llvm-ir)` library. 
+Production backends will use `flat-ast-llvm-ir` data scheme for representing LLVM IR AST in memory. 
+
+#### Bootstrapping vs. Production AST Layers
+
+| Architectural Metric | Bootstrapping Layer | Production Layer |
+| :--- | :--- | :--- |
+| **Design Priority** | Simplicity & Easy Human Audit | Cache Line Saturation & No-GC |
+| **Physical Memory Shape** | Nested Pointer Lists (Pairs) | Flat, Contiguous `u32` Array Vectors |
+| **Library Descriptor** | `(koivu backend s-llvm-ir)` | `(koivu backend syntax llvm-ir)` |
+| **Data Node Prefix** | **`ast-s-llvm-ir-`** | **`flat-ast-llvm-ir-`** |
+| **Node Indexing Model** | Recursive list traversal (`car`/`cdr`) | Flat index offsets (`+1`, `+2`, `+3`) |
+
 
 ### Production Code Generator
 
