@@ -15,8 +15,9 @@ Koivu backend is closely aligned with LLVM backend architecture: follows the sam
 
 ### Simple Generic LLVM IR Emiter
 
-An absolute minimum backend emits generic LLVM IR from Lisp code via `(koivu backend s-llvm-ir)` Scheme library. 
-The library [creates a generic LLVM IR abstract syntax tree (AST) via Koivu S-Expression LLVM IR (S-LLVM IR) syntax](s-llvm-ir.md) rather then printing LLVM IR directly. 
+An absolute minimum backend emits generic LLVM IR from Lisp code via [`(koivu backend s-llvm-ir)` Scheme library](s-llvm-ir.md). 
+The library creates a generic LLVM IR abstract syntax tree (AST) (conforming to [`ast-s-llvm-ir-` data schema](ast-s-llvm.md)) 
+via **Koivu S-Expression LLVM IR (S-LLVM IR) syntax** rather then printing LLVM IR directly. 
 
 At the early stages of Koivu project development, backend uses resulting LLVM IR AST to print a pretty-formatted LLVM IR source code to a `.ll` file. 
 Developers use standard `llc` static compiler from LLVM project to lower `.ll` files to target machine codes.
