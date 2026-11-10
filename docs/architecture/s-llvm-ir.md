@@ -30,6 +30,13 @@ The module conforms to standard hierarchical Scheme library declarations:
   )
 ```
 
+#### Importing the Module
+To utilize the S-LLVM IR builders inside a compiler pass, include the library descriptor:
+
+```scheme
+(import (koivu backend s-llvm-ir))
+```
+
 #### API Signature Rules
 
 1. **AST Data Constructors (`make-llvm-ir-*`)**
