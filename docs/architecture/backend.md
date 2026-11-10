@@ -5,11 +5,15 @@
 **Component:** Koivu Backend  
 
 > Anamaria: You stole my boat!<br>
-> Jack Sparrow: ...Borrowed! Borrowed without permission. With every intention of bringing it back to you.
+> Capt. Jack Sparrow: ...Borrowed! Borrowed without permission. With every intention of bringing it back to you.
 
 Koivu backend is closely aligned with LLVM backend architecture: follows the same approach, uses the same or similar formats and similar algorithms. 
 
-## Generic LLVM IR Emiter
+---
+
+## Stage 1 Backend
+
+### Simple Generic LLVM IR Emiter
 
 An absolute minimum backend emits generic LLVM IR from Lisp code via `(koivu backend s-llvm-ir)` Scheme library. 
 The library [creates a generic LLVM IR abstract syntax tree (AST) via Koivu S-Expression LLVM IR (S-LLVM IR) syntax](s-llvm-ir.md) rather then printing LLVM IR directly. 
@@ -21,21 +25,28 @@ At the later development stages, Koivu will provide additional Scheme libraries 
 
 The rational for emiting LLVM IR AST is simplicity of interaction with later backend stages: later stages do not need to parse LLVM IR files. 
 
-## Simple Code Generator
+### Simple Code Generator
 
 The `(koivu backend simple-codegen)` library does naive lowering of LLVM IR to target machine code. 
 It is designed for use in Stage 1 Seed Compiler and does not do any transformations of LLVM IR or any target-aware optimizations. 
 Lowering is the only capability of `(koivu backend simple-codegen)`. 
 
-### Simple Target Descriptions
+#### Simple Target Descriptions
 
-`(koivu simple-codegen)` uses simplified target descriptions stored as Scheme files. 
+`(koivu backend simple-codegen)` uses simplified target descriptions stored as Scheme files. 
 Simplified target descriptions only support instructions required by Stage 1 Seed Compiler. 
 
+---
 
-## Production Code Generator
+## Production Backend
 
-Later-stage Koivu libraries provide maximum capabilities for code generation:
+### Production Generic LLVM IR Emiter
+
+Stage 3 and other production compilers will emit LLVM IR via `(koivu backend syntax llvm-ir)` library. 
+
+### Production Code Generator
+
+Later-stage Koivu libraries provide maximum capabilities for code generation in Stage 3 and other production compilers:
 
 * `(koivu backend analysis)`: Computes program information (like dominance trees, scalar evolution, and alias analysis) without altering the IR.
 
@@ -45,11 +56,11 @@ Later-stage Koivu libraries provide maximum capabilities for code generation:
 
 * `(koivu backend machine-code-layer)`: Definitive library for code emission. The Machine Code Layer handles assembly-level constructs entirely divorced from LLVM IR (e.g., labels, sections, raw target instructions).
 
-### Target Descriptions
+#### Production Core Target Descriptions
 
 Koivu backend will store target descriptions as Scheme source files. 
 
-## Target Description Converter
+### Target Description Converter
 
 Koivu will provide a tool written in Scheme for parsing LLVM Target Descriptions and converting them to Scheme-format Koivu Target Descriptions. 
 
