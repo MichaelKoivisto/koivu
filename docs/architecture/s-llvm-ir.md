@@ -23,7 +23,9 @@ The module conforms to standard hierarchical Scheme library declarations:
           make-llvm-ir-ret
           make-llvm-ir-function
           emit-llvm-ir-instruction
-          emit-llvm-ir-module)
+          emit-llvm-ir-module
+          ;; Other functions ...
+          )
   ;; Library body implementation...
   )
 ```
