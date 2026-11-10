@@ -11,52 +11,68 @@ To satisfy the **Stage 1 Simplicity & Auditability** priority, this representati
 
 ---
 
-### Node Specifications & Layout Grammars
+### Standalone Memory Schema: `(koivu backend syntax llvm-ir)` Internal AST Tags
 
 Every node in the formal LLVM IR AST is explicitly typed via a distinct semantic prefix tag. This design separates types, registers, and operations into uniform fields.
 
-#### 1. Instruction Node (`ast-llvm-instr`)
+To enforce absolute namespace isolation between intermediate expression parsing and low-level binary backend modules, 
+all in-memory data descriptors inside the compiler core must use the explicit `ast-llvm-ir-` structural prefix convention.
+
+#### In-Memory Node Tag Definitions
+*   `(ast-llvm-ir-block <label-sym> (<instruction-nodes-list>))`  
+    *Aggregates a sequence of linear instructions within a named basic block boundary.*
+*   `(ast-llvm-ir-instr <opcode> <dest-val> <type> <op1-val> <op2-val>)`  
+    *Represents a strict, fixed-length five-slot primitive instruction node layer.*
+*   `(ast-llvm-ir-val <kind-sym> <type-sym> <identifier-or-literal>)`  
+    *Represents an explicitly typed value descriptor node targeting operands or constants.*
+
+#### Complete Code Graph In-Memory Specimen
+
+The following code block provides the precise conceptual trace of a complete, unvalidated two-instruction basic block (performing an explicit index field addition and returning the result) as it sits inside the Stage 1 compiler's memory right before the machine code generator is executed.
+
+
+The following blueprint demonstrates how a data-flow sequence resides inside the Stage 1 host memory environment prior to native machine serialization passes:
+
+```scheme
+;; Mental Model: Formal LLVM IR AST Structure inside Stage 1 Memory
+'(ast-llvm-ir-block mathematical_entry
+   ((ast-llvm-ir-instr add
+                       (ast-llvm-ir-val reg i32 %res)
+                       i32
+                       (ast-llvm-ir-val reg i32 %a)
+                       (ast-llvm-ir-val reg i32 %b))
+    
+    (ast-llvm-ir-instr ret
+                       void
+                       i32
+                       (ast-llvm-ir-val reg i32 %res)
+                       none)))
+```
+
+---
+
+### Node Specifications & Layout Grammars
+
+#### 1. Instruction Node (`ast-llvm-ir-instr`)
 Instruction nodes have a rigid five-slot layout containing the opcode, the single static assignment (SSA) destination value node, the operational data type, and exactly two operand slots.
 ```scheme
-(ast-llvm-instr <opcode-sym> <dest-val-node> <type-sym> <op1-val-node> <op2-val-node>)
+(ast-llvm-ir-instr <opcode-sym> <dest-val-node> <type-sym> <op1-val-node> <op2-val-node>)
 ```
 *   *Opcode Bounds:* Must be a valid operational symbol matching LLVM primitive invariants (e.g., `add`, `sub`, `getelementptr`, `load`).
 *   *Void Operations:* Terminators or side-effect instructions that do not produce an assignment register (e.g., `ret`, `store`) bind a constant symbol `'void` into the `<dest-val-node>` slot.
 *   *Operand Padding:* Unary or parameter-less operations fill vacant operand fields with a terminal symbol `'none`.
 
-#### 2. Value Descriptor Node (`ast-llvm-val`)
+#### 2. Value Descriptor Node (`ast-llvm-ir-val`)
 Every literal constant, global reference, or register tracking operand is normalized into a strict three-slot layout.
 ```scheme
-(ast-llvm-val <kind-sym> <type-sym> <identifier-or-literal>)
+(ast-llvm-ir-val <kind-sym> <type-sym> <identifier-or-literal>)
 ```
 *   *Kind Boundaries:* The `<kind-sym>` must be one of three explicit structural variations: `'reg` (local SSA register), `'global` (global address label), or `'literal` (immediate value constant).
 
-#### 3. Basic Block Container Node (`ast-llvm-block`)
+#### 3. Basic Block Container Node (`ast-llvm-ir-block`)
 Basic blocks aggregate a distinct, linear sequence of instruction nodes bound within a local control-flow boundary.
 ```scheme
-(ast-llvm-block <label-sym> (<instruction-nodes-list>))
-```
-
----
-
-### In-Memory Graph Structure: The Structural Model
-
-The following code block provides the precise conceptual trace of a complete, unvalidated two-instruction basic block (performing an explicit index field addition and returning the result) as it sits inside the Stage 1 compiler's memory right before the machine code generator is executed.
-
-```scheme
-;; Mental Model: Formal LLVM IR AST Structure inside Stage 1 Memory Buffer
-'(ast-llvm-block entry
-   ((ast-llvm-instr add
-                    (ast-llvm-val reg i32 %res)
-                    i32
-                    (ast-llvm-val reg i32 %a)
-                    (ast-llvm-val reg i32 %b))
-    
-    (ast-llvm-instr ret
-                    void
-                    i32
-                    (ast-llvm-val reg i32 %res)
-                    none)))
+(ast-llvm-ir-block <label-sym> (<instruction-nodes-list>))
 ```
 
 ---
