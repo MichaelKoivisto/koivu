@@ -92,10 +92,10 @@ the downstream Parse and Check phases can iterate through uniform memory vectors
 
 ## Parsing
 
-Every frontend will store the Parse Tree as a `flat-vector` of uniform structures arranged in a strict Postorder Traversal layout.
+Similarly to Carbon, every frontend in Koivu project will store the Parse Tree as a `flat-vector` of uniform structures arranged in a strict Postorder Traversal layout.
 
-Koivu frontends will enforce a rigid rule where every Parse Tree node corresponds exactly to one token in the lexer's token stream. 
-Because the total token count is known precisely after lexing, the compiler will pre-allocate or reserve memory for the Parse Tree 
+Carbon enforces a rigid rule where every Parse Tree node corresponds exactly to one token in the lexer's token stream. 
+Because the total token count is known precisely after lexing, the compiler pre-allocates or reserves memory for the Parse Tree 
 perfectly in a single allocation, completely eliminating resize/realloc overhead.
 
 ```lisp
@@ -137,12 +137,12 @@ When the lexer processes source code, it registers all tokens in a singular, fla
 
 The 1:1 design introduces a unique challenge: What happens if the code has a syntax error and a token is missing?
 
-To preserve the invariant that "every node corresponds to a token" and maintain a structurally valid tree, parser will inject synthetic placeholder tokens or error nodes. For example, if a developer forgets a closing parenthesis, the parser creates an error node linked to a dummy token to ensure the structural math (subtree_size jumping) remains mathematically perfect for downstream compiler optimization passes.
+To preserve the invariant that "every node corresponds to a token" and maintain a structurally valid tree, parser injects synthetic placeholder tokens or error nodes. For example, if a developer forgets a closing parenthesis, the parser creates an error node linked to a dummy token to ensure the structural math (subtree_size jumping) remains mathematically perfect for downstream compiler optimization passes.
 
 ### Name Resolution via NameId Integer Comparisons
 
-During the Lexing phase, every single variable name, function name, and type name will be parsed exactly once. 
-The characters will be stored sequentially in a massive, flat string buffer (IdentifierList).
+During the Lexing phase, every single variable name, function name, and type name is parsed exactly once. 
+The characters are stored sequentially in a massive, flat string buffer (IdentifierList).
 Each unique string will be assigned a 32-bit IdentifierId.
 
 * IdentifierId(0) = ""
