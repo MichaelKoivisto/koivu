@@ -18,10 +18,10 @@ The Stage 2 Bridge Compiler is a dedicated macro-expanding utility written entir
 
 ## 1. Operational Context and Lifecycle
 
-Stage 2 executes entirely within the execution space of the Stage 1 Seed Interpreter. Because Stage 1 lacks native macro processing, Stage 2 does not use syntax hooks or compiler macros. Instead, it operates strictly as a user-level program that processes source files as structured data pipelines:
+Stage 2 is a binary produced by Stage 1. Because Stage 1 lacks native macro processing, Stage 2 does not use syntax hooks or compiler macros. Instead, it operates strictly as a user-level program that processes source files as structured data pipelines:
 
 ```
-[R6RS Library Source] ──► [Stage 2 Bridge (Running in Stage 1)] ──► [Core S-Expressions]
+[Source] ──► [Stage 2 Bridge] ──► [Core S-Expressions]
 ```
 
 To preserve the ABS_MEM_LIMIT_BYTES heap ceiling and guarantee deterministic termination, Stage 2 enforces a strict memory pipeline:
