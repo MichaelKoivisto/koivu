@@ -1,9 +1,8 @@
 
 # Koivu Scheme Stage 1 (Seed) Compiler
 
-**Status:** Architecture Blueprint  
-
-**Component:** Stage 1  
+> **Status:** Architecture Blueprint
+> **Component:** Stage 1
 
 > Barbossa: Jack... Jack! Did you not notice? That be the same island we made you the governor of on our last little trip.<br>
 > Jack Sparrow: I did notice.<br>
@@ -13,165 +12,135 @@
 > Jack Sparrow: Seeing as there's two of us, a gentleman would give us a pair of pistols.<br>
 > Barbossa: It'll be one pistol as before, and you can be the gentleman and shoot the lady; and starve yourself to death.
 
-Koivu bootstrapping is designed to run on computers with at least 2 GB of RAM, which is a reasonably small amount of memory by modern standards. 
-There is nothing to be gained by requiring compiler bootstrapping to fit in smaller amount of memory: major modern platforms have plenty of memory, 
-while embedded systems and retro platforms do not really need a full compiler chain because they can happily live on cross-compiling from more powerfull systems. 
+Koivu Stage 1 (**Koivu Seed**) is a minimalist, statically typed, ahead-of-time (AOT) Lisp-1 compiler written in pure, generic LLVM IR. Its core purpose is to compile the Stage 2 macro-expanding bridge compiler (`koivu-bridge.scm`) into executable code and exit, maintaining a minimal footprint and zero external dependencies for auditability and simplicity.
 
-For the sake of simplicity, given the bootstrapping goal (compiling the next stage and then exiting), 
-Stage 1 Interpreted will not use a garbage collector at all, using a simple bump allocator instead. 
-It will have an upper limit of memory to use (ABS_MEM_LIMIT_BYTES in MiB) hard-coded into its IR source code (and therefore into its binary). 
-The default value for ABS_MEM_LIMIT_BYTES will be 2048 MiB. Stage 1 Interpreted will allocate a fixed chunk of memory of ABS_MEM_LIMIT_BYTES at the start. 
-When memory is requested, the allocator will check if there is enough remaining space in the buffer. If valid, it will return a pointer to the current offset
-and "bump" (increment) the pointer forward by the size of the request (plus any alignment padding). 
+## 1. Identity, Versioning, and CLI
 
-If Stage 2 source accidentally has an infinite loop (a bug) and bump allocator crosses that ABS_MEM_LIMIT_BYTES boundary, assembly code should 
-instantly pull the emergency brake, report an "out of memory" error, panic and exit. 
+* **Official Name:** `Koivu Seed`
+* **Executable Names:** `koivu-seed` (POSIX), `koivu-seed.exe` (Windows `x86_64`)
+* **Version Format:** 4-digit zero-padded unsigned integer (e.g., `Koivu Seed v0001`), manually incremented.
+* **Compilation Target:** Emits generic LLVM IR (`.ll`) during early development, transitioning to direct native machine code in self-hosting builds.
 
-An infinite loop in Lisp often happens via infinite recursion (a function calling itself forever). In a primitive assembly interpreter, 
-each nested function evaluation pushes a new frame onto the physical CPU execution stack. Long before interpreter runs out of heap memory, 
-the CPU stack pointer will crash into its boundary. Stage 1 interpreter will let the operating system naturally handle this via a standard 
-Stack Overflow segmentation fault, which cleanly terminates the process before it can harm the host system.
+### Command-Line Interface
+1. **Single Argument:** `koivu-seed <input.scm>` compiles the specified source file into `<input>.ll`.
+2. **Zero Arguments:** `koivu-seed` looks for `koivu-bridge.scm` in the current working directory and compiles it to `koivu-bridge.ll`.
+3. **Missing Default Input:** If no argument is present and `koivu-bridge.scm` is missing, it prints `Koivu Seed v0001` to `stdout` and exits with code `0`.
 
-To ensure that legitimate loops don't accidentally look like infinite memory hogs, Stage 1 interpreter must implement Tail-Call Optimization directly in EVAL loop.
+## 2. Memory Management & Execution Bounds
 
-To bootstrap Stage 2 (a simple macro-expanding compiler), Stage 1 interpreter will likely read and parse a few tens of thousands of lines of Lisp code.
-On a 64-bit machine, a single Cons cell (CAR + CDR) takes 16 bytes. Even if Stage 1 interpreter allocates 
-an incredibly wasteful 20 million Cons cells during the compilation of Stage 2, the total memory consumed is: 20 000 000 times 16 bytes = 320 MB.
-Against the ABS_MEM_LIMIT_BYTES (2048 MiB default), 320 MB is a drop in the bucket.
+Targeting hosts with at least 2 GiB of RAM, Koivu Seed uses a **Bump Allocator** with a strict **No-GC** policy. 
 
-Koivu Scheme Interpreter, being a simple internal tool for bootstrapping the infrastructure, will support only one command-line argument: the name of the Scheme file to read and execute. 
-When run without command-line arguments, the interpreter will print its own full name and version (for example, "Koivu Scheme Interpreter v.1.0") and exit with success code. It also may report ABS_MEM_LIMIT_BYTES. 
+> [!WARNING]
+> **Memory Allocation Capping:** No garbage collector is used. Runaway allocation loops will exhaust the bump arena and trigger an immediate process abort.
 
-Current understanding is that the Stage 1 interpreter needs just 4 system calls: 
-* File/Stream Write (Print)
-* File/Stream Read
-* Memory Allocation
-* Process Exit
+* **Key Parameters:**
+  * `ABS_MEM_LIMIT_BYTES`: `536870912` (512 MiB) hard-coded total arena reserved via `mmap` / `VirtualAlloc`.
+  * `MAX_INPUT_BYTES`: `16777216` (16 MiB) maximum input `.scm` file size.
+  * `EMIT_BUFFER_BYTES`: `67108864` (64 MiB) pre-allocated slice for output IR/code.
+* **Arena Mechanics:** Allocations advance a bump pointer and verify against `ABS_MEM_LIMIT_BYTES`; exceeding the limit writes an error to `stderr` and exits with code `1`.
+* **Tail-Call Optimization (TCO):** Tail calls lower to LLVM IR `tail call` instructions (or native jumps) to ensure recursive Stage 2 passes execute in constant stack space.
+* **Infinite Loop Protection:** Allocating loops are caught by arena limits; non-allocating development loops rely on a `MAX_COMPILE_STEPS` step counter before exiting with code `1`.
 
-Since target operating systems are somewhat different (Windows vs. Linux and MacOS), interpreter's source code (in generic LLVM IR) 
-needs to abstract system calls via glue code. 
+## 3. Buffered File I/O and System Calls
 
-## Capabilities Stage 1 must support:
+Koivu Seed avoids streaming state machines by performing whole-file buffered I/O via flat **Byte buffer** structures (`{ ptr data, i32 len, i32 cap }`):
 
-### 1. Fundamental Special Forms
+* **Input (`SourceBuffer`):** Opens the `.scm` source file, verifies size $\le$ `MAX_INPUT_BYTES`, allocates `file_size + 1` bytes from the bump arena (appending a `0x00` sentinel byte), reads the entire file in one system call, and closes the handle.
+* **Output (`EmitBuffer`):** Appends emitted LLVM IR or machine code bytes into the pre-allocated `EMIT_BUFFER_BYTES` slice. On successful compilation, flushes `data[0..len]` to disk in a single write call and closes the file. Overflowing `EMIT_BUFFER_BYTES` aborts with an error.
 
-The core `EVAL` loop of Stage 1 requires basic execution flow and definition capabilities:
-* `quote` – To handle literal data structures and symbols.
-* `if` – The fundamental primitive conditional node.
-* `set!` – Mandatory for tracking mutable bindings during variable mapping.
-* `define` – To register global definitions and functions.
-* `lambda` – Essential to create lexical closures. Stage 1 must support basic lexically scoped variable capture to allow the Stage 2 expander to manage scope layers.
+### Required Host System Calls
+Platform-specific glue code must abstract exactly six host OS primitives:
 
-### 2. Primitive Data Type Predicates & Manipulators
+| Primitive | POSIX (`Linux` / `macOS`) | Windows (`x86_64`) | Purpose |
+| :--- | :--- | :--- | :--- |
+| **Reserve Memory** | `mmap` | `VirtualAlloc` | Allocate the `ABS_MEM_LIMIT_BYTES` bump arena |
+| **Open File** | `open` | `CreateFileA` | Open `.scm` input or create `.ll` output |
+| **Query Size** | `fstat` / `lseek` | `GetFileSizeEx` | Determine source file byte length |
+| **Read Stream** | `read` | `ReadFile` | Load entire `.scm` source into `SourceBuffer` |
+| **Write Stream** | `write` | `WriteFile` | Flush `EmitBuffer` to file or write to `stdout`/`stderr` |
+| **Close / Exit** | `close` / `exit` | `CloseHandle` / `ExitProcess` | Release file handles and terminate process |
 
-To let Stage 2 break down expressions and manipulate syntax structures:
-* **Symbol Operations:** `symbol?` and `eq?`. Fast identifier validation is critical since comparing macro symbols down to memory pointer addresses (eq?) is the core engine of a compiler.
-* **Cons Cell Navigation:** `cons`, `car`, `cdr`, `pair?`, `null?`, `set-car!`, and `set-cdr!`. Stage 2 will read code as nested S-expressions; it must be able to destructure lists and dynamically mutate AST graphs.
-* **Fixnum Arithmetic:** Basic operators (`+`, `-`, `<`, `=`) and `integer?`. Required to validate syntax list lengths, handle error tracking bounds, and index lookup tables.
+### Stream Logging Conventions
+* **`stdout`:** Prints `Koivu Seed v0001` when invoked with no arguments and no `koivu-bridge.scm` is present, or prints a brief completion confirmation upon successful compilation (exit code `0`).
+* **`stderr`:** Reserved exclusively for diagnostic error messages. Any failure exits immediately with a non-zero exit code (`1`).
 
-### 3. Basic I/O Primitives
+## 4. Supported Language Capabilities
 
-To feed the source text through the bootstrapping pipeline:
-* `read` – A simple recursive-descent S-expression parser written into the Stage 1 seed to ingest Stage 2's source files.
-* `write` / `display` – To emit the expanded code text to stdout or a temporary staging file.
+Koivu Seed compiles a statically typed subset of Koivu Scheme sufficient to build the Stage 2 macro-expanding compiler.
 
-### 4. Tail-Call Optimization (TCO)
+### Basic Data Types
+* **Signed 32-bit Integers (Fixnums):** Mapped directly to `i32` hardware registers.
+* **Symbols:** Interned immutable string pointers compared by memory address (`eq?`).
+* **Cons Cells:** Untagged 16-byte pairs (`CAR` + `CDR` pointers). Static type-checking ensures type-safe instruction emission.
+* **Byte Buffers:** Flat byte vectors (`{ ptr, i32 len, i32 cap }`) for source input and code emission.
 
-* **Execution Invariant:** TCO must be natively baked into the Stage 1 `EVAL` loop. Because macro expansion of large codebases involves extensive deep recursion through nested expressions, an interpreter without TCO will quickly trigger a hardware stack overflow long before finishing the Stage 2 bridge compilation pass.
+### Special Forms & Primitives
 
-## What Stage 1 will completely ignore:
+| Category | Required Forms / Intrinsics | Purpose |
+| :--- | :--- | :--- |
+| **Special Forms** | `quote`, `if`, `set!`, `define`, `lambda` | Core control flow, bindings, and lexical closures |
+| **Symbols** | `symbol?`, `eq?` | Pointer-equality identifier matching |
+| **Cons Cells** | `cons`, `car`, `cdr`, `pair?`, `null?`, `set-car!`, `set-cdr!` | S-expression traversal and AST mutation |
+| **Fixnum Math** | `+`, `-`, `<`, `=`, `integer?` | Array indexing, offsets, and bounds validation |
+| **Byte Buffers** | `make-byte-buffer`, `byte-buffer-ref`, `byte-buffer-append!` | Reading source text and emitting target code |
+| **Process Control** | `error` | Print diagnostic message to `stderr` and call OS exit (`1`) |
 
-* **No `syntax-rules` or `syntax-case` primitives inside Stage 1:** Stage 1 does not need to understand macros natively. It runs a macro-expander written as a collection of raw Stage 1 functions and pattern matchers. Stage 1 evaluates this expander program, which reads R6RS text and spits out pure, macro-eliminated Scheme code.
-* **No multiple return values (`values`, `call-with-values`):** Pass records or cons pairs instead.
-* **No complex error systems:** A simple structural primitive like `(error)` that prints a message and calls the host OS `Exit` system call is sufficient.
+### Explicit Omissions
+* **No native macro expander (`syntax-rules` / `syntax-case`):** Stage 1 compiles raw macro-free Scheme; Stage 2 implements macro expansion as user-level S-expression transformations.
+* **No multiple return values (`values`, `call-with-values`):** Use Cons cells or structured records instead.
+* **No dynamic `eval` or runtime garbage collection.**
 
-## Compiler Intrinsics
+## 5. Compiler Intrinsics
 
-Stage 1 compiler must supply intrinsics to allow implementation of all of Stage 1 functionality. 
+Koivu Seed must expose low-level compiler intrinsics in generic LLVM IR to implement all Stage 1 primitive operations, memory allocation, and OS system-call wrappers.
 
-Naming convention for intrinsics must follow Scheme traditions as reasonable. 
+* **Naming Convention:** Intrinsic names must follow Scheme conventions (e.g., `%koivu-alloc`, `%koivu-sys-write`, `%koivu-byte-buffer-set!`) and lower directly to inline LLVM IR sequences or thin OS glue calls.
 
-## Executable Name
+```llvm
+; Example intrinsic signature for bump-pointer allocation
+declare ptr @koivu_alloc(i64 %bytes)
+```
 
-Stage 1 compiler executable will be named `koivu-seed` on Linux and MacOS, and `koivu-seed.exe` on windows. 
+## 6. Error Handling
 
-## Versioning
+All errors must write a human-readable diagnostic message to `stderr` and terminate the process immediately with exit code `1`.
 
-Stage 1 compiler will use a simplified versioning scheme. Compiler version will be an unsigned integer 
-formatted as 4 digits (padding with `0`s). Version will be included into the name string of the compiler, 
-like this: `Koivu Seed v. 0001`. Developers will bump version number manually. 
+| Error Condition | Build Mode | Required Action |
+| :--- | :--- | :--- |
+| **Arena or Output Buffer Exhaustion** | All Builds | Print out-of-memory error to `stderr` and exit (`1`) |
+| **File Open / Read / Create Failure** | All Builds | Print I/O error with filename to `stderr` and exit (`1`) |
+| **Syntax / Malformed S-Expression** | All Builds | Print parse error to `stderr` and exit (`1`) |
+| **Static Type Mismatch** | Development | Print type mismatch error to `stderr` and exit (`1`); may be stripped in production builds to minimize binary size |
+| **Compile-Time Step Limit Exceeded** | Development | Print infinite-loop step limit error to `stderr` and exit (`1`); stripped in production builds |
 
-## Command Line Interface
+## 7. Source Code Structure & Build Process
 
-Stage 1 compiler will support just one command line argument: the name of Scheme file to compile. 
-The purpose of this command line argument is to allow running automated tests during development. 
+All Stage 1 compiler source code must be written in generic LLVM IR (`.ll`), organized as one function per file inside `bootstrap/stage1-ll/`.
 
-Production Stage 1 compiler implementation may drop support for any command line arguments 
-if this significantly shortens assembly code or machine code of Stage 1 (and improves auditability). 
+### Source Layout
 
-If provided with no source code name as command line argument, Stage 1 compiler will take the file 
-named `koivu-bridge.scm` in the same folder as compiler and compile it. This is how actual bootstrapping will function. 
+| File / Path | Role |
+| :--- | :--- |
+| `bootstrap/stage1-ll/koivu_seed_main.ll` | Entry point, CLI argument parsing, and top-level compilation driver |
+| `bootstrap/stage1-ll/koivu_seed_glue_posix.ll` | System call glue for `Linux` and `macOS` |
+| `bootstrap/stage1-ll/koivu_seed_glue_windows.ll` | System call glue for Windows `x86_64` |
+| `bootstrap/stage1-ll/kernel32.def` | Windows `kernel32.dll` import definitions |
 
-If Stage 1 compiler finds no `koivu-bridge.scm` source code file, it will print compiler's name and version and exit.
+### Build & Distribution Artifacts
 
-## Error Handling
+* **Development Build Scripts:**
+  * `koivu_seed_build_posix.sh` — Compiles Stage 1 `.ll` files into `koivu-seed` on `Linux` / `macOS`.
+  * `koivu_seed_build_windows.cmd` — Compiles Stage 1 `.ll` files into `koivu-seed.exe` on Windows `x86_64`.
+* **Production Distribution:**
+  * **Windows (`x86_64`):** Distributed as a pre-built `koivu-seed.exe` binary.
+  * **POSIX (`Linux` / `macOS`):** Distributed as a target assembly file (`.s`) to be assembled and linked locally before running the Stage 2 bootstrap build.
 
-Stage 1 compiler will print a message to `stderr` if compilation of `.scm` source code was successfull. 
+## 8. Testing Strategy
 
-Development version of Stage 1 compiler must have an ability to detect these types of errors and act accordingly: 
+The Stage 1 regression suite in `tests/` must verify:
 
-* Endless loop in source code being compiled. Compiler should exit with a meaningfull error message. 
-
-* Inability to create output file (for example, lacking permissions to create output file). 
-
-* Mismatched types in Lisp source code being compiled. This capability may be turned off in production version 
-to reduce the size of seed compiler assembly/machine code to improve auditability. 
-
-## Source Code Structure
-
-Source code of Stage 1 compiler must be written in LLVM IR and stored in several `.ll` files,
-one file per function. 
-
-Source code must reside in `bootstrap/stage1-ll` folder.
-
-### Main
-
-`koivu_seed_main.ll`
-
-### Glue Code for System Calls
-
-`koivu_seed_glue_windows.ll`, `kernel32.def` for Windows version.
-
-`koivu_seed_glue_posix.ll` for Linux/MacOS version.
-
-
-## Development Build Scripts
-
-`koivu_seed_build_windows.cmd` builds Stage 1 compiler (and nothing else) for Windows. 
-
-`koivu_seed_build_posix.sh` builds Stage 1 compiler (and nothing else) for Linux/MacOS.
-
-## Production Build Process
-
-Production Stage 1 seed compiler for Windows will be distributed as a binary for x86_64 Windows. 
-Running it will start build process for the entire Koivu infrastructure. 
-
-Production Stage 1 seed compiler for Linux/MacOS will be distributed as target assembler file. 
-Compiling it and then running it will start build process for the entire Koivu infrastructure. 
-
-## Testing Strategy
-
-A test suite for Stage 1 must include at least the following tests:
-
-* Tests to check basic compiler functionality like error handling
-
-* Unit tests in Lisp
-
-* Integration tests in Lisp
-
-* A simple self-test to execute in production mode before compiling any code. 
-  TODO: What is reasonable for self-test? Maybe just print out compiler name to `stderr`?
-  
-
-
+1. **CLI & Error Handling Tests:** Missing files, oversized inputs, malformed S-expressions, type mismatches, and zero-argument fallback behavior (`koivu-bridge.scm` vs. version print).
+2. **Lisp Unit Tests:** Isolated `.scm` programs testing fixnum arithmetic, Cons cell mutation, symbol interning (`eq?`), closures, tail-call recursion, and byte-buffer operations.
+3. **Integration Tests:** End-to-end compilation of multi-function Scheme programs to `.ll`, assembled via LLVM and executed to verify runtime output.
+4. **Production Smoke Self-Test:** Executing `koivu-seed` with no `koivu-bridge.scm` present in the working directory to verify that `Koivu Seed v0001` prints cleanly to `stdout` with exit code `0`.
 
