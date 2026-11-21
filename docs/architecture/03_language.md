@@ -49,6 +49,10 @@ All Koivu stages support three basic data types:
 * Cons Cells
 
    A simple structural record containing exactly two pointers: a CAR (Contents of Address Register) and a CDR (Contents of Decrement Register).
+   
+* Byte buffer
+
+  A simple flat vector of bytes for input and output from files. 
 
 Cons Cells do not use value tagging, compiler must do type-checking and issue correct instuctions.
 
