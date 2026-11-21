@@ -145,4 +145,6 @@ The Stage 1 regression suite in `tests/` must verify:
 2. **Lisp Unit Tests:** Isolated `.scm` programs testing fixnum arithmetic, Cons cell mutation, symbol interning (`eq?`), closures, tail-call recursion, and byte-buffer operations.
 3. **Integration Tests:** End-to-end compilation of multi-function Scheme programs to `.ll`, assembled via LLVM and executed to verify runtime output.
 4. **Production Smoke Self-Test:** Executing `koivu-seed` with no `koivu-bridge.scm` present in the working directory to verify that `Koivu Seed v0001` prints cleanly to `stdout` with exit code `0`.
+5. **Bridge Test**: Compilation of Stage 2 Brige compiler source code to Stage 2 Bridge executable. 
+
 
