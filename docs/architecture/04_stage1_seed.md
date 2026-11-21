@@ -87,7 +87,7 @@ Koivu Seed compiles a statically typed subset of Koivu Scheme sufficient to buil
 
 ### Explicit Omissions
 * **No native macro expander (`syntax-rules` / `syntax-case`):** Stage 1 compiles raw macro-free Scheme; Stage 2 implements macro expansion as user-level S-expression transformations.
-* **No multiple return values (`values`, `call-with-values`):** Use Cons cells or structured records instead.
+* **No multiple return values (`values`, `call-with-values`):** Use Cons cells instead.
 * **No dynamic `eval` or runtime garbage collection.**
 
 ## 5. Compiler Intrinsics
