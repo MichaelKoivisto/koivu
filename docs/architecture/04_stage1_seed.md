@@ -1,7 +1,7 @@
 
 # Koivu Scheme Stage 1 (Seed) Compiler
 
-> **Status:** Architecture Blueprint
+> **Status:** Architecture Blueprint<br>
 > **Component:** Stage 1
 
 > Barbossa: Jack... Jack! Did you not notice? That be the same island we made you the governor of on our last little trip.<br>
