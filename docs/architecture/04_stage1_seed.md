@@ -85,3 +85,93 @@ To feed the source text through the bootstrapping pipeline:
 * **No multiple return values (`values`, `call-with-values`):** Pass records or cons pairs instead.
 * **No complex error systems:** A simple structural primitive like `(error)` that prints a message and calls the host OS `Exit` system call is sufficient.
 
+## Compiler Intrinsics
+
+Stage 1 compiler must supply intrinsics to allow implementation of all of Stage 1 functionality. 
+
+Naming convention for intrinsics must follow Scheme traditions as reasonable. 
+
+## Executable Name
+
+Stage 1 compiler executable will be named `koivu-seed` on Linux and MacOS, and `koivu-seed.exe` on windows. 
+
+## Versioning
+
+Stage 1 compiler will use a simplified versioning scheme. Compiler version will be an unsigned integer 
+formatted as 4 digits (padding with `0`s). Version will be included into the name string of the compiler, 
+like this: `Koivu Seed v. 0001`. Developers will bump version number manually. 
+
+## Command Line Interface
+
+Stage 1 compiler will support just one command line argument: the name of Scheme file to compile. 
+The purpose of this command line argument is to allow running automated tests during development. 
+
+Production Stage 1 compiler implementation may drop support for any command line arguments 
+if this significantly shortens assembly code or machine code of Stage 1 (and improves auditability). 
+
+If provided with no source code name as command line argument, Stage 1 compiler will take the file 
+named `koivu-bridge.scm` in the same folder as compiler and compile it. This is how actual bootstrapping will function. 
+
+If Stage 1 compiler finds no `koivu-bridge.scm` source code file, it will print compiler's name and version and exit.
+
+## Error Handling
+
+Stage 1 compiler will print a message to `stderr` if compilation of `.scm` source code was successfull. 
+
+Development version of Stage 1 compiler must have an ability to detect these types of errors and act accordingly: 
+
+* Endless loop in source code being compiled. Compiler should exit with a meaningfull error message. 
+
+* Inability to create output file (for example, lacking permissions to create output file). 
+
+* Mismatched types in Lisp source code being compiled. This capability may be turned off in production version 
+to reduce the size of seed compiler assembly/machine code to improve auditability. 
+
+## Source Code Structure
+
+Source code of Stage 1 compiler must be written in LLVM IR and stored in several `.ll` files,
+one file per function. 
+
+Source code must reside in `bootstrap/stage1-ll` folder.
+
+### Main
+
+`koivu_seed_main.ll`
+
+### Glue Code for System Calls
+
+`koivu_seed_glue_windows.ll`, `kernel32.def` for Windows version.
+
+`koivu_seed_glue_posix.ll` for Linux/MacOS version.
+
+
+## Development Build Scripts
+
+`koivu_seed_build_windows.cmd` builds Stage 1 compiler (and nothing else) for Windows. 
+
+`koivu_seed_build_posix.sh` builds Stage 1 compiler (and nothing else) for Linux/MacOS.
+
+## Production Build Process
+
+Production Stage 1 seed compiler for Windows will be distributed as a binary for x86_64 Windows. 
+Running it will start build process for the entire Koivu infrastructure. 
+
+Production Stage 1 seed compiler for Linux/MacOS will be distributed as target assembler file. 
+Compiling it and then running it will start build process for the entire Koivu infrastructure. 
+
+## Testing Strategy
+
+A test suite for Stage 1 must include at least the following tests:
+
+* Tests to check basic compiler functionality like error handling
+
+* Unit tests in Lisp
+
+* Integration tests in Lisp
+
+* A simple self-test to execute in production mode before compiling any code. 
+  TODO: What is reasonable for self-test? Maybe just print out compiler name to `stderr`?
+  
+
+
+
