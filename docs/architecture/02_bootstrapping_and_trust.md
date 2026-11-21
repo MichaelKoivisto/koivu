@@ -11,7 +11,7 @@
 
 Bootstrapping will start from a simple Lisp compiler written in pure, generic LLVM IR. 
 Koivu project will also keep (as part of its source code) target-dependent machine assembly files for popular platforms (x64, arm64 and possibly others) for seed Lisp compiler. 
-Those target-dependant assemby files will be obtained by translating generic IR implementation of seed compiler. At early stages of the project, Koivu will use LLVM `lcc` static compiler 
+Those target-dependant assemby files will be obtained by translating generic IR implementation of seed compiler. At early stages of the project, Koivu will use LLVM `llc` static compiler 
 to translate LLVM IR to target assembly. Later, as Koivu project grows, it will become completely self-hosting and will use a Koivu tool (written in Lisp) for translation. 
 
 The goal of portable Lisp compiler seed implementation in generic IR is to simplify the maintanance of Koivu project. Target-specific assembly seeds will still have 
