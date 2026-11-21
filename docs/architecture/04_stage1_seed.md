@@ -126,6 +126,7 @@ covering CLI entry, memory management, parsing, environments, typing, and OS glu
 | `bootstrap/stage1-ll/koivu_seed_glue_posix.ll` | System call glue for `Linux` and `macOS` |
 | `bootstrap/stage1-ll/koivu_seed_glue_windows.ll` | System call glue for Windows `x86_64` |
 | `bootstrap/stage1-ll/kernel32.def` | Windows `kernel32.dll` import definitions |
+| `bootstrap/stage1-ll/<subsystem>.ll` | An example subsystem |
 
 ### Build & Distribution Artifacts
 
