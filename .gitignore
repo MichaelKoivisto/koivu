@@ -29,3 +29,7 @@ tests/scratch/
 *.unity.cpp
 logs/
 *.log
+pictures/
+*.obj
+*.exe
+*.lst
