@@ -115,7 +115,8 @@ All errors must write a human-readable diagnostic message to `stderr` and termin
 
 ## 7. Source Code Structure & Build Process
 
-All Stage 1 compiler source code must be written in generic LLVM IR (`.ll`), organized as one function per file inside `bootstrap/stage1-ll/`.
+All Stage 1 compiler source code is structured into modular subsystems under `bootstrap/stage1-ll/`, 
+covering CLI entry, memory management, parsing, environments, typing, and OS glue. 
 
 ### Source Layout
 
