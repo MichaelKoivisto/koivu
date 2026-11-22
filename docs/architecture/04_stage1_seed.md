@@ -12,7 +12,7 @@
 > Jack Sparrow: Seeing as there's two of us, a gentleman would give us a pair of pistols.<br>
 > Barbossa: It'll be one pistol as before, and you can be the gentleman and shoot the lady; and starve yourself to death.
 
-Koivu Stage 1 (**Koivu Seed**) is a minimalist, statically typed, ahead-of-time (AOT) Lisp-1 compiler written in pure, generic LLVM IR. Its core purpose is to compile the Stage 2 macro-expanding bridge compiler (`koivu-bridge.scm`) into executable code and exit, maintaining a minimal footprint and zero external dependencies for auditability and simplicity.
+Koivu Stage 1 (**Koivu Seed**) is a minimalist, statically typed, ahead-of-time (AOT) Lisp-1 compiler written in pure, generic LLVM IR. Its core purpose is to compile the Stage 2 macro-expanding bridge compiler (`koivu-bridge.scm`) into executable code and exit, maintaining a minimal footprint and zero external dependencies for auditability and simplicity. "Zero external dependencies" means no third-party dependencies; what it means per host, and why it is not the same as a statically linked binary, is stated in section 3.
 
 ## 1. Identity, Versioning, and CLI
 
@@ -60,6 +60,10 @@ Platform-specific glue code must abstract exactly six host OS primitives:
 | **Write Stream** | `write` | `WriteFile` | Flush `EmitBuffer` to file or write to `stdout`/`stderr` |
 | **Close / Exit** | `close` / `exit` | `CloseHandle` / `ExitProcess` | Release file handles and terminate process |
 
+**macOS is not a raw-syscall platform.** The six primitives above are the same on every host, but on macOS they cannot be reached through syscall instructions: syscall numbers are not a stable ABI there, and `libSystem` is the supported interface. The macOS glue therefore lives in a separate file, `koivu_seed_glue_macos.ll`, and calls `libSystem` instead of issuing `svc`.
+
+This has one consequence for the project's own claims, so it is stated rather than implied: on macOS the seed is a **dynamically linked** Mach-O executable. "Zero external dependencies" therefore means "no third-party dependencies" - on macOS the seed links against the OS-supplied `libSystem`, and static linking against macOS system libraries is not an option. See [Platforms and Targets](01_platforms.md), section 6.1.
+
 ### Stream Logging Conventions
 * **`stdout`:** Prints `Koivu Seed v0001` when invoked with no arguments and no `koivu-bridge.scm` is present, or prints a brief completion confirmation upon successful compilation (exit code `0`).
 * **`stderr`:** Reserved exclusively for diagnostic error messages. Any failure exits immediately with a non-zero exit code (`1`).
@@ -102,7 +106,10 @@ The model is recorded as resolved decision 10 in the [Backend](backend.md) bluep
 ### Explicit Omissions
 * **No native macro expander (`syntax-rules` / `syntax-case`):** Stage 1 compiles raw macro-free Scheme; Stage 2 implements macro expansion as user-level S-expression transformations.
 * **No multiple return values (`values`, `call-with-values`):** Use Cons cells instead.
-* **No dynamic `eval` or runtime garbage collection.**
+* **No runtime `eval` in compiled programs:** the binaries the seed produces contain no reader and no interpreter. `eval` is unavailable to the bridge, to Stage 3, and to anything they compile.
+* **No runtime garbage collection:** every object, including closures and their environment frames, lives in the bump arena until the process exits (see section 2).
+
+**These omissions describe the language the seed compiles, not the language the seed executes.** The seed itself does carry a reader, an evaluator and `apply`, because resolved decision 7 in [Backend](backend.md) places `simple-codegen` and the container writer in Stage 1 Lisp that the seed evaluates during the bridge build. The two statements are compatible: no compiled Koivu program has `eval`, while the seed evaluates Lisp because it is the build tool. The evaluator is real seed growth and is covered by the seed size budget in [Seed Artifacts](08_seed_artifacts.md).
 
 ## 5. Compiler Intrinsics
 
@@ -137,19 +144,20 @@ covering CLI entry, memory management, parsing, environments, typing, and OS glu
 | File / Path | Role |
 | :--- | :--- |
 | `bootstrap/stage1-ll/koivu_seed_main.ll` | Entry point, CLI argument parsing, and top-level compilation driver |
-| `bootstrap/stage1-ll/koivu_seed_glue_posix.ll` | System call glue for `Linux` and `macOS` |
+| `bootstrap/stage1-ll/koivu_seed_glue_linux.ll` | System call glue for Linux `x86_64` - raw syscalls |
+| `bootstrap/stage1-ll/koivu_seed_glue_macos.ll` | Glue for macOS `arm64` - calls `libSystem` instead of issuing syscalls (see section 3) |
 | `bootstrap/stage1-ll/koivu_seed_glue_windows.ll` | System call glue for Windows `x86_64` |
 | `bootstrap/stage1-ll/kernel32.def` | Windows `kernel32.dll` import definitions |
 | `bootstrap/stage1-ll/<subsystem>.ll` | An example subsystem |
 
-### Build & Distribution Artifacts
+The glue layer cannot be shared between Linux and macOS, because the two reach the same primitives in different ways. Whether the remaining POSIX sources - emitter and ELF writer - can be shared is open question 2 in [Platforms and Targets](01_platforms.md), section 7.
 
-* **Development Build Scripts:**
-  * `koivu_seed_build_posix.sh` — Compiles Stage 1 `.ll` files into `koivu-seed` on `Linux` / `macOS`.
-  * `koivu_seed_build_windows.cmd` — Compiles Stage 1 `.ll` files into `koivu-seed.exe` on Windows `x86_64`.
-* **Production Distribution:**
-  * **Windows (`x86_64`):** Distributed as a pre-built `koivu-seed.exe` binary.
-  * **POSIX (`Linux` / `macOS`):** Distributed as a target assembly file (`.s`) to be assembled and linked locally before running the Stage 2 bootstrap build.
+### Build Process (development builds)
+
+* `koivu_seed_build_posix.sh` — assembles and links the Stage 1 `.ll` files into `koivu-seed` on `Linux` and on `macOS`. The macOS branch adds the `libSystem` link step.
+* `koivu_seed_build_windows.cmd` — compiles the Stage 1 `.ll` files into `koivu-seed.exe` on Windows `x86_64`, using `kernel32.def`.
+
+These scripts are development tools and are not the distribution mechanism. The forms in which the seed is published, and what each of them can prove, are defined in [Seed Artifacts](08_seed_artifacts.md), section 2; the per-host artifact table is in [Platforms and Targets](01_platforms.md), section 2.
 
 ## 8. Testing Strategy
 
@@ -159,6 +167,8 @@ The Stage 1 regression suite in `tests/` must verify:
 2. **Lisp Unit Tests:** Isolated `.scm` programs testing fixnum arithmetic, Cons cell mutation, symbol interning (`eq?`), closures, tail-call recursion, and byte-buffer operations.
 3. **Integration Tests:** End-to-end compilation of multi-function Scheme programs to `.ll`, assembled via LLVM and executed to verify runtime output.
 4. **Production Smoke Self-Test:** Executing `koivu-seed` with no `koivu-bridge.scm` present in the working directory to verify that `Koivu Seed v0001` prints cleanly to `stdout` with exit code `0`.
-5. **Bridge Test**: Compilation of Stage 2 Brige compiler source code to Stage 2 Bridge executable. 
+5. **Bridge Test:** Compilation of Stage 2 Bridge compiler source code to Stage 2 Bridge executable.
+6. **Subset Conformance Test:** The closure invariant of [Backend](backend.md), section 4 is machine-checked. The bridge sources are compiled with the seed, the emitted IR forms are captured, and the build fails if any of them falls outside the declared `simple-codegen` subset. Without this test a front-end change can silently invalidate the lowerer.
+7. **Evaluator/Compiler Equivalence Test:** For the same Lisp source, evaluation by the seed and compilation by the seed must produce the same observable results ([Backend](backend.md), section 8, criterion 6). This test covers closure semantics explicitly: mutation visibility through `set!` on captured variables, shared frames between sibling closures created in one invocation, and the lifetime of an environment that outlives its creating call.
 
 
