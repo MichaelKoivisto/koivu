@@ -16,7 +16,7 @@ Three conventions are used throughout, and all three are inherited from other bl
 
 * **Step numbers** follow the four-step build chain in [Bootstrapping Paths and Trust](02_bootstrapping_and_trust.md), section 6. That chain starts at the bridge build, so building the seed itself is **Step 0**: a prerequisite, not one of the four steps.
 * **Milestone names** (M0 to M4) follow [Backend](backend.md), section 1. A milestone is not a release number; it marks the point at which a particular lowering capability appears.
-* **The reference host is Linux `x86_64`.** The diagrams show one platform because the chain is the same on every host. Per-platform differences in how the seed is delivered and executed are out of scope for this document.
+* **The reference host is Linux `x86_64`.** The diagrams show one platform because the chain is the same on every host. Section 6 adds a second axis - in what form each compiler exists - and section 7 covers the one host, macOS, where the chain takes a different shape. Other per-platform differences are out of scope here.
 
 One distinction is worth stating before the first diagram, because the rest of the document depends on it: what the chain eventually drops is the **`llc` tool**, not the **`.ll` format**. Every Koivu compiler keeps the ability to emit textual LLVM IR permanently, as its primary debugging instrument ([Backend](backend.md), section 1).
 
@@ -196,3 +196,41 @@ When Version B and Version C are **byte-for-byte identical**, the compiler has r
 **What this does and does not mean.** The fixpoint is where the *compilers* stop needing an external tool: from Version B onward, each compiler is lowered by the previous one. It is not the point at which `llc` disappears from the project. The seed build (Step 0) and the Version A build (Step 2) keep using an external `llc` until M4, when `koivu-llc` can take over both ([Backend](backend.md), section 1).
 
 Nor does a fixpoint prove trustworthiness. It proves reproducibility and self-consistency; a deliberately planted backdoor would be reproduced perfectly along with everything else. That distinction, and the separate Secure Path that addresses it, belong to [Bootstrapping Paths and Trust](02_bootstrapping_and_trust.md), section 8.
+
+---
+
+## 6. The Artifact Axis
+
+The steps above answer *which compiler runs*. A second, independent axis answers *in what form that compiler exists*. The step chain is identical on every host; the form is not, and it is the form that decides what a user has to do before Step 1 can start.
+
+| Step | Compiler that runs | Where that compiler comes from | Form |
+| :--- | :--- | :--- | :--- |
+| Step 0 | external `llc` | the host toolchain | not a Koivu artifact |
+| Step 1 | the seed | **distributed** with the project | committed `.s` on Linux and macOS; published `.exe` on Windows ([Seed Artifacts](08_seed_artifacts.md), section 2) |
+| Step 2 | the bridge binary | produced by the seed in Step 1 | native binary, built on the user's machine |
+| Steps 3 and 4 | Stage 3 Versions A and B | produced by the previous step | native binary, built on the user's machine |
+
+Only one row of this table is a distribution question. The seed is the only compiler the project ships; everything after it is produced locally, so its form is decided by the platform rather than by the project's release process. The inventory of seed forms, and what each of them proves and does not prove, is in [Seed Artifacts](08_seed_artifacts.md), sections 2 and 4.
+
+The axis matters here rather than in a footnote because the form of the seed is where the Simple and Secure Paths diverge. A user who assembles a committed `.s` file has performed a local build; a user who runs a published `.exe` has not, and relies on inspection instead. Both are supported, and the difference between them is described in [Bootstrapping Paths and Trust](02_bootstrapping_and_trust.md), sections 4 and 5.
+
+---
+
+## 7. macOS: the Simple Path Platform
+
+macOS is the one host where the chain as drawn is not quite what happens, and the reason belongs in the roadmap rather than only in the platform notes.
+
+Shipping `.s` solves **distribution**, not **execution**. On Apple Silicon the executable that the seed *produces* must also be signed, not only the seed itself. The seed has no Mach-O container writer and no signer, so on macOS Step 1 stops one stage earlier than on Linux and Windows:
+
+* the seed emits assembly text for the bridge;
+* the platform assembler, linker and `codesign` finish the job.
+
+This is deliberately the shape of option D in [Backend](backend.md), section 3.3 - the option rejected as the project-wide answer, because it breaks only the LLVM dependency and not the external-tool dependency. On macOS it is chosen anyway: macOS ships `.s` regardless, and the alternative is a Mach-O writer plus an ad-hoc signer inside the seed, which is the opposite of the simplest option ([Platforms and Targets](01_platforms.md), section 6.2).
+
+The consequences for the roadmap, stated plainly:
+
+* **The chain still completes.** Steps 2 to 4 are unchanged: once the platform tools have produced it, the bridge binary is an ordinary native binary.
+* **macOS does not reach the bootstrap goal in the near term.** Linux and Windows are expected to reach M2 with the seed lowering and linking the bridge itself; on macOS, Step 1 keeps using platform tools.
+* **Whether macOS reaches Steps 3 and 4 is open.** Those steps require Stage 3 to emit a signed Mach-O binary itself, which is the same question as whether a Mach-O container writer is in near-term scope ([Platforms and Targets](01_platforms.md), section 7, question 1).
+
+macOS is therefore a **Simple Path** platform in the sense of [Bootstrapping Paths and Trust](02_bootstrapping_and_trust.md), section 4: supported, bootstrapping, and reliant on platform tools. This does not weaken the other two hosts and does not change the priority order in [Platforms and Targets](01_platforms.md), section 2.
