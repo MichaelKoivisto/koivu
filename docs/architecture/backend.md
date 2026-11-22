@@ -218,7 +218,7 @@ Koivu will provide a tool written in Scheme for parsing LLVM Target Descriptions
 3. **Subset conformance:** the closure invariant of section 4 is checked automatically in CI.
 4. **Determinism:** emitter and lowerer output is deterministic (stable ordering, no timestamps, no absolute paths), because the self-hosting fixpoint check compares binaries byte-for-byte.
 5. **`koivu-llc` parity:** for the supported subset, `koivu-llc` output passes the same tests as `llc` output.
-6. **Evaluator/compiler equivalence:** for the same Lisp source, evaluation by the seed and compilation by the seed produce the same observable results across the test suite. This criterion exists because option B puts both a reader/compiler and an evaluator in the seed.
+6. **Evaluator/compiler equivalence:** for the same Lisp source, evaluation by the seed and compilation by the seed produce the same observable results across the test suite. This criterion exists because option B puts both a reader/compiler and an evaluator in the seed. It explicitly covers **closure semantics**: mutation visibility through `set!` on captured variables, shared frames between sibling closures created in one invocation, and the lifetime of an environment that outlives its creating call.
 7. **Emitter mirror equivalence:** the hand-written `.ll` emitter inside the seed and the Scheme implementation of `(koivu backend s-llvm-ir)` produce identical `.ll` output for the same S-LLVM IR AST. This criterion exists because decision 5 keeps two implementations of the same behaviour.
 
 ## 9. Decisions
@@ -236,6 +236,7 @@ Koivu will provide a tool written in Scheme for parsing LLVM Target Descriptions
 | 7 | Where `simple-codegen` and the container writer run (see section 3.3) | **B long-term: Stage 1 Lisp executed by the seed's evaluator. E interim: external `llc` until the evaluator exists** | the seed gains an evaluator but no native container writer; the bootstrap goal is met at M2 |
 | 8 | How the Stage 3 build is lowered after M2 | **External `llc` until M4** | the supported IR subset does not need to cover the IR emitted for Stage 3; `koivu-llc` takes over at M4 |
 | 9 | Bootstrap goal | **The bridge build must not depend on any external tool** - no `llc`, no assembler, no linker | fixes the acceptance point at M2 and rules out option D, which breaks only the LLVM dependency |
+| 10 | Stage 1 closure representation | **Chained frames: `closure = { code_ptr, env_ptr }`, frames linked by a parent pointer, variable access by a compile-time `(depth, index)` pair** | no free-variable analysis and no copying at closure creation; `set!` on captured variables is allowed and shares state; environments live in the arena, so no GC is needed |
 
 ### Provisional decisions
 

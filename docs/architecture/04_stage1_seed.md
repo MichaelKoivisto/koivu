@@ -38,7 +38,7 @@ Targeting hosts with at least 2 GiB of RAM, Koivu Seed uses a **Bump Allocator**
   * `MAX_INPUT_BYTES`: `16777216` (16 MiB) maximum input `.scm` file size.
   * `EMIT_BUFFER_BYTES`: `67108864` (64 MiB) pre-allocated slice for output IR/code.
 * **Arena Mechanics:** Allocations advance a bump pointer and verify against `ABS_MEM_LIMIT_BYTES`; exceeding the limit writes an error to `stderr` and exits with code `1`.
-* **Tail-Call Optimization (TCO):** Tail calls lower to LLVM IR `tail call` instructions (or native jumps) to ensure recursive Stage 2 passes execute in constant stack space.
+* **Tail-Call Optimization (TCO):** Tail calls lower to LLVM IR `musttail` calls (or native jumps) to guarantee that recursive Stage 2 passes execute in constant stack space. A bare `tail` marker is not sufficient: it is a hint that LLVM may ignore.
 * **Infinite Loop Protection:** Allocating loops are caught by arena limits; non-allocating development loops rely on a `MAX_COMPILE_STEPS` step counter before exiting with code `1`.
 
 ## 3. Buffered File I/O and System Calls
@@ -73,6 +73,20 @@ Koivu Seed compiles a statically typed subset of Koivu Scheme sufficient to buil
 * **Symbols:** Interned immutable string pointers compared by memory address (`eq?`).
 * **Cons Cells:** Untagged 16-byte pairs (`CAR` + `CDR` pointers). Static type-checking ensures type-safe instruction emission.
 * **Byte Buffers:** Flat byte vectors (`{ ptr, i32 len, i32 cap }`) for source input and code emission.
+
+### Closures (simplified)
+
+Stage 1 uses the simplest closure model that still gives correct lexical scoping. It is deliberately not an implementation of the full R6RS closure semantics.
+
+* **Closure object:** `{ code_ptr, env_ptr }` - two pointers, 16 bytes, the same shape as a Cons cell. There is no tag, no arity field and no captured-variable descriptor in the object.
+* **Environment frames:** `{ parent_env_ptr, slot0, slot1, ... }`. A frame belongs to one invocation of one lambda and holds all of that invocation's variables. Frames are **linked to their parent, never copied**, so a closure creation is a single two-field allocation.
+* **Variable reference:** compiled to a compile-time `(depth, index)` pair - a fixed number of pointer hops followed by a fixed slot offset. No name lookup, no hash tables, no symbol search at run time.
+* **`set!` on captured variables is allowed.** Because frames are shared rather than copied, mutation through one closure is visible through every closure that captured the same frame. This is what the Stage 2 passes need, and it costs nothing extra given the frame layout above.
+* **Explicitly out of scope for Stage 1:** free-variable analysis, lambda lifting, closure conversion, variable-arity lambdas (fixed arity only), more than one frame per call, `call/cc`, and introspection of a closure beyond `procedure?`.
+* **No GC:** closure objects and frames are allocated from the bump arena like every other object and live until the process exits. This is consistent with the No-GC policy in section 2.
+* **Tail calls** lower to LLVM IR `musttail` calls, not to a bare `tail` marker: only `musttail` guarantees the constant stack space that the Stage 2 passes rely on.
+
+The model is recorded as resolved decision 10 in the [Backend](backend.md) blueprint, and its runtime behaviour is covered by the evaluator/compiler equivalence criterion there.
 
 ### Special Forms & Primitives
 
