@@ -86,7 +86,7 @@ With a working `koivu-seed` binary, the seed compiles the Stage 2 bridge source 
 
 * **Input:** Stage 2 bridge source code.
 * **Compiler running:** the Stage 1 seed.
-* **Intermediate:** `koivu-bridge.ll`, S-LLVM IR emitted by the seed.
+* **Intermediate:** S-LLVM IR built by the seed. It becomes the textual `koivu-bridge.ll` under configuration E; under configuration B the seed lowers it to machine code itself.
 * **Output:** the `koivu-bridge` binary.
 * **Milestones:** M1 with the interim configuration, M2 with the long-term one.
 
@@ -122,7 +122,7 @@ Using the bridge binary, the initial implementation of Stage 3 (the statically t
 
 * **Input:** Stage 3 source code.
 * **Compiler running:** the bridge binary.
-* **Intermediate:** `koivu-core.ll`, S-LLVM IR emitted by the bridge.
+* **Intermediate:** S-LLVM IR built by the bridge, emitted as the textual `koivu-core.ll` for `llc` or `koivu-llc` to lower.
 * **Lowering:** an external `llc` until M4, then `koivu-llc`.
 * **Output:** Stage 3 **Version A**.
 

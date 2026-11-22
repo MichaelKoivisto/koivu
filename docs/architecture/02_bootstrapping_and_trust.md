@@ -68,20 +68,33 @@ Linux is expected to be the first platform where this path is exercised in pract
 
 The chain has four steps. Each step names the compiler that runs, the intermediate artifact it produces, and the tool that lowers that artifact to machine code.
 
+### Terminology: S-LLVM IR versus a `.ll` file
+
+Two different things in this chain are both intermediate, and conflating them is the easiest mistake to make here.
+
+* **S-LLVM IR** is an in-memory data structure: S-expressions held in the memory of a Koivu Lisp compiler, conforming to the `ast-s-llvm-ir-` schema. It exists only while a compiler is running.
+* **A `.ll` file** is text: LLVM IR written in the format defined by the LLVM specifications. It is what the emitter produces from S-LLVM IR, and what `llc` or `koivu-llc` consume.
+
+When a step below says that a compiler "emits IR", it means the compiler builds S-LLVM IR in memory. A `.ll` file appears only when the lowering path goes through text.
+
+A third form is possible in principle. S-LLVM IR could be written out as Lisp source text - S-expressions saved to a file and read back by an ordinary Lisp reader, which every Koivu stage already has. That would be cheaper to parse than `.ll`. Koivu does not use it anywhere today: no artifact is stored or passed between stages in that form. It is recorded here only as an option, to be adopted if it ever simplifies something concrete.
+
 ### Step 1: Generating the Bridge Binary
 
 * **Input:** Stage 2 bridge source code
 * **Compiler running:** the Stage 1 seed
-* **Intermediate:** `koivu-bridge.ll` - S-LLVM IR emitted by the seed
+* **Intermediate:** in-memory S-LLVM IR built by the seed. It becomes the textual `koivu-bridge.ll` only when the lowering is an external `llc` (configuration E); under `simple-codegen` (configuration B) the AST is lowered to machine code directly and no `.ll` is written.
 * **Lowering:** an external `llc` (interim, configuration E), or `simple-codegen` executed by the seed itself (long-term, configuration B)
 * **Output:** `koivu-bridge` binary
 
 ```
 +-----------------+      +--------------------+      +----------------------+      +------------------+
 | Bridge Source   | ---> | Stage 1 Seed       | ---> | koivu-bridge.ll      | ---> | Bridge Binary    |
-| (.scm)          |      | (emits S-LLVM IR)  |      | (intermediate)       |      | (lowered+linked) |
+| (.scm)          |      | (builds S-LLVM IR) |      | (textual LLVM IR)    |      | (lowered+linked) |
 +-----------------+      +--------------------+      +----------------------+      +------------------+
 ```
+
+The diagram shows configuration E. Under configuration B the middle box does not exist: the seed lowers its in-memory S-LLVM IR straight to the executable.
 
 The lowering column is the whole point of the milestone table in [Backend](backend.md), section 1: this is the step where the bootstrap goal - no external tools - is eventually reached.
 
@@ -89,7 +102,7 @@ The lowering column is the whole point of the milestone table in [Backend](backe
 
 * **Input:** Stage 3 source code
 * **Compiler running:** the bridge binary
-* **Intermediate:** `koivu-core.ll` - S-LLVM IR emitted by the bridge
+* **Intermediate:** in-memory S-LLVM IR built by the bridge, emitted as the textual `koivu-core.ll` for `llc` or `koivu-llc` to lower.
 * **Lowering:** an external `llc` until M4, then `koivu-llc`
 * **Output:** Stage 3 **Version A**
 
