@@ -105,14 +105,22 @@ Never resolve by force-pushing either side.
 The normal direction is **SourceCraft first, GitHub second**.
 
 ```bash
-git pull --ff-only origin/main          # start from SourceCraft's latest
+git pull --ff-only origin main          # start from SourceCraft's latest
 git switch -c pr/<topic>                # branch for the pull request
 git push github pr/<topic>              # open the PR on GitHub
 # ... merge the PR on GitHub ...
 git switch main
-git pull --ff-only github/main          # GitHub's merge commit arrives locally
+git pull --ff-only github main          # GitHub's merge commit arrives locally
 git push origin main                    # SourceCraft fast-forwards to it
 ```
+
+**Note the syntax.** `git pull` takes a **remote name and a branch name as two
+separate arguments** — `git pull origin main`. Writing `git pull origin/main`
+makes git look for a remote literally named `origin/main`, which does not exist,
+and it fails with `'origin/main' does not appear to be a git repository`.
+Commands that take a commit rather than a remote — `merge`, `log`, `diff`,
+`rev-parse`, `merge-base` — do accept `github/main`, because that is a
+remote-tracking ref. The two forms look similar but are not interchangeable.
 
 The last two commands are the whole trick: **after every PR merge, immediately
 fast-forward SourceCraft to GitHub.** Both sides then sit on the same commit and
@@ -170,6 +178,6 @@ Normal pushes are allowed, so the commands above work unchanged.
 | Direction | Commands | When |
 | :--- | :--- | :--- |
 | SourceCraft to GitHub | branch, `git push github <branch>`, open PR, merge | every change; the normal flow |
-| GitHub to SourceCraft | `git pull --ff-only github/main`, `git push origin main` | after every PR merge |
+| GitHub to SourceCraft | `git pull --ff-only github main`, `git push origin main` | after every PR merge |
 | Commit on SourceCraft | `git commit`, `git push origin main` | freely, when no PR is open |
 | Automatic sync | none - mirroring stays off | never |
