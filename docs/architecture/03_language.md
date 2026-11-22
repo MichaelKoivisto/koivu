@@ -33,7 +33,7 @@ All Koivu stages are statically typed.
 
 ### Basic Data Types
 
-All Koivu stages support three basic data types:
+All Koivu stages support the following basic data types:
 
 * Signed 32-bit Integers (Fixnums)
 
@@ -54,6 +54,13 @@ All Koivu stages support three basic data types:
 
   A simple flat vector of bytes for input and output from files. 
 
+* Closures
+
+   A pair containing a pointer to compiled machine code instructions and a pointer to the environment frame holding captured variables. 
+   Closures enable functional programming, passing pass-behaviors dynamically, and handling lexical scoping cleanly throughout compiler infrastructure pipeline.
+
+   Closures are a Stage 1 data type, not a Stage 2 addition: the Stage 2 bridge compiler is written in closures and is compiled by the seed. The Stage 1 model is deliberately simplified - `{ code_ptr, env_ptr }`, frames `{ parent_env_ptr, slot0, ... }` linked to their parent rather than copied, variable access compiled to a `(depth, index)` pair, `set!` permitted on captured variables, fixed arity only, and no `call/cc`. It is specified in [Stage 1 (Seed)](04_stage1_seed.md), section 4, and recorded as resolved decision 10 in [Backend](backend.md).
+
 Cons Cells do not use value tagging, compiler must do type-checking and issue correct instuctions.
 
 
@@ -61,11 +68,6 @@ Cons Cells do not use value tagging, compiler must do type-checking and issue co
    
 Koivu Scheme Stage 2 and up compilers add following data types:
    
-* Core Closures
-
-   A pair containing a pointer to compiled machine code instructions and a pointer to the environment frame holding captured variables. 
-   Closures enable functional programming, passing pass-behaviors dynamically, and handling lexical scoping cleanly throughout compiler infrastructure pipeline.
-
 * Unsigned 8-bit Integers
 * Unsigned 16-bit Integers
 * Signed 16-bit Integers

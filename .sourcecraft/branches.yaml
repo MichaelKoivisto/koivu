@@ -1,0 +1,10 @@
+branch_protection:
+  policies:
+    # main carries the architecture documents. Force pushes and deletion are
+    # the destructive operations: they rewrite or remove recorded decisions
+    # outright, leaving no review trail. Direct commits remain allowed.
+    - target: default_branch
+      message: "Force pushing or deleting main is forbidden"
+      rules:
+        - prevent_force_push
+        - prevent_deletion
