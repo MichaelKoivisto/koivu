@@ -69,6 +69,10 @@ Seed compiler (Stage 1) must conform to a strict design priority:
 
 * **Auditability & Simplicity:** The compiler's source code and resulting binaries must be minimal in footprint and transparent in design logic. This architectural minimalism ensures effortless human inspection and strict verification of the initial bootstrap layer.
 
+Bootstrap components must conform to one overriding priority:
+
+* **Small Seed Over Small Bridge:** Wherever a trade-off exists between the size and complexity of the Stage 1 seed and the size and complexity of the Stage 2 bridge, the seed always wins. Additional logic belongs in the bridge, in Lisp code evaluated by the seed, or in a later stage. The seed must never grow in order to keep the bridge small. See [Backend](architecture/backend.md), section 3.3, for the configurations this rule decides.
+
 Koivu Scheme compilers (all stages) must conform to a very specific design priority:
 
 * **Maximum Language Expressiveness:**  Stay traditional, dynamic, and macro-rich. Provide maximum cognitive flexibility and clean, expressive notation to reason about code, transform graphs, and manipulate syntax.
