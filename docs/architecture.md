@@ -16,14 +16,15 @@ The complete technical design is distributed across the following specialized do
 | :--- | :--- |
 | [**Platforms and Targets**](./architecture/01_platforms.md) | Host/target matrices and related engineering priorities. |
 | [**Bootstrapping Paths & Trust**](./architecture/02_bootstrapping_and_trust.md) | Simple vs. Secure compiler lineage. |
-| [**Self-hosting**](./architecture/selfhosting.md) | Roadmap to self-hosting. |
 | [**Koivu Scheme**](./architecture/03_language.md) | Core Domain-Specific Language. |
 | [**Stage 1 (Seed)**](./architecture/04_stage1_seed.md) | A minimalist Lisp-1 compiler. |
 | [**Stage 2 (Bridge)**](./architecture/05_stage2_bridge.md) | Macro-expanding compiler written in Stage 1 Lisp. |
 | [**Stage 3 (Production Core)**](./architecture/06_stage3_production_core.md) | Final compiler of compilers. |
-| [**Data-Oriented Design**](./architecture/data_oriented_design.md) | Data-Oriented Design for compiler passes. |
-| [**Backend**](./architecture/backend.md) | Backend: emission of LLVM IR, optimizations, lowering. |
 | [**Production Frontends**](./architecture/07_frontends.md) | Frontends for target programming languages. |
+| [**Seed Artifacts**](./architecture/08_seed_artifacts.md) | Seed artifacts, trust levels and verification recipes. |
+| [**Self-hosting**](./architecture/selfhosting.md) | Roadmap to self-hosting. |
+| [**Data-Oriented Design**](./architecture/data_oriented_design.md) | Data-Oriented Design for compiler passes. |
+| [**Backend**](./architecture/backend.md) | IR emission, machine-code lowering, target descriptions, `koivu-llc`. |
 
 ---
 
@@ -31,8 +32,8 @@ The complete technical design is distributed across the following specialized do
 
 Bootstrapping will work in multiple stages:
 
-* Stage 1 (Seed): A minimalist statically typed Lisp-1 compiler written in pure, generic LLVM IR. 
-* Stage 2 (Bridge): A macro-expanding compiler written in Stage 1 Lisp. Its only purpose is to compile Stage 3 compiler to machine binary.
+* Stage 1 (Seed): A minimalist statically typed Lisp-1 compiler written in pure, generic LLVM IR. It will also gain an evaluator, so that it can execute build-time Lisp code (see [Backend](architecture/backend.md), section 3.3). 
+* Stage 2 (Bridge): A macro-expanding compiler written in Stage 1 Lisp. Its only purpose is to compile the Stage 3 compiler: it emits LLVM IR, which an external `llc` lowers to a machine binary until `koivu-llc` exists.
 * Stage 3 (Production Core): A statically typed, AOT-compiled Scheme dialect executing a highly modular pipeline of ~50 distinct Nanopass transformations.
 
 The **Koivu** project relies heavily on bootstrapping, but this happens in two distinct contexts: during the project's **initial development phase** and later during **end-user installation**.
@@ -44,7 +45,8 @@ This is the process the **core developers** use to build the compiler infrastruc
 * **The Multi-Stage Bridge:** 
   * Stage 1 compiles the source code of Stage 2 (adding macros and closures).
   * Stage 2 compiles the source code of Stage 3 (the production Scheme dialect).
-* **The Goal (Self-Hosting):** Developers write a native machine code backend (e.g., x86_64) directly *in Stage 3 Scheme*. Once Stage 3 can compile its own source code without invoking LLVM, the development bootstrap is complete. The external LLVM scaffolding is dropped, creating a **meta-circular, self-hosting language**.
+* **The Goal (Self-Hosting):** Developers write a native machine code backend (e.g., x86_64) directly *in Stage 3 Scheme*. Once Stage 3 can compile its own source code without invoking `llc`, the development bootstrap is complete and a **meta-circular, self-hosting language** is achieved.
+* **What is dropped, and what is not:** the LLVM **tool** (`llc`) is dropped. The `.ll` **format** is kept in every stage, permanently, as the primary debugging and interchange format (see [Backend](architecture/backend.md), section 1). A narrower goal is met earlier: the bridge build stops depending on any external tool at M2.
 
 ### Bootstrapping the Build (End-User Installation)
 Once Koivu is fully self-hosting, **end-users** will need a way to build it from source on their own machines without needing an existing Koivu binary pre-installed. 
@@ -54,8 +56,11 @@ Once Koivu is fully self-hosting, **end-users** will need a way to build it from
 * **The End-User Build Flow:**
   1. The user downloads the Koivu source code repository.
   2. The build system executes the minimal, pre-baked bootstrap seed.
-  3. This seed reads the Stage 3 Scheme source code and uses it to compile a basic, functioning Koivu compiler binary.
-  4. The newly compiled binary then recompiles the full source code a second time to generate the optimized, production-ready compiler.
+  3. The seed compiles the Stage 2 bridge source code into a working bridge binary. Until the seed can produce executables by itself, this step is completed by an external `llc` (see [Backend](architecture/backend.md), section 1).
+  4. The bridge compiles the Stage 3 Scheme source code into a basic, functioning Koivu compiler binary.
+  5. The new compiler recompiles the full source code a second time to generate the optimized, production-ready compiler.
+
+The forms in which the seed is distributed, and what each of them can prove, are described in [Seed Artifacts](architecture/08_seed_artifacts.md).
 
 ---
 
