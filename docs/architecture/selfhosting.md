@@ -44,7 +44,7 @@ In the initial phase, Stage 1 is written directly in **LLVM IR**. Because there 
 ---
 
 ## 2. Stage 2 (Bridge): Building the Macro-Expanding Compiler
-Now that we have a working **Stage 1 Executable** (running natively on `x86_64`), we use it to compile the Stage 2 source code. Stage 2 introduces hygienic macros and closures.
+Now that we have a working **Stage 1 Executable** (running natively on `x86_64`), we use it to compile the Stage 2 source code. Stage 2 introduces hygienic macros. Closures are already available in Stage 1, because the bridge is itself written in them.
 
 ```text
        +-----------------------+

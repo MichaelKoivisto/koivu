@@ -43,7 +43,7 @@ This is the process the **core developers** use to build the compiler infrastruc
 
 * **The Starting Point:** The compiler does not exist yet. Developers write a tiny "seed" compiler (Stage 1) in external LLVM IR and use the system's LLVM toolchain (`llc`) to compile it.
 * **The Multi-Stage Bridge:** 
-  * Stage 1 compiles the source code of Stage 2 (adding macros and closures).
+  * Stage 1 compiles the source code of Stage 2 (adding macros).
   * Stage 2 compiles the source code of Stage 3 (the production Scheme dialect).
 * **The Goal (Self-Hosting):** Developers write a native machine code backend (e.g., x86_64) directly *in Stage 3 Scheme*. Once Stage 3 can compile its own source code without invoking `llc`, the development bootstrap is complete and a **meta-circular, self-hosting language** is achieved.
 * **What is dropped, and what is not:** the LLVM **tool** (`llc`) is dropped. The `.ll` **format** is kept in every stage, permanently, as the primary debugging and interchange format (see [Backend](architecture/backend.md), section 1). A narrower goal is met earlier: the bridge build stops depending on any external tool at M2.
