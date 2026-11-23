@@ -14,12 +14,17 @@ Thumbs.db
 
 # === Koivu Project Specific Outputs ===
 # Ignore compiled binaries from the Stage 1 & Stage 2 bootstrap steps
-bootstrap/stage1-asm/koivu-seed
-bootstrap/stage2-macro/*.bytecode
+bootstrap/stage1/koivu-seed
+bootstrap/stage1/koivu-seed.exe
+bootstrap/stage2/koivu-bridge
+bootstrap/stage2/koivu-bridge.exe
 
-# Ignore output assembly, objects, and executables generated during test passes
+# Ignore output assembly, objects, and executables generated during test passes.
+# Committed seed assembly is the exception: it is a published artifact, not a
+# build by-product. See docs/architecture/08_seed_artifacts.md, section 3.
 tests/scratch/
 *.s
+!bootstrap/**/*.s
 *.o
 *.elf
 *.macho
