@@ -8,8 +8,7 @@
 > Barbossa: Its not possible!<br>
 > Jack Sparrow: Not **probable**
 
-The Stage 3 Compiler is a lean Domain-Specific Language (DSL) for compiler engineering, 
-utilizing a [data-oriented design](data_oriented_design.md) and a nanopass architecture inspired by Chez Scheme.
+The Stage 3 Compiler is a lean Domain-Specific Language (DSL) for compiler engineering, built on a nanopass architecture inspired by Chez Scheme. It is itself a traditional Lisp compiler - cons cells, records, arenas and pools - and its own construction is not data-oriented. Data-oriented layout is a facility it provides to the frontends it hosts ([Data-Oriented Design](data_oriented_design.md)).
 
 ---
 
@@ -48,36 +47,18 @@ Struct Pool: [ Node 1 ] ➔ [ Node 2 ] ➔ [ Node 3 ] ➔ [ Node 4 ]  (All exact
 Components like identifier tables and cycle-detection routines (which traditionally lean heavily on dynamic hash tables or depth-first searches with frequent collisions) will be redesigned around predictable, linear memory insertions and batch processing.
 
 
-### Data-Oriented Design (DOD) - Struct of Arrays (SoA) for Stage3:
+### What Stage 3 Does Not Do to Itself
 
-Both high-performance gamedev (ECS architectures) and embedded systems favor Data-Oriented Design, which organizes data based on how the CPU cache reads it, rather than how humans conceptualize it.
+The data-oriented layouts of [Data-Oriented Design](data_oriented_design.md) - `flat-vector` token buffers, postorder parse trees, struct-of-arrays semantic instructions - are what Stage 3 offers the frontends it compiles. Stage 3's own AST and IR are ordinary Lisp structures living in the arenas and pools above.
 
-Instead of representing IR or AST as pointer-linked tree nodes or an array of objects (Array of Structures - AoS):
-
-```lisp
-;; Traditional Array of Structures (Bad for CPU Cache)
-(struct ast-node (type-tag line-number variable-symbol value-pointer))
-```
-
-Stage 3 compiler will break the nodes apart into separate, flat vectors organized by attribute (Struct of Arrays - SoA), paired with parallel side arrays for secondary attributes via compressed indices:
-
-```lisp
-;; Data-Oriented Structure (Excellent for CPU Cache)
-(struct ast-pool (
-  [type-tags (make-s64vector 100000 0)]
-  [line-nums (make-s64vector 100000 0)]
-  [symbols   (make-vector 100000 'empty)]
-  [values    (make-vector 100000 #f)]))
-```
-
-Why this works: When a compiler pass runs to check types or look for dead code, it usually only needs to look at the type-tags or symbols fields. In a traditional structure, the CPU cache is wasted loading unrelated data like line-number columns. In an SoA layout, a single CPU cache line can hold dozens of sequential type-tags at once, accelerating tree-walking and scanning passes by orders of magnitude.
+This is a scope statement rather than a performance claim in either direction, and it follows from the rule in [Koivu Scheme](03_language.md), Purpose and Scope: a feature belongs to the stage whose source needs it. Stage 3's own source contains no `define-flat-vector` form, so it does not use the layout machinery it implements, and the sapling that compiles Stage 3 needs no `flat-vector` either ([Flat Vector](flat-vector.md)).
 
 ### Stage 3 memory Allocation Summary: 
 
-By blending these disciplines, Stage 3 Lisp compiler achieves maximum performance through architectural specialization:
+By blending these disciplines, Stage 3 Lisp compiler achieves deterministic performance without a general-purpose collector:
 * Temporary pass data uses Pass-Based Arenas (allocated instantly, wiped instantly).
 * Long-lived compiler state (like the global symbol table) lives in Fixed-Size Object Pools (never fragmented, O(1) access).
-* Heavy Intermediate Representations (IR) are mapped to Flat Vectors (SoA) to keep the CPU cache completely saturated with useful instructions.
+* Intermediate representations are ordinary Lisp structures allocated from those same arenas and pools, so there is one representation to reason about rather than two.
 This completely bypasses the need for a complex, generic runtime garbage collector, improving production compiler infrastructure performance.
 
 ## Stage 3 Library
