@@ -190,7 +190,7 @@ Both are needed. A chain whose compilers reach a fixpoint while its lowerer does
 
 Recorded so the reconciliation is a checklist rather than a search:
 
-* [Backend](backend.md), section 9, **decision 3** — the Pino compiler is no longer a library linked into each compiler; it is this program. Sections 2 and 3 of that document describe the library and need rewriting.
+* [Backend](backend.md), section 9, **decision 3**, and sections 2, 3, 5, 6 and 8 — the Pino compiler is no longer a library linked into each compiler; it is this program. **Reconciled:** that document now describes the lowerer, names Vesi in the container, target-description and acceptance-criteria sections, and requires the C and Scheme lowerers to agree byte-for-byte (section 8, criterion 9).
 * [Pino IR](pino.md), section 1 — `.pino` is no longer a debug dump only; it is the interface described in section 2 here. The `koivu-pino` development compiler is gone with it: the sapling emits images, and Vesi renders `.s` and verifies them, so there is no third component with that job.
 * [Stage 1 (Seed)](04_stage1_seed.md) — the seed emits an image and writes no container; its CLI, layout and size budget follow.
 * [Stage 2 (Sapling)](05_stage2_sapling.md) — the sapling emits an image for Stage 3.
@@ -199,4 +199,4 @@ Recorded so the reconciliation is a checklist rather than a search:
 * [Roadmap to Self-hosting](selfhosting.md) — the T-diagrams gain Vesi as the bottom language of Steps 1 and 2.
 * [Stage 1 (Seed)](04_stage1_seed.md), section 7 and [Architecture Map](../architecture.md) — the build is two passes over one manifest.
 
-Until that reconciliation is done, those documents are stale in exactly the places listed above and nowhere else.
+The items still marked as outstanding above are the whole of the remaining reconciliation; no other document is stale for any other reason.
