@@ -39,7 +39,7 @@ While the GNU Bootstrapping Project has successfully proven the viability of sec
 * **Maintenance Overhead on Diverse Hardware:** Porting and maintaining custom bootstrap layers across less common or emerging CPU architectures remains operationally complex.
 * **Tooling Fragmentation:** The existing path relies on a varied sequence of platform-specific assembly templates, antique C compilers, and specialized interpreters. This heterogeneity increases the surface area that a single engineer must master.
 
-Koivu seeks to provide an alternative path by utilizing a single, uniform language abstraction layer from Stage 1 through production, ensuring the compilation path remains compact and cross-platform.
+Koivu seeks to provide an alternative path by utilizing a single, uniform language abstraction layer across the whole chain, ensuring the compilation path remains compact and cross-platform. The one exception is temporary: the seed is written in C until it becomes self-compilable, and in Scheme thereafter.
 
 ---
 
@@ -51,7 +51,7 @@ Lisp is selected as the primary language layer for all stages of the Koivu infra
 Compilers are fundamentally string-to-tree and tree-to-array translation systems. Lisp excels at this domain. Historical implementations, most notably **Chez Scheme**, have demonstrated that a native code generator built on a disciplined sequence of small, isolated passes (the "nanopass" design) can achieve excellent compilation throughput. Originally specified in 1958, Lisp remains the second-oldest high-level language still in active use, drawing on decades of optimization literature.
 
 ### 4.2 Low-Level Simplicity
-At the foundational level, the mechanics of a basic Lisp evaluator are remarkably straightforward. A functional interpreter seed can be written in a few hundred lines of clear, target-independent assembly or LLVM IR, allowing complete human verification of the initial execution state.
+At the foundational level, the mechanics of a basic Lisp compiler are remarkably straightforward. The seed is small for one structural reason: its output is a stack machine with one fixed byte template per instruction, so there is no register allocation, no scheduling and no spilling to get wrong, and lowering is a single linear pass over those templates. The seed itself is written in C until it becomes self-compilable and in Scheme afterwards, and it emits machine code in an executable container it writes itself. No optimising translator stands between its source and the bytes it produces, which is what allows the initial execution state to be verified by reading ([Pino IR](architecture/pino.md), section 1).
 
 ### 4.3 Mitigation of Performance Overhead
 Traditional criticisms regarding Lisp's performance—specifically garbage collection latency and variable execution speed—are structural problems of general-purpose, interactive system profiles. Because Koivu is an **ahead-of-time (AOT) batch compiler**, these issues are mitigated by architectural isolation:
