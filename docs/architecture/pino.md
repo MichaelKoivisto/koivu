@@ -7,7 +7,7 @@
 > Will Turner: You ignored the rules of engagement. In a fair fight, I'd kill you.<br>
 > Capt. Jack Sparrow: That's not much incentive for me to fight fair, is it?
 
-Pino IR (Finnish *pino*: "stack") is a minimalist, S-expression-encoded stack machine intermediate representation used by Stage 1 (Koivu Seed) and Stage 2 (Koivu Sapling). It decouples the bootstrap pipeline from LLVM toolchains and from text-heavy SSA generation, and it lets both stages lower directly to native machine code.
+Pino IR (Finnish *pino*: "stack") is a minimalist, S-expression-encoded stack machine intermediate representation used by Stage 1 (Koivu Seed) and Stage 2 (Koivu Sapling). It decouples the bootstrap pipeline from LLVM toolchains and from text-heavy SSA generation, and it gives both stages one fixed, mechanically checkable mapping to native machine code.
 
 LLVM IR remains the interchange and lowering format of Stage 3 (Production Core) and later.
 
@@ -110,11 +110,16 @@ A Pino module is a flat S-expression list containing top-level symbol declaratio
 (pino-module
   (symbols "quote" "if" "cons" "car" "cdr")
 
+  (fn entry (0)
+    (push-fn main)
+    (call 0)
+    (syscall exit))
+
   (fn main (0)
     (push-i32 10)
     (push-i32 20)
     (add)
-    (syscall exit)))
+    (ret)))
 ```
 
 ### Top-Level Forms
@@ -124,6 +129,16 @@ A Pino module is a flat S-expression list containing top-level symbol declaratio
 * `(fn <symbol> (<param-count>) <inst> ...)`: Declares a compiled procedure with fixed arity `<param-count>`.
 
 Arity is always an explicit integer. Variable arity is not part of the ISA.
+
+### The First Function Is `entry`
+
+An image always begins with a procedure named `entry`, which calls `main` and passes its return value to the host exit primitive. The container's entry field is a fixed offset at the start of the code (section 6), so the ordering rule is what makes the entry a fact of the image rather than a consequence of whatever the front end happened to emit first. Vesi checks the rule when it loads an image ([Koivu Vesi](koivu-vesi.md), section 4).
+
+`main` stays an ordinary arity-0 procedure that returns. This is the point of the rule rather than an incidental detail: if `main` were the entry and ended with `(syscall exit)` instead of `(ret)`, then exactly one procedure in every program would be exempt from the calling convention, and no verifier could express that exemption - at process entry the return register holds nothing, so a stray `(ret)` in `main` would jump through garbage on `arm64` and pop garbage on `x86_64`. With `entry` first, `main` returns normally and the three instructions above are the only place the process exits.
+
+`entry` uses nothing but `(push-fn)`, `(call)` and `(syscall exit)`: the return value `(call 0)` leaves on the stack becomes the exit status argument, so the sequence needs no instruction the ISA does not already have and no special case in the front end.
+
+The name is internal to the image. The container's entry is a byte offset, and Koivu's container writers carry no symbol table, so `entry` is not the host's `_start` symbol and does not pretend to be one.
 
 ## 4. Instruction Set Architecture (ISA)
 
@@ -252,6 +267,8 @@ To eliminate external linkers (`ld`, `link.exe`), `koivu-vesi` prepends a minima
 
 **Vesi writes containers; it does not sign them.** Writing a Mach-O and ad-hoc signing it are two different jobs, and only the first belongs in Vesi. A code directory and a superblob are a second binary format to implement and audit, bought for no gain: the user runs `codesign --force --sign -` on the produced executable, which needs no certificate, no developer account and no network, and is the same command they already run for any locally built binary on Apple Silicon.
 
+**The entry field is a constant.** All three headers carry one - `e_entry`, `LC_MAIN`, `AddressOfEntryPoint` - and in each case it points at the first byte of code, because an image always begins with `entry` (section 3). No front end reports an entry point and Vesi does not search for one: it writes the same fixed value into every container it produces.
+
 Raw syscalls are not a stable interface on macOS, so the executables Vesi produces link against `libSystem`, as the seed itself does ([Platforms and Targets](01_platforms.md), section 6.1). All three container formats are in scope and none is deferred; the signing step is the user's, not Vesi's.
 
 ## 7. Bootstrapping and Self-Hosting Roadmap
@@ -270,7 +287,7 @@ None. Both items previously listed here are settled, and recorded in the section
 
 | Item | Resolution |
 | :--- | :--- |
-| Mach-O container writer | the seed writes an unsigned Mach-O; the user ad-hoc signs the result (section 6; [Platforms and Targets](01_platforms.md), section 6.2) |
+| Mach-O container writer | Vesi writes an unsigned Mach-O; the user ad-hoc signs the result (section 6; [Platforms and Targets](01_platforms.md), section 6.2) |
 | Static stack-depth verifier | runs in `koivu-vesi` when it loads an image, before any byte is emitted ([Koivu Vesi](koivu-vesi.md), section 4) |
 
 Nothing remains open about macOS. The last item was release process rather than this document, and it is settled: every release publishes a binary for every supported platform ([Platforms and Targets](01_platforms.md), section 2).

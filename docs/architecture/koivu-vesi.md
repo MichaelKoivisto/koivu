@@ -110,6 +110,7 @@ Vesi does:
 
 * read an image and reject a malformed one with a diagnostic and exit code `1`;
 * **verify the stack balance of every function statically**, before any byte is emitted — with an implicit operand stack, an unbalanced sequence is silent memory corruption, and Vesi is the last place it can be caught;
+* **check that the first function of an image is `entry`**, so the container's fixed entry offset lands on the startup sequence rather than on whatever the front end emitted first ([Pino IR](pino.md), section 3);
 * bind `(label <sym>)` to byte offsets;
 * patch branch displacements, asserting that each fits the encoding its target description declares;
 * encode every instruction through one fixed byte template per instruction per target;
@@ -166,7 +167,7 @@ Both are needed. A chain whose compilers reach a fixpoint while its lowerer does
 ## 8. Acceptance Criteria
 
 1. **Determinism.** The same image and the same target produce a byte-identical executable, with stable ordering, no timestamps and no absolute paths.
-2. **No silent miscompilation.** An unknown instruction, a malformed image, a stack imbalance or a branch displacement that does not fit is a hard error with a diagnostic. Vesi never emits a guessed encoding.
+2. **No silent miscompilation.** An unknown instruction, a malformed image, a stack imbalance, a first function that is not `entry`, or a branch displacement that does not fit is a hard error with a diagnostic. Vesi never emits a guessed encoding.
 3. **ISA membership.** Every instruction Vesi encodes belongs to the declared Pino ISA and has a template for the target; the conformance test of [Backend](backend.md), section 4 is run by Vesi on request.
 4. **Container validity.** An executable Vesi writes runs on its target with no assembler, linker or system toolchain.
 5. **Image independence.** The same image, lowered for two targets, produces two executables with identical behaviour.
