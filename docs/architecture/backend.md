@@ -47,7 +47,7 @@ The stack machine is what makes the bootstrap tractable: with an implicit operan
 
 Two distinct goals, reached at different milestones:
 
-1. **The bridge build must not depend on any external tool** - no `llc`, no assembler, no linker, and no build system beyond the thin OS script that starts the seed. Met at **M0**.
+1. **The sapling build must not depend on any external tool** - no `llc`, no assembler, no linker, and no build system beyond the thin OS script that starts the seed. Met at **M0**.
 2. **The seed build must not depend on any external tool** - the seed can be rebuilt from its own source by a Koivu compiler produced by the chain. Met at **M2**.
 
 Goal 1 is the bootstrap goal proper. Goal 2 is what moves the seed from early to late development and allows a public seed release.
@@ -58,8 +58,8 @@ A milestone marks the point at which a lowering capability appears. It is not a 
 
 | Milestone | What works | External tools still needed |
 | :--- | :--- | :--- |
-| **M0** | The C seed compiles the bridge source; the resulting bridge binary runs | a C compiler, to build the seed |
-| **M1** | The bridge compiles Stage 3 source; the resulting Version A runs | a C compiler, to build the seed |
+| **M0** | The C seed compiles the sapling source; the resulting sapling binary runs | a C compiler, to build the seed |
+| **M1** | The sapling compiles Stage 3 source; the resulting Version A runs | a C compiler, to build the seed |
 | **M2** | A Koivu compiler produced by the chain rebuilds the seed from its Scheme source; the C seed is retired | none, given an existing Koivu compiler |
 | **M3** | Version A compiles Stage 3 source to Version B, emitting machine code natively | none |
 | **M4** | Version B produces a byte-identical Version C | none |
@@ -76,7 +76,7 @@ The Pino compiler is a **library**, not a program. It is linked into whichever c
 | **Input** | Pino IR held in memory by the emitting compiler |
 | **Output** | a linked executable for the target |
 | **Available from** | M0 |
-| **Consumers** | `koivu-seed` (Stage 1), `koivu-bridge` (Stage 2) |
+| **Consumers** | `koivu-seed` (Stage 1), `koivu-sapling` (Stage 2) |
 | **Implementation** | C until M2, Scheme afterwards |
 
 Contents of the library:
@@ -101,15 +101,15 @@ Contents it deliberately does not have:
 
 ## 3. Where the Lowering Code Runs
 
-The Pino compiler is compiled *into* the seed and *into* the bridge. It is not evaluated by the seed, and the seed contains no evaluator.
+The Pino compiler is compiled *into* the seed and *into* the sapling. It is not evaluated by the seed, and the seed contains no evaluator.
 
 * **Stage 1.** The seed reads Scheme, builds Pino IR, and calls the Pino compiler library to lower it and write the executable. One program, one binary.
-* **Stage 2.** The bridge does the same, with a larger front end: hygienic macros and `flat-vector` become available. The Pino compiler library is the same code.
+* **Stage 2.** The sapling does the same, with a larger front end: hygienic macros and `flat-vector` become available. The Pino compiler library is the same code.
 
 Two consequences follow, and both are deliberate:
 
 * **No evaluator.** Nothing in the seed interprets Scheme at build time. The seed is a compiler and nothing else. This is a substantial reduction compared with a design in which the seed evaluates its own backend.
-* **One implementation, written twice, and only briefly twice.** The C version serves the seed until M2. The Scheme version is written for the bridge, which must lower its own Pino IR from M1; at M2 the seed adopts it and the C version is deleted. Between M1 and M2 both versions exist, and that overlap is the one window in which a difference between them could hide - which is why acceptance criterion 5 compares a seed built by the C scaffold against a seed built by the chain, over the full test suite. After M2 there is one implementation and no mirror to keep in step.
+* **One implementation, written twice, and only briefly twice.** The C version serves the seed until M2. The Scheme version is written for the sapling, which must lower its own Pino IR from M1; at M2 the seed adopts it and the C version is deleted. Between M1 and M2 both versions exist, and that overlap is the one window in which a difference between them could hide - which is why acceptance criterion 5 compares a seed built by the C scaffold against a seed built by the chain, over the full test suite. After M2 there is one implementation and no mirror to keep in step.
 
 The seed's implementation language is a staged decision described in [Bootstrapping Paths & Trust](02_bootstrapping_and_trust.md), section 2.
 
@@ -123,8 +123,8 @@ This is a build-time, machine-checked requirement, not a review guideline.
 
 ### Conformance test (required)
 
-1. Compile the bridge sources with the seed, capturing the emitted instruction set.
-2. Compile the Stage 3 sources with the bridge, capturing the emitted instruction set.
+1. Compile the sapling sources with the seed, capturing the emitted instruction set.
+2. Compile the Stage 3 sources with the sapling, capturing the emitted instruction set.
 3. Check that every captured instruction is in the declared ISA and has a template for each supported target.
 4. Fail the build otherwise.
 
@@ -162,7 +162,7 @@ Adding a target means writing a Pino target description - one template per instr
 
 ## 7. Production Backend
 
-Everything in this section belongs to Stage 3 and later. None of it is in the seed or the bridge.
+Everything in this section belongs to Stage 3 and later. None of it is in the seed or the sapling.
 
 ### 7.1 Production LLVM IR Emitter
 
@@ -180,17 +180,17 @@ Stage 3 and other production compilers emit LLVM IR via `(koivu backend syntax l
 `koivu-llc` (`koivu-llc.exe` on Windows) is a command-line tool built on the production lowering stack with a thin CLI shim.
 
 * **Purpose:** a drop-in replacement for LLVM's `llc` for the IR subset Koivu emits.
-* **Placement:** **outside the bootstrap chain.** The seed and the bridge never lower LLVM IR, because they lower Pino. `koivu-llc` exists for Stage 3's textual output, for the multi-language frontends planned on top of Stage 3, and for the wider set of LLVM-like tools the project intends to maintain.
+* **Placement:** **outside the bootstrap chain.** The seed and the sapling never lower LLVM IR, because they lower Pino. `koivu-llc` exists for Stage 3's textual output, for the multi-language frontends planned on top of Stage 3, and for the wider set of LLVM-like tools the project intends to maintain.
 * **Milestone:** not tied to a bootstrap milestone. It depends on the production lowering stack (M3) and is scheduled independently.
 * **Input format:** textual `.ll`. A drop-in `llc` replacement must read textual LLVM IR, which implies an LLVM IR parser in the production stack. The cost of that parser is analysed in [Parsing LLVM IR in Koivu Scheme](notes_on_llvm_ir_parsing.md). The parser is never part of the seed.
 
-**The production stack is a library before it is a tool.** `koivu-llc` is one client of it; a build program written in Koivu Scheme is another. Because Stage 3 is written in the language it compiles, a build program can be compiled together with the production stack and then call it directly. That is why Koivu needs no `(compile ... into ...)` form: in Stage 3, compiling is an ordinary function call, and a front-end directive that duplicated it would be a second way to say the same thing. The seed and the bridge are not in that position - neither can be reached from Scheme code - which is why their build is driven by a data manifest instead ([Stage 1 (Seed)](04_stage1_seed.md), section 7).
+**The production stack is a library before it is a tool.** `koivu-llc` is one client of it; a build program written in Koivu Scheme is another. Because Stage 3 is written in the language it compiles, a build program can be compiled together with the production stack and then call it directly. That is why Koivu needs no `(compile ... into ...)` form: in Stage 3, compiling is an ordinary function call, and a front-end directive that duplicated it would be a second way to say the same thing. The seed and the sapling are not in that position - neither can be reached from Scheme code - which is why their build is driven by a data manifest instead ([Stage 1 (Seed)](04_stage1_seed.md), section 7).
 
 ## 8. Acceptance Criteria
 
 1. **ISA conformance:** the invariant of section 4 is checked automatically in CI, for both Stage 1 and Stage 2.
 2. **Container validity:** executables produced by the Pino compiler run on their target with no external assembler, linker or system toolchain.
-3. **No external tool in the bridge build:** from M0, the bridge build invokes nothing outside the seed.
+3. **No external tool in the sapling build:** from M0, the sapling build invokes nothing outside the seed.
 4. **Determinism:** Pino lowering and container writing are deterministic - stable ordering, no timestamps, no absolute paths - because the self-hosting fixpoint check compares binaries byte-for-byte.
 5. **Seed self-compilation equivalence:** from M2, a seed rebuilt from Scheme source by a Koivu compiler behaves identically to the seed built by the C scaffold across the full test suite. This is the criterion that retires the C seed.
 6. **Fixpoint:** Version B and Version C are byte-for-byte identical.
@@ -207,9 +207,9 @@ Stage 3 and other production compilers emit LLVM IR via `(koivu backend syntax l
 | 4 | Seed implementation language | **C until M2, Scheme afterwards**; the C source is deleted, not maintained | no permanent mirror; the two versions overlap only between M1 and M2, and criterion 5 closes that window |
 | 5 | Does the seed contain an evaluator? | **No** | the seed is a compiler and nothing else |
 | 6 | `koivu-llc` input format | **Textual `.ll`** (true drop-in) | the production stack needs an LLVM IR parser, see [notes](notes_on_llvm_ir_parsing.md); the parser is never part of the seed |
-| 7 | `koivu-llc` placement | **Outside the bootstrap chain** | it serves Stage 3, the planned frontends and LLVM-like tooling, not the seed or the bridge |
+| 7 | `koivu-llc` placement | **Outside the bootstrap chain** | it serves Stage 3, the planned frontends and LLVM-like tooling, not the seed or the sapling |
 | 8 | Executable container formats | **All three: ELF, PE and Mach-O, none deferred** | the seed writes every container unsigned; signing is a user step, see section 5 |
-| 9 | Bootstrap goal 1 | **The bridge build must not depend on any external tool** | met at M0 |
+| 9 | Bootstrap goal 1 | **The sapling build must not depend on any external tool** | met at M0 |
 | 10 | Bootstrap goal 2 | **The seed build must not depend on any external tool** | met at M2; this is the early/late boundary |
 | 11 | Stage 1 closure representation | **Chained frames: `closure = { code_ptr, env_ptr }`, frames linked by a parent pointer, variable access by a compile-time `(depth, index)` pair** | no free-variable analysis and no copying at closure creation; `set!` on captured variables is allowed and shares state; environments live in the arena, so no GC is needed |
 | 12 | Compilation model | **Whole-program only: no separate compilation, no object files, no linker.** A compilation starts from one root source and produces one executable | further files enter through `include`, textually, at read time ([Koivu Scheme](03_language.md), Multi-File Programs); producing several executables is a loop over programs, not a compiler mode |

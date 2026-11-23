@@ -1,13 +1,13 @@
 # Pino IR Architecture Blueprint
 
 > **Status:** Architecture Blueprint<br>
-> **Component:** Stage 1 Core / Stage 2 Bridge / Bootstrap Backend
+> **Component:** Stage 1 Core / Stage 2 Sapling / Bootstrap Backend
 
 > Capt. Jack Sparrow: Put it away, son. It's not worth you getting beat again.<br>
 > Will Turner: You ignored the rules of engagement. In a fair fight, I'd kill you.<br>
 > Capt. Jack Sparrow: That's not much incentive for me to fight fair, is it?
 
-Pino IR (Finnish *pino*: "stack") is a minimalist, S-expression-encoded stack machine intermediate representation used by Stage 1 (Koivu Seed) and Stage 2 (Koivu Bridge). It decouples the bootstrap pipeline from LLVM toolchains and from text-heavy SSA generation, and it lets both stages lower directly to native machine code.
+Pino IR (Finnish *pino*: "stack") is a minimalist, S-expression-encoded stack machine intermediate representation used by Stage 1 (Koivu Seed) and Stage 2 (Koivu Sapling). It decouples the bootstrap pipeline from LLVM toolchains and from text-heavy SSA generation, and it lets both stages lower directly to native machine code.
 
 LLVM IR remains the interchange and lowering format of Stage 3 (Production Core) and later.
 
@@ -47,7 +47,7 @@ A tool that compiles textual `.pino` into machine code is theoretically possible
 
 Two consequences follow, and both keep the seed small:
 
-* **The seed and the bridge have no assembly printer.** `.s` exists for people, not for the pipeline. The committed seed assembly ([Seed Artifacts](08_seed_artifacts.md), section 3) is produced by `koivu-pino` from the same source the seed is built from, so neither bootstrap compiler needs a second, text-emitting form of its lowering. A printer inside the seed would restate every byte template in a second representation, and that representation would have to be audited alongside the first.
+* **The seed and the sapling have no assembly printer.** `.s` exists for people, not for the pipeline. The committed seed assembly ([Seed Artifacts](08_seed_artifacts.md), section 3) is produced by `koivu-pino` from the same source the seed is built from, so neither bootstrap compiler needs a second, text-emitting form of its lowering. A printer inside the seed would restate every byte template in a second representation, and that representation would have to be audited alongside the first.
 * **The stack-depth verifier lives here as well.** With an implicit operand stack, an unbalanced sequence is silent memory corruption rather than an error. `--verify` therefore runs over the Pino IR the tool has just built - at the point where an imbalance is introduced, not after a round trip through text. The same check also accepts a `.pino` file, which is how a dump produced elsewhere, or committed as a test fixture, can be verified without running anything.
 
 `koivu-pino` is the only component in the project that turns Pino IR into assembly text.
@@ -193,7 +193,7 @@ Variables are addressed statically via compile-time `(depth, index)` coordinates
 
 The host OS primitives are `mmap`, `open`, `fstat`, `read`, `write`, `close` and `exit` - **seven** calls, counted individually, each with its own entry in the target's syscall table. They are the complete set the seed is allowed to use; anything else must be built on top of them.
 
-The bridge uses the same seven. It links the same Pino compiler library and inherits its container writer and its syscall templates, so it needs no primitive the seed does not already have.
+The sapling uses the same seven. It links the same Pino compiler library and inherits its container writer and its syscall templates, so it needs no primitive the seed does not already have.
 
 **Branch encoding is target-specific, not fixed.** `(jmp)` and `(jz)` lower to the target's own relative branch instruction - `rel32` on `x86_64`, `rel19` via `b`/`cbz` on `arm64` - so the backpatch placeholder width comes from the target description rather than from the ISA. The seed's own code is far below the ±1 MB arm64 range; the encoder asserts the range instead of silently truncating, and a range overflow is a build error.
 
@@ -262,8 +262,8 @@ Raw syscalls are not a stable interface on macOS, so the executables the seed pr
 
 The milestones below are the ones defined in [Backend](backend.md), section 1. Pino IR is the IR of the first two.
 
-1. **M0 - the seed compiles the bridge.** The seed, written in C and built with an LLVM C compiler, implements the S-expression reader, the symbol interner, the bump allocator, the front end and the Pino compiler library. It compiles the bridge source and writes the bridge executable with no external tool.
-2. **M1 - the bridge compiles Stage 3.** The bridge adds hygienic macros and `flat-vector` support and compiles Stage 3 source to a working Version A, again with no external tool.
+1. **M0 - the seed compiles the sapling.** The seed, written in C and built with an LLVM C compiler, implements the S-expression reader, the symbol interner, the bump allocator, the front end and the Pino compiler library. It compiles the sapling source and writes the sapling executable with no external tool.
+2. **M1 - the sapling compiles Stage 3.** The sapling adds hygienic macros and `flat-vector` support and compiles Stage 3 source to a working Version A, again with no external tool.
 3. **M2 - the seed becomes self-compilable.** The seed is rewritten in Scheme and rebuilt by a Koivu compiler produced by the chain, lowered through Pino. The C seed is deleted. This is the boundary between early and late development ([Bootstrapping Paths & Trust](02_bootstrapping_and_trust.md), section 2), and the point from which committed `.s` seeds become worth publishing ([Seed Artifacts](08_seed_artifacts.md), section 3).
 4. **M3 - Stage 3 emits machine code natively.** Version A compiles Stage 3 source to Version B.
 5. **M4 - fixpoint.** Version B produces a byte-identical Version C.

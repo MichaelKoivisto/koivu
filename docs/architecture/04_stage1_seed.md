@@ -12,7 +12,7 @@
 > Jack Sparrow: Seeing as there's two of us, a gentleman would give us a pair of pistols.<br>
 > Barbossa: It'll be one pistol as before, and you can be the gentleman and shoot the lady; and starve yourself to death.
 
-Koivu Stage 1 (**Koivu Seed**) is a minimalist, statically typed, ahead-of-time (AOT) Lisp-1 compiler. Its core purpose is to compile the Stage 2 macro-expanding bridge compiler (`koivu-bridge.scm`) into executable code and exit, maintaining a minimal footprint and zero external dependencies for auditability and simplicity. "Zero external dependencies" means no third-party dependencies; what it means per host, and why it is not the same as a statically linked binary, is stated in section 3.
+Koivu Stage 1 (**Koivu Seed**) is a minimalist, statically typed, ahead-of-time (AOT) Lisp-1 compiler. Its core purpose is to compile the Stage 2 macro-expanding sapling compiler (`koivu-sapling.scm`) into executable code and exit, maintaining a minimal footprint and zero external dependencies for auditability and simplicity. "Zero external dependencies" means no third-party dependencies; what it means per host, and why it is not the same as a statically linked binary, is stated in section 3.
 
 The seed emits native machine code wrapped in an executable container that it writes itself, so it needs no assembler and no linker. Its implementation language is staged: C before M2, Scheme afterwards ([Bootstrapping Paths & Trust](02_bootstrapping_and_trust.md), section 2; [Backend](backend.md), decision 4). The language changes once; everything else in this document is written to be independent of it.
 
@@ -25,8 +25,8 @@ The seed emits native machine code wrapped in an executable container that it wr
 
 ### Command-Line Interface
 1. **Single Argument:** `koivu-seed <input.scm>` compiles the specified source file into an executable `<input>` (`<input>.exe` on Windows).
-2. **Zero Arguments:** `koivu-seed` looks for `koivu-bridge.scm` in the current working directory and compiles it to `koivu-bridge`.
-3. **Missing Default Input:** If no argument is present and `koivu-bridge.scm` is missing, it prints `Koivu Seed v0001` to `stdout` and exits with code `0`.
+2. **Zero Arguments:** `koivu-seed` looks for `koivu-sapling.scm` in the current working directory and compiles it to `koivu-sapling`.
+3. **Missing Default Input:** If no argument is present and `koivu-sapling.scm` is missing, it prints `Koivu Seed v0001` to `stdout` and exits with code `0`.
 4. **Build Manifest:** `koivu-seed --build build.koivu` reads a build manifest and produces every executable it lists (section 7). Without the flag the input is one program's root source. The two are different things, and which one was meant is not inferred from the extension.
 
 **One file, always.** The seed never takes a list of sources. A multi-file program has exactly one root source file and the rest enter through `include`, which the reader resolves textually ([Koivu Scheme](03_language.md), Multi-File Programs). Composition therefore lives in the source, where a reviewer can read it, rather than in the invocation.
@@ -73,7 +73,7 @@ Platform-specific glue code must abstract exactly seven host OS primitives, coun
 This has one consequence for the project's own claims, so it is stated rather than implied: on macOS the seed is a **dynamically linked** Mach-O executable. "Zero external dependencies" therefore means "no third-party dependencies" - on macOS the seed links against the OS-supplied `libSystem`, and static linking against macOS system libraries is not an option. On Linux the same holds only for the C scaffold before M2, which a C compiler builds against libc; from M2 the seed emits syscalls itself and links nothing. See [Platforms and Targets](01_platforms.md), section 6.1.
 
 ### Stream Logging Conventions
-* **`stdout`:** Prints `Koivu Seed v0001` when invoked with no arguments and no `koivu-bridge.scm` is present, or prints a brief completion confirmation upon successful compilation (exit code `0`).
+* **`stdout`:** Prints `Koivu Seed v0001` when invoked with no arguments and no `koivu-sapling.scm` is present, or prints a brief completion confirmation upon successful compilation (exit code `0`).
 * **`stderr`:** Reserved exclusively for diagnostic error messages. Any failure exits immediately with a non-zero exit code (`1`).
 
 ## 4. Supported Language Capabilities
@@ -114,7 +114,7 @@ The model is recorded as resolved decision 11 in the [Backend](backend.md) bluep
 ### Explicit Omissions
 * **No native macro expander (`syntax-rules` / `syntax-case`):** Stage 1 compiles raw macro-free Scheme; Stage 2 implements macro expansion as user-level S-expression transformations.
 * **No multiple return values (`values`, `call-with-values`):** Use Cons cells instead.
-* **No runtime `eval` in compiled programs:** the binaries the seed produces contain no reader and no interpreter. `eval` is unavailable to the bridge, to Stage 3, and to anything they compile.
+* **No runtime `eval` in compiled programs:** the binaries the seed produces contain no reader and no interpreter. `eval` is unavailable to the sapling, to Stage 3, and to anything they compile.
 * **No runtime garbage collection:** every object, including closures and their environment frames, lives in the bump arena until the process exits (see section 2).
 
 **These omissions describe the language the seed compiles, not the language the seed is written in.** The seed is a compiler and nothing else: it carries a reader and a front end, but no evaluator and no `apply`, and it never interprets Scheme at build time ([Backend](backend.md), section 3 and decision 5). Nothing interprets Pino IR either - the library that lowers it is compiled into the seed, not evaluated by it. From M2 the seed is itself written in Koivu Scheme, which is consistent with this: a compiler written in Scheme compiles Scheme without evaluating it.
@@ -173,7 +173,7 @@ The seed's sources live in `bootstrap/stage1/`. The directory name carries no la
 
 A row naming a single file is one source file in the seed's current language (`main.c` now, `main.scm` from M2). A row naming a directory holds one file per host or per format.
 
-`bootstrap/pino/` is the Pino compiler library. It is not part of the seed alone: the bridge links the same library, which is why it sits beside `bootstrap/stage1/` rather than inside it ([Backend](backend.md), section 2). Stage 2 sources live in `bootstrap/stage2/`. Stage 3 is the production codebase rather than a bootstrap step, so it lives in `src/`; both are described in their own blueprints.
+`bootstrap/pino/` is the Pino compiler library. It is not part of the seed alone: the sapling links the same library, which is why it sits beside `bootstrap/stage1/` rather than inside it ([Backend](backend.md), section 2). Stage 2 sources live in `bootstrap/stage2/`. Stage 3 is the production codebase rather than a bootstrap step, so it lives in `src/`; both are described in their own blueprints.
 
 `tools/` holds the command-line tools that are not part of the chain: `koivu-pino`, the development compiler that emits textual `.pino`, assembly or an executable and that runs the stack-depth verifier ([Pino IR](pino.md), section 1), and `koivu-llc`, the production LLVM IR lowerer ([Backend](backend.md), section 7.3).
 
@@ -198,8 +198,8 @@ A manifest is Scheme **data** read by the compiler, not a program it runs: the s
 
 ```scheme
 (build
-  (program "koivu-bridge"
-    (root "bootstrap/stage2/koivu-bridge.scm")))
+  (program "koivu-sapling"
+    (root "bootstrap/stage2/koivu-sapling.scm")))
 ```
 
 | Element | Meaning |
@@ -211,7 +211,7 @@ A manifest is Scheme **data** read by the compiler, not a program it runs: the s
 * **The file is `build.koivu` at the repository root**, and paths inside it are relative to its own directory, so the build does not depend on where it is invoked from. The distinct extension follows the ASDF `.asd` tradition and marks the file as not-a-program, so nobody compiles it by accident.
 * **There is no ordering and no dependency graph.** `include` already encodes both ([Koivu Scheme](03_language.md), Multi-File Programs).
 * **There are no source lists, per-file flags or conditionals.** A manifest that needs logic has outgrown being a manifest, and that is a design smell to fix rather than a feature to add.
-* **The manifest describes what Koivu builds.** Before M2 that excludes the seed itself, which `build.sh` and the C compiler produce, so until then the manifest has one entry - the bridge - which is an honest statement of how much of the build Koivu actually owns at that point.
+* **The manifest describes what Koivu builds.** Before M2 that excludes the seed itself, which `build.sh` and the C compiler produce, so until then the manifest has one entry - the sapling - which is an honest statement of how much of the build Koivu actually owns at that point.
 
 A manifest has to exist at all because of the rule in the [Architecture Map](../architecture.md): without one, building several programs means several compiler invocations, and whatever issues them is a script deciding what to build. The manifest is what puts that loop inside Koivu instead of in a shell.
 
@@ -219,10 +219,10 @@ A manifest has to exist at all because of the rule in the [Architecture Map](../
 
 The Stage 1 regression suite in `tests/` must verify:
 
-1. **CLI & Error Handling Tests:** Missing files, oversized inputs, malformed S-expressions, type mismatches, zero-argument fallback behavior (`koivu-bridge.scm` vs. version print), and a rejected instruction with no lowering for the selected target.
+1. **CLI & Error Handling Tests:** Missing files, oversized inputs, malformed S-expressions, type mismatches, zero-argument fallback behavior (`koivu-sapling.scm` vs. version print), and a rejected instruction with no lowering for the selected target.
 2. **Lisp Unit Tests:** Isolated `.scm` programs testing fixnum arithmetic, Cons cell mutation, symbol interning (`eq?`), closures, tail-call recursion, and byte-buffer operations.
 3. **Integration Tests:** End-to-end compilation of multi-function Scheme programs to executables, each run directly to verify runtime output. No assembler and no linker appear in the path, so a failure here is a failure of the seed itself.
-4. **Production Smoke Self-Test:** Executing `koivu-seed` with no `koivu-bridge.scm` present in the working directory to verify that `Koivu Seed v0001` prints cleanly to `stdout` with exit code `0`.
-5. **Bridge Test:** Compilation of Stage 2 Bridge compiler source code to Stage 2 Bridge executable.
-6. **ISA Conformance Test:** The invariant of [Backend](backend.md), section 4 is machine-checked. The bridge and Stage 3 sources are compiled, the emitted instruction sets are captured, and the build fails if any instruction falls outside the declared Pino ISA or has no template for a supported target. Without this test a front-end change can silently invalidate the lowerer.
+4. **Production Smoke Self-Test:** Executing `koivu-seed` with no `koivu-sapling.scm` present in the working directory to verify that `Koivu Seed v0001` prints cleanly to `stdout` with exit code `0`.
+5. **Sapling Test:** Compilation of Stage 2 Sapling compiler source code to Stage 2 Sapling executable.
+6. **ISA Conformance Test:** The invariant of [Backend](backend.md), section 4 is machine-checked. The sapling and Stage 3 sources are compiled, the emitted instruction sets are captured, and the build fails if any instruction falls outside the declared Pino ISA or has no template for a supported target. Without this test a front-end change can silently invalidate the lowerer.
 7. **Determinism Test:** Compiling the same source twice produces byte-identical executables, with stable ordering, no timestamps and no absolute paths ([Backend](backend.md), section 8, criterion 4). The self-hosting fixpoint check depends on this property, so it is tested long before it is needed.

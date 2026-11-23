@@ -77,7 +77,7 @@ This is what makes the chain bootstrappable locally, without an existing host of
 1. Write a **Pino target description** for the new target. Its scope is fixed by the ISA invariant in [Backend](backend.md), section 4: a byte template for every instruction in the declared Pino ISA, plus the OS glue.
 2. Cross-compile the Stage 1 seed on an existing host.
 3. Add the resulting artifact to the published set for that platform (see [Seed Artifacts](08_seed_artifacts.md), section 2).
-4. Verify in order: Stage 1 test suite, bridge build, Stage 3 build.
+4. Verify in order: Stage 1 test suite, sapling build, Stage 3 build.
 
 Result: the platform can bootstrap Koivu locally. This goal does **not** by itself make the platform a useful compilation target.
 
@@ -118,7 +118,7 @@ macOS still differs from the other two in one respect that no amount of care rem
 **Writing the container and signing it are two separate jobs, and only the first belongs in the seed.** The seed writes an unsigned Mach-O, and the user ad-hoc signs the result:
 
 ```
-codesign --force --sign - koivu-bridge
+codesign --force --sign - koivu-sapling
 ```
 
 That command needs no certificate, no developer account and no network, and it is the same command the user already runs for any locally built binary on Apple Silicon. The alternative - a code directory and a superblob inside the seed - would add a second binary format to implement and audit, bought for no gain in convenience.

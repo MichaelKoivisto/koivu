@@ -14,7 +14,7 @@ This document maps out the bootstrapping pipeline of the **Koivu** compiler infr
 
 Three conventions are used throughout, and all three are inherited from other blueprints rather than defined here:
 
-* **Step numbers** follow the four-step build chain in [Bootstrapping Paths and Trust](02_bootstrapping_and_trust.md), section 6. That chain starts at the bridge build, so building the seed itself is **Step 0**: a prerequisite, not one of the four steps.
+* **Step numbers** follow the four-step build chain in [Bootstrapping Paths and Trust](02_bootstrapping_and_trust.md), section 6. That chain starts at the sapling build, so building the seed itself is **Step 0**: a prerequisite, not one of the four steps.
 * **Milestone names** (M0 to M4) follow [Backend](backend.md), section 1. A milestone is not a release number; it marks the point at which a particular lowering capability appears.
 * **The reference host is Linux `x86_64`.** The diagrams show one platform because the chain is the same on every host. Section 6 adds a second axis - in what form each compiler exists - and section 7 covers macOS, the one host that adds a step after the chain has run. Other per-platform differences are out of scope here.
 
@@ -61,9 +61,9 @@ Step 0 is the only step that needs a tool from outside the chain, and only until
 
 ---
 
-## 2. Step 1: Generating the Bridge Binary (M0)
+## 2. Step 1: Generating the Sapling Binary (M0)
 
-With a working `koivu-seed` binary, the seed compiles the Stage 2 bridge source code. Stage 2 introduces hygienic macros; closures are already available in Stage 1, because the bridge is itself written in them.
+With a working `koivu-seed` binary, the seed compiles the Stage 2 sapling source code. Stage 2 introduces hygienic macros; closures are already available in Stage 1, because the sapling is itself written in them.
 
 ```text
        +-----------------------+
@@ -84,11 +84,11 @@ With a working `koivu-seed` binary, the seed compiles the Stage 2 bridge source 
                +-------+
 ```
 
-* **Input:** Stage 2 bridge source code.
+* **Input:** Stage 2 sapling source code.
 * **Compiler running:** the Stage 1 seed.
 * **Intermediate:** Pino IR, built in memory by the seed.
 * **Lowering:** the Pino compiler library, linked into the seed.
-* **Output:** the `koivu-bridge` binary.
+* **Output:** the `koivu-sapling` binary.
 * **Milestone:** M0.
 
 **Lowering is part of this step, not a separate step after it.** The seed lowers Pino IR itself and writes the executable container itself, so no external tool appears here at all. This is bootstrap goal 1 ([Backend](backend.md), section 1), and it is met at M0 - the earliest milestone, not the last.
@@ -97,7 +97,7 @@ With a working `koivu-seed` binary, the seed compiles the Stage 2 bridge source 
 
 ## 3. Step 2: Generating the Stage 3 Binary (Version A)
 
-Using the bridge binary, the initial implementation of Stage 3 (the statically typed Scheme dialect featuring the Nanopass architecture) is compiled.
+Using the sapling binary, the initial implementation of Stage 3 (the statically typed Scheme dialect featuring the Nanopass architecture) is compiled.
 
 ```text
        +-----------------------+
@@ -114,18 +114,18 @@ Using the bridge binary, the initial implementation of Stage 3 (the statically t
        +-------+       +-------+
 
                |       |
-               | x86_64|  <--- (Stage 2 Bridge binary generated in Step 1)
+               | x86_64|  <--- (Stage 2 Sapling binary generated in Step 1)
                +-------+
 ```
 
 * **Input:** Stage 3 source code.
-* **Compiler running:** the bridge binary.
-* **Intermediate:** Pino IR, built in memory by the bridge.
-* **Lowering:** the Pino compiler library, linked into the bridge - the same code the seed carries.
+* **Compiler running:** the sapling binary.
+* **Intermediate:** Pino IR, built in memory by the sapling.
+* **Lowering:** the Pino compiler library, linked into the sapling - the same code the seed carries.
 * **Output:** Stage 3 **Version A**.
 * **Milestone:** M1.
 
-Two properties of this step are worth stating explicitly. There is no subset restriction: the bridge lowers **every** instruction of the declared Pino ISA, and conformance is a membership test rather than a closure over a special subset ([Backend](backend.md), section 4). And no `.ll` file is produced, so no external lowering appears in this step either.
+Two properties of this step are worth stating explicitly. There is no subset restriction: the sapling lowers **every** instruction of the declared Pino ISA, and conformance is a membership test rather than a closure over a special subset ([Backend](backend.md), section 4). And no `.ll` file is produced, so no external lowering appears in this step either.
 
 ---
 
@@ -158,7 +158,7 @@ Once the production lowering stack exists inside the Stage 3 source, the project
 * **Output:** Stage 3 **Version B**.
 * **Milestone:** M3.
 
-The difference between Version A and Version B is code quality, not capability: both emit machine code. Version A's *own* machine code was produced by the bridge, which lowers through Pino and makes no attempt to optimise anything; Version B's was produced by the production backend. That is the one-generation lag inherent to bootstrapping - a compiler can only use a lowerer it already contains - and it is why the fixpoint check compares B with C rather than A with B.
+The difference between Version A and Version B is code quality, not capability: both emit machine code. Version A's *own* machine code was produced by the sapling, which lowers through Pino and makes no attempt to optimise anything; Version B's was produced by the production backend. That is the one-generation lag inherent to bootstrapping - a compiler can only use a lowerer it already contains - and it is why the fixpoint check compares B with C rather than A with B.
 
 ---
 
@@ -207,7 +207,7 @@ The steps above answer *which compiler runs*. A second, independent axis answers
 | Step 0, before M2 | an external C compiler | the host toolchain | not a Koivu artifact |
 | Step 0, from M2 | a Koivu compiler | built earlier in the chain by the same user | native binary, built on the user's machine |
 | Step 1 | the seed | **distributed** with the project | published binary on every host, with committed `.s` for reading ([Seed Artifacts](08_seed_artifacts.md), section 2) |
-| Step 2 | the bridge binary | produced by the seed in Step 1 | native binary, built on the user's machine |
+| Step 2 | the sapling binary | produced by the seed in Step 1 | native binary, built on the user's machine |
 | Steps 3 and 4 | Stage 3 Versions A and B | produced by the previous step | native binary, built on the user's machine |
 
 Only one row of this table is a distribution question. The seed is the only compiler the project ships; everything after it is produced locally, so its form is decided by the platform rather than by the project's release process. The inventory of seed forms, and what each of them proves and does not prove, is in [Seed Artifacts](08_seed_artifacts.md), sections 2 and 4.

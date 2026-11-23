@@ -14,7 +14,7 @@ Confidence markers as in the seed sizes note: **[estimate]** derived here, **[un
 
 | Variant | What it is | Bootstrap impact |
 | :--- | :--- | :--- |
-| **V1 - interpreter in the seed** | the seed builds the bridge's Pino IR and *interprets* it instead of lowering it; the Pino compiler library is removed | large: changes what the seed is |
+| **V1 - interpreter in the seed** | the seed builds the sapling's Pino IR and *interprets* it instead of lowering it; the Pino compiler library is removed | large: changes what the seed is |
 | **V2 - seed shipped as an image** | the seed's own logic lives as a Pino image; the distributed seed is a small interpreter plus that image | large: adds a rung and a format |
 | **V3 - interpreter in `koivu-pino`** | a development mode that runs a Pino program directly | none: `koivu-pino` is outside the chain |
 
@@ -41,7 +41,7 @@ What *does* change is the artifact the seed produces:
 
 | | Current design | Interpreter design |
 | :--- | :--- | :--- |
-| the bridge executable contains | machine code of the bridge | interpreter + the bridge as Pino data |
+| the sapling executable contains | machine code of the sapling | interpreter + the sapling as Pino data |
 | representation of the program | target machine code, 3-10 bytes per Pino instruction | Pino encoding, roughly 1-5 bytes per instruction |
 | target independence | none - one binary per target | one image runs on every target |
 
@@ -81,7 +81,7 @@ There is a second, sharper asymmetry. A mistake in a lowering template is local:
 
 ## 5. What It Would Cost
 
-1. **Speed.** Interpretation is typically 5-20× slower than generated code **[unverified]**. The bootstrap compiles the bridge, then Stage 3, then Stage 3 again; the penalty lands on every one of those steps, and it grows with the compiler.
+1. **Speed.** Interpretation is typically 5-20× slower than generated code **[unverified]**. The bootstrap compiles the sapling, then Stage 3, then Stage 3 again; the penalty lands on every one of those steps, and it grows with the compiler.
 2. **A second implementation of Pino semantics.** The blueprints reject a permanent mirror on principle ([Backend](backend.md), section 3; decision 4): two implementations of the same thing is where divergence hides. An interpreter is exactly that - the same 27 instructions, defined once as byte templates and once as interpreter cases - and unlike the C-to-Scheme transition it never ends.
 3. **Pino IR becomes a distribution format.** Today `.pino` is a debug dump precisely so that it never has to be stable ([Pino IR](pino.md), section 1): no stage reads it, no version is negotiated, no compatibility promise exists. Ship images and all three change at once - a specified encoding, a format version and a compatibility policy, in the same project that removed the R6RS library system partly to avoid exactly that kind of commitment.
 4. **A runtime comes back.** [Stage 1 (Seed)](04_stage1_seed.md), section 5 states that a compiled Koivu program is self-contained code plus its container, and that nothing is called at run time except the seven host primitives. An interpreter design puts a runtime into every produced executable. That is not fatal, but it retires a property the blueprints currently rely on.

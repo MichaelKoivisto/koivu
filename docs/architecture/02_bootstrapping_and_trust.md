@@ -15,7 +15,7 @@
 
 Bootstrapping has two distinct meanings in Koivu, and both are covered here:
 
-* **The build chain** - how the seed produces the bridge, the bridge produces Stage 3, and Stage 3 eventually produces itself. This is described step by step in section 6.
+* **The build chain** - how the seed produces the sapling, the sapling produces Stage 3, and Stage 3 eventually produces itself. This is described step by step in section 6.
 * **The trust question** - what a user can verify about the binaries they run, and what they cannot. This is described in sections 3 to 5.
 
 The milestone names (M0 to M4) used below are defined in [Backend](backend.md), section 1. The artifact forms are defined in [Seed Artifacts](08_seed_artifacts.md).
@@ -126,17 +126,17 @@ Stages 1 and 2 build Pino IR and lower it themselves, so no `.ll` file appears a
 
 When a step below says a compiler "builds Pino IR", it means the compiler constructs those data structures in memory and hands them to the Pino compiler library. Nothing is written to disk in between. Pino IR can be printed to a file for debugging, but no stage passes it to another stage in that form.
 
-### Step 1: Generating the Bridge Binary
+### Step 1: Generating the Sapling Binary
 
-* **Input:** Stage 2 bridge source code
+* **Input:** Stage 2 sapling source code
 * **Compiler running:** the Stage 1 seed
 * **Intermediate:** Pino IR, built in memory by the seed
 * **Lowering:** the Pino compiler library, linked into the seed
-* **Output:** `koivu-bridge` binary
+* **Output:** `koivu-sapling` binary
 
 ```
 +-----------------+      +-------------------------------+      +------------------+
-| Bridge Source   | ---> | Stage 1 Seed                  | ---> | Bridge Binary    |
+| Sapling Source  | ---> | Stage 1 Seed                  | ---> | Sapling Binary   |
 | (.scm)          |      | (front end + Pino compiler)   |      | (lowered+linked) |
 +-----------------+      +-------------------------------+      +------------------+
 ```
@@ -146,9 +146,9 @@ No external tool appears in this step. The seed lowers Pino IR itself and writes
 ### Step 2: Generating the Stage 3 Binary
 
 * **Input:** Stage 3 source code
-* **Compiler running:** the bridge binary
-* **Intermediate:** Pino IR, built in memory by the bridge
-* **Lowering:** the Pino compiler library, linked into the bridge
+* **Compiler running:** the sapling binary
+* **Intermediate:** Pino IR, built in memory by the sapling
+* **Lowering:** the Pino compiler library, linked into the sapling
 * **Output:** Stage 3 **Version A**
 
 ### Step 3: Native Rebuild
@@ -159,7 +159,7 @@ No external tool appears in this step. The seed lowers Pino IR itself and writes
 * **Lowering:** Version A's own production lowering stack
 * **Output:** Stage 3 **Version B**
 
-The difference between Version A and Version B is code quality, not capability: both emit machine code, and neither needs an external tool. Version A's own machine code was produced by the bridge, which lowers through Pino and optimises nothing; Version B's was produced by the production backend. That is the one-generation lag inherent to bootstrapping - a compiler can only use a lowerer it already contains.
+The difference between Version A and Version B is code quality, not capability: both emit machine code, and neither needs an external tool. Version A's own machine code was produced by the sapling, which lowers through Pino and optimises nothing; Version B's was produced by the production backend. That is the one-generation lag inherent to bootstrapping - a compiler can only use a lowerer it already contains.
 
 ### Step 4: The Fixpoint Check
 
@@ -171,7 +171,7 @@ If Version B and Version C are **byte-for-byte identical**, the compiler has rea
 
 Three conditions make this check meaningful:
 
-1. **Compare B with C, not A with B.** Version A's own machine code was produced by the bridge, which optimises nothing, while Version B's was produced by the production backend. Comparing them would measure the difference between two lowering paths, not self-consistency.
+1. **Compare B with C, not A with B.** Version A's own machine code was produced by the sapling, which optimises nothing, while Version B's was produced by the production backend. Comparing them would measure the difference between two lowering paths, not self-consistency.
 2. **Use the same backend configuration for both builds.** A different target backend on either side invalidates the comparison.
 3. **Require deterministic emission.** No timestamps, no absolute paths, stable ordering, stable symbol-table iteration. Determinism is an acceptance criterion in [Backend](backend.md), section 8.
 
@@ -180,7 +180,7 @@ The same cycle is drawn as T-diagrams in [Roadmap to Self-hosting](selfhosting.m
 ## 7. Why This Ordering Is Mandatory
 
 1. **Language compatibility.** Stage 3 source uses features that Stage 1 does not understand, hygienic macros first of all. Feeding Stage 3 directly to the seed will crash it or fail to parse.
-2. **The bridge principle.** The bridge is written in a subset simple enough for the seed to compile, but its output is a compiler capable of handling the full Stage 3 language. It is the narrow waist of the whole chain.
+2. **The sapling principle.** The sapling is written in a subset simple enough for the seed to compile, but its output is a compiler capable of handling the full Stage 3 language. It is the narrow waist of the whole chain.
 
 ## 8. What the Chain Proves, and What It Does Not
 

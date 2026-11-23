@@ -14,13 +14,13 @@ The project is currently establishing its core bootstrap pipeline layers. It is 
 The infrastructure bootstraps and operates via a multi-stage execution model:
 
 1. **Stage 1 (Seed):** A minimal S-expression compiler, written in C before it becomes self-compilable and in Scheme afterwards. It builds Pino IR - an S-expression stack machine - and lowers it to machine code in an executable container it writes itself, with an arena allocator and a no-GC policy.
-2. **Stage 2 (Bridge):** A macro-expanding compiler written in Stage 1 Lisp, adding support for hygienic macros. Closures are already present in Stage 1, since the bridge itself is written in them.
+2. **Stage 2 (Sapling):** A macro-expanding compiler written in Stage 1 Lisp, adding support for hygienic macros. Closures are already present in Stage 1, since the sapling itself is written in them.
 3. **Stage 3 (Production Core):** A statically typed, ahead-of-time (AOT) compiled dialect of Scheme utilizing a Nanopass architectural design and `flat-vector` Intermediate Representations.
 
 ## Repository Directory Overview
 
 * `docs/` — [Architecture Blueprints](docs/architecture.md), [Vision](docs/vision.md), and documentation [Style Guide](docs/style-guide.md).
-* `bootstrap/` - The bootstrap chain: `stage1/` (the seed), `pino/` (the Pino compiler library shared by the seed and the bridge) and `stage2/` (the macro-expanding bridge).
+* `bootstrap/` - The bootstrap chain: `stage1/` (the seed), `pino/` (the Pino compiler library shared by the seed and the sapling) and `stage2/` (the macro-expanding sapling).
 * `targets/` - Target description data files, read by the Pino compiler.
 * `tools/` - Command-line tools outside the bootstrap chain: `koivu-pino` and `koivu-llc`.
 * `src/` - Stage 3 production infrastructure.

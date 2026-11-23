@@ -33,7 +33,7 @@ honoured in later sessions.
 
 Project preferences that the documents must reflect:
 
-- **Small seed size is the top priority**, above bridge size. Permanent rule.
+- **Small seed size is the top priority**, above sapling size. Permanent rule.
 - **Simplest solution wins** for platform decisions.
 - **Documents record *why*, not just *what*.** Platform priorities,
   auditability rationale and rejected options belong in the text so that
@@ -81,7 +81,7 @@ All on `main`.
 
 Queued in this order:
 
-1. `05_stage2_bridge.md`
+1. `05_stage2_sapling.md`
 2. `06_stage3_production_core.md`
 3. `07_frontends.md`
 4. `data_oriented_design.md`
@@ -110,7 +110,7 @@ Numbered in `backend.md` §9.
 7. **B long-term** (Stage 1 Lisp executed by the seed's evaluator), **E interim**
    (external `llc`).
 8. External `llc` for the Stage 3 build **until M4**. *Provisional.*
-9. **Bootstrap goal:** the bridge build must not depend on any external tool. Met
+9. **Bootstrap goal:** the sapling build must not depend on any external tool. Met
    at M2.
 10. **Stage 1 closures:** `closure = { code_ptr, env_ptr }`, frames
     `{ parent_env_ptr, slot0, ... }` linked not copied, access by compile-time
@@ -168,13 +168,13 @@ Cross-document items, to be fixed file by file:
 
 ## 7. Next step
 
-**`docs/architecture/05_stage2_bridge.md`** — read it in full and produce the
+**`docs/architecture/05_stage2_sapling.md`** — read it in full and produce the
 inconsistency list before editing anything.
 
 Known items to confirm:
 
 - It says Stage 2 emits macro-expanded Scheme and terminates. This contradicts
-  `architecture.md` and `02_bootstrapping_and_trust.md`, where the bridge emits
+  `architecture.md` and `02_bootstrapping_and_trust.md`, where the sapling emits
   IR for Stage 3.
 - "Strict hygiene" is claimed, but only a `gensym`-style renamer is described.
 - Local macros are forbidden, while `03_language.md` promises modular pipelines.

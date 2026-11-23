@@ -18,7 +18,7 @@ The complete technical design is distributed across the following specialized do
 | [**Bootstrapping Paths & Trust**](./architecture/02_bootstrapping_and_trust.md) | Simple vs. Secure compiler lineage. |
 | [**Koivu Scheme**](./architecture/03_language.md) | Core Domain-Specific Language. |
 | [**Stage 1 (Seed)**](./architecture/04_stage1_seed.md) | A minimalist Lisp-1 compiler. |
-| [**Stage 2 (Bridge)**](./architecture/05_stage2_bridge.md) | Macro-expanding compiler written in Stage 1 Lisp. |
+| [**Stage 2 (Sapling)**](./architecture/05_stage2_sapling.md) | Macro-expanding compiler written in Stage 1 Lisp. |
 | [**Stage 3 (Production Core)**](./architecture/06_stage3_production_core.md) | Final compiler of compilers. |
 | [**Production Frontends**](./architecture/07_frontends.md) | Frontends for target programming languages. |
 | [**Seed Artifacts**](./architecture/08_seed_artifacts.md) | Seed artifacts, trust levels and verification recipes. |
@@ -35,7 +35,7 @@ The complete technical design is distributed across the following specialized do
 Bootstrapping will work in multiple stages:
 
 * Stage 1 (Seed): A minimalist statically typed Lisp-1 compiler. It is written in C before M2 and in Scheme afterwards, builds Pino IR, and lowers it to machine code with the Pino compiler library. It contains no evaluator: it is a compiler and nothing else (see [Backend](architecture/backend.md), sections 2 and 3). 
-* Stage 2 (Bridge): A macro-expanding compiler written in Stage 1 Lisp. Its only purpose is to compile the Stage 3 compiler: it builds Pino IR and lowers it with the same Pino compiler library the seed carries, so no external tool is involved.
+* Stage 2 (Sapling): A macro-expanding compiler written in Stage 1 Lisp. Its only purpose is to compile the Stage 3 compiler: it builds Pino IR and lowers it with the same Pino compiler library the seed carries, so no external tool is involved.
 * Stage 3 (Production Core): A statically typed, AOT-compiled Scheme dialect executing a highly modular pipeline of ~50 distinct Nanopass transformations.
 
 The **Koivu** project relies heavily on bootstrapping, but this happens in two distinct contexts: during the project's **initial development phase** and later during **end-user installation**.
@@ -44,11 +44,11 @@ The **Koivu** project relies heavily on bootstrapping, but this happens in two d
 This is the process the **core developers** use to build the compiler infrastructure from scratch, moving from a foreign host environment to a self-sufficient ecosystem.
 
 * **The Starting Point:** The compiler does not exist yet. Developers write the seed (Stage 1) in C and build it with an external C compiler - the only external tool the project ever uses ([Bootstrapping Paths & Trust](architecture/02_bootstrapping_and_trust.md), section 2).
-* **The Multi-Stage Bridge:** 
+* **The Multi-Stage Sapling:** 
   * Stage 1 compiles the source code of Stage 2 (adding macros).
   * Stage 2 compiles the source code of Stage 3 (the production Scheme dialect).
 * **The Goal (Self-Hosting):** Developers write a native machine code backend (e.g., x86_64) directly *in Stage 3 Scheme*. Once Stage 3 can compile its own source code without invoking any external tool, the development bootstrap is complete and a **meta-circular, self-hosting language** is achieved.
-* **What is dropped, and what is not:** two different things are dropped, at different times. The **external C compiler** that builds the seed is dropped at M2, when a Koivu compiler produced by the chain can rebuild the seed from its own source. The **`llc` tool** is never in the chain to begin with: Stages 1 and 2 use Pino IR rather than LLVM IR and lower it themselves. The `.ll` **format** survives permanently, but only in Stage 3, as its debugging instrument and as `koivu-llc`'s input (see [Backend](architecture/backend.md), sections 1 and 7). The first bootstrap goal - the bridge build depending on no external tool - is met at M0.
+* **What is dropped, and what is not:** two different things are dropped, at different times. The **external C compiler** that builds the seed is dropped at M2, when a Koivu compiler produced by the chain can rebuild the seed from its own source. The **`llc` tool** is never in the chain to begin with: Stages 1 and 2 use Pino IR rather than LLVM IR and lower it themselves. The `.ll` **format** survives permanently, but only in Stage 3, as its debugging instrument and as `koivu-llc`'s input (see [Backend](architecture/backend.md), sections 1 and 7). The first bootstrap goal - the sapling build depending on no external tool - is met at M0.
 
 ### Bootstrapping the Build (End-User Installation)
 Once Koivu is fully self-hosting, **end-users** will need a way to build it from source on their own machines without needing an existing Koivu binary pre-installed. 
@@ -58,8 +58,8 @@ Once Koivu is fully self-hosting, **end-users** will need a way to build it from
 * **The End-User Build Flow:**
   1. The user downloads the Koivu source code repository.
   2. The build system executes the minimal, pre-baked bootstrap seed.
-  3. The seed compiles the Stage 2 bridge source code into a working bridge binary. It lowers Pino IR and writes the executable container itself, so no external tool appears in this step (see [Backend](architecture/backend.md), section 1).
-  4. The bridge compiles the Stage 3 Scheme source code into a basic, functioning Koivu compiler binary.
+  3. The seed compiles the Stage 2 sapling source code into a working sapling binary. It lowers Pino IR and writes the executable container itself, so no external tool appears in this step (see [Backend](architecture/backend.md), section 1).
+  4. The sapling compiles the Stage 3 Scheme source code into a basic, functioning Koivu compiler binary.
   5. The new compiler recompiles the full source code a second time to generate the optimized, production-ready compiler.
 
 The forms in which the seed is distributed, and what each of them can prove, are described in [Seed Artifacts](architecture/08_seed_artifacts.md).
@@ -82,7 +82,7 @@ Seed compiler (Stage 1) must conform to a strict design priority:
 
 Bootstrap components must conform to one overriding priority:
 
-* **Small Seed Over Small Bridge:** Wherever a trade-off exists between the size and complexity of the Stage 1 seed and the size and complexity of the Stage 2 bridge, the seed always wins. Additional logic belongs in the bridge or in a later stage; nothing is delegated to Lisp code evaluated by the seed, because the seed contains no evaluator. The seed must never grow in order to keep the bridge small. See [Backend](architecture/backend.md), section 3.
+* **Small Seed Over Small Sapling:** Wherever a trade-off exists between the size and complexity of the Stage 1 seed and the size and complexity of the Stage 2 sapling, the seed always wins. Additional logic belongs in the sapling or in a later stage; nothing is delegated to Lisp code evaluated by the seed, because the seed contains no evaluator. The seed must never grow in order to keep the sapling small. See [Backend](architecture/backend.md), section 3.
 
 Koivu Scheme compilers (all stages) must conform to a very specific design priority:
 

@@ -23,7 +23,7 @@ Koivu Scheme adopts the [**R6RS (Revised^6 Report on Scheme)** specification](ht
 R6RS is selected over other specifications for three primary reasons:
 
 * **Static Phasing:** R6RS enforces explicit separation between macro expansion and run-time code, which lets the Stage 3 Ahead-of-Time (AOT) batch compiler resolve a program before code generation. Koivu keeps that phasing discipline but not the library system that carries it in R6RS: a library is a separately compilable unit, and Koivu has no separate compilation (see the Multi-File Programs section below; [Backend](backend.md), decision 12).
-* **Hygienic Macro Tooling:** The R6RS macro model scales naturally from simple `syntax-rules` up to complex compile-time transformations, ensuring that the Stage 2 Bridge macro-expander smoothly upgrades to support advanced Stage 3 modular code pipelines.
+* **Hygienic Macro Tooling:** The R6RS macro model scales naturally from simple `syntax-rules` up to complex compile-time transformations, ensuring that the Stage 2 Sapling macro-expander smoothly upgrades to support advanced Stage 3 modular code pipelines.
 * **Chez Scheme Alignment:** Basing the dialect on R6RS mirrors the architecture of Chez Scheme, allowing compiler logic, transformations and nanopasses to be prototyped on industrial tools during early development.
 
 
@@ -59,7 +59,7 @@ All Koivu stages support the following basic data types:
    A pair containing a pointer to compiled machine code instructions and a pointer to the environment frame holding captured variables. 
    Closures enable functional programming, passing pass-behaviors dynamically, and handling lexical scoping cleanly throughout compiler infrastructure pipeline.
 
-   Closures are a Stage 1 data type, not a Stage 2 addition: the Stage 2 bridge compiler is written in closures and is compiled by the seed. The Stage 1 model is deliberately simplified - `{ code_ptr, env_ptr }`, frames `{ parent_env_ptr, slot0, ... }` linked to their parent rather than copied, variable access compiled to a `(depth, index)` pair, `set!` permitted on captured variables, fixed arity only, and no `call/cc`. It is specified in [Stage 1 (Seed)](04_stage1_seed.md), section 4, and recorded as resolved decision 11 in [Backend](backend.md).
+   Closures are a Stage 1 data type, not a Stage 2 addition: the Stage 2 sapling compiler is written in closures and is compiled by the seed. The Stage 1 model is deliberately simplified - `{ code_ptr, env_ptr }`, frames `{ parent_env_ptr, slot0, ... }` linked to their parent rather than copied, variable access compiled to a `(depth, index)` pair, `set!` permitted on captured variables, fixed arity only, and no `call/cc`. It is specified in [Stage 1 (Seed)](04_stage1_seed.md), section 4, and recorded as resolved decision 11 in [Backend](backend.md).
 
 Cons Cells do not use value tagging, compiler must do type-checking and issue correct instuctions.
 
@@ -169,7 +169,7 @@ to carry the values of kind, pos, and payload inside a hot loop without memory f
 ## Reader Macros & Syntactic Extensions
 
 ### Design Invariant
-To preserve the absolute auditability and simplicity of the Stage 2 bridge compiler, the lexical `READ` phase enforces a strict separation of concerns. While Koivu Scheme utilizes reader macros to ease polyglot compiler implementation, the reader environment remains completely static and order-independent. 
+To preserve the absolute auditability and simplicity of the Stage 2 sapling compiler, the lexical `READ` phase enforces a strict separation of concerns. While Koivu Scheme utilizes reader macros to ease polyglot compiler implementation, the reader environment remains completely static and order-independent. 
 
 Unlike traditional Common Lisp reader tables, Koivu explicitly prohibits arbitrary execution of host-language code at read-time (e.g., standard Common Lisp `#.` syntax) and forbids runtime mutation of the reader table during a source scan. All reader macros must act as pure syntactic literals that instantly map text blocks onto precise Intermediate Representation (IR) nodes.
 

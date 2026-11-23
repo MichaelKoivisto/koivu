@@ -122,4 +122,4 @@ Allow only:
 2. Target embeddings: (`#c{...}` or `#asm[...]`) that immediately dispatch to isolated, well-defined target parsers.
 3. Strict fixed-width typing flags: (`42_u32`).
 
-Avoid any macro that allows the compiler code to dynamically rewrite its own host language grammar on the fly. This keeps your Stage 2 bridge small, beautiful, and completely auditable.
+Avoid any macro that allows the compiler code to dynamically rewrite its own host language grammar on the fly. This keeps your Stage 2 sapling small, beautiful, and completely auditable.
