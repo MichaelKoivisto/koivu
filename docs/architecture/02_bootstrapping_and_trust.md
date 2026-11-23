@@ -15,27 +15,27 @@
 
 Bootstrapping has two distinct meanings in Koivu, and both are covered here:
 
-* **The build chain** - how the seed produces the sapling, the sapling produces Stage 3, and Stage 3 eventually produces itself. This is described step by step in section 6.
+* **The build chain** - how the seed produces the sapling, the sapling produces Stage 3, and Stage 3 eventually produces itself, with `koivu-vesi` lowering every image along the way. This is described step by step in section 6.
 * **The trust question** - what a user can verify about the binaries they run, and what they cannot. This is described in sections 3 to 5.
 
 The milestone names (M0 to M4) used below are defined in [Backend](backend.md), section 1. The artifact forms are defined in [Seed Artifacts](08_seed_artifacts.md).
 
 ## 2. The Seed
 
-The seed is the only compiler Koivu distributes. Every other compiler in the chain is built from source on the machine that uses it. That asymmetry decides what has to be audited and what does not, and most of the reasoning in this document follows from it.
+The seed and Vesi are the only binaries Koivu distributes. Every compiler in the chain is built from source on the machine that uses it. That asymmetry decides what has to be audited and what does not, and most of the reasoning in this document follows from it.
 
 ### One implementation, not one per target
 
-The seed is written once and translated per target. It is not written separately in each target's assembly: duplicating it per host would multiply the review surface by the number of hosts and would guarantee that the hosts drift apart.
+The seed is written once and needs no per-target variant, because it writes a target-independent image. Everything target-specific - the instruction templates, the container writers, the ABI facts - lives in Vesi ([Koivu Vesi](koivu-vesi.md), sections 4 and 6). Adding a target therefore means adding a target description and a container writer to one program rather than forking a compiler: duplicating the front end per host would multiply the review surface by the number of hosts and would guarantee that the hosts drift apart.
 
 ### The implementation language is a staged decision
 
 The seed's source language changes once during the project's life. This is deliberate, not a compromise.
 
-* **Early development: C.** The seed is written in C and built with an LLVM C compiler. C is chosen because it is the fastest route to a working chain - the seed's hardest work is byte-level (container headers, instruction templates), and C is the natural language for it. The C seed is a prototype. It is deleted, not maintained, once the chain can build the seed itself.
-* **Late development: Scheme.** The seed is rewritten in Scheme and built by a Koivu compiler produced by the chain, lowered through Pino IR. The C source is then removed from the repository.
+* **Early development: C.** The seed is written in C and built with an LLVM C compiler. C is chosen because it is the fastest route to a working chain: the first binaries have to come from somewhere before any Koivu compiler exists, and C is the least ceremony for a program that reads text and writes text. Vesi is written in C for the same reason, and it is where the byte-level work - container headers, instruction templates - actually lives ([Koivu Vesi](koivu-vesi.md), section 7). The C seed is a prototype. It is deleted, not maintained, once the chain can build the seed itself.
+* **Late development: Scheme.** The seed is rewritten in Scheme and built by a Koivu compiler produced by the chain, with Vesi lowering the image. The C source is then removed from the repository.
 
-The rewrite is an accepted cost. It is mechanical provided the C seed is organised around the instruction set rather than around C idioms, and it buys a seed whose machine code corresponds to its source by construction.
+The rewrite is an accepted cost. It is mechanical provided the C seed is organised around the Pino instruction set rather than around C idioms, and it buys a seed whose image follows from its source by construction - with the image-to-bytes mapping fixed in Vesi and mechanically checkable ([Backend](backend.md), section 8, criterion 7).
 
 ### What auditability means here
 
@@ -89,7 +89,7 @@ They are a trade-off, not competing claims. Each path is described below with wh
 > Capt. Barbossa: I must admit, Jack, I thought I had you figured. But it turns out you're a hard man to predict.<br>
 > Capt. Jack Sparrow: Me? I'm dishonest. And a dishonest man you can always trust to be dishonest. Honestly. It's the honest ones you want to watch out for, because you can never predict when they're going to do something incredibly... stupid.
 
-Simple Path is a convenience for the majority of developers and users. Every user downloads a seed binary for their platform, because that binary is what makes bootstrapping possible. Linux and macOS users additionally have the committed seed assembly: they can assemble it with the platform assembler and compare the result against the binary they downloaded. Windows users have no such option, because a bare Windows OS has no assembler tool.
+Simple Path is a convenience for the majority of developers and users. Every user downloads a seed binary and a Vesi binary for their platform, because the pair is what makes bootstrapping possible: the seed writes an image and Vesi lowers it. Linux and macOS users additionally have the committed seed assembly: they can assemble it with the platform assembler and compare the result against the binary they downloaded. Windows users have no such option, because a bare Windows OS has no assembler tool.
 
 A small binary is still suitable for human inspection, at least in theory: it can be opened in a hex editor and compared against the assembly. More practical options exist as well: an antivirus scan, a digital signature check, an automated comparison of the binary against the source assembly, and so on. The smaller the binary, the easier the inspection. The available recipes are listed in [Seed Artifacts](08_seed_artifacts.md), section 6.
 
@@ -115,41 +115,47 @@ Linux is expected to be the first platform where this path is exercised in pract
 
 The chain has four steps. Each step names the compiler that runs, the intermediate artifact it produces, and the tool that lowers that artifact to machine code.
 
-### Terminology: Pino IR versus a `.ll` file
+### Terminology: Pino IR, a `.pino` image, and a `.ll` file
 
-Two different kinds of intermediate exist in this project, and conflating them is the easiest mistake to make here.
+Three kinds of intermediate exist in this project, and conflating them is the easiest mistake to make here.
 
-* **Pino IR** is an in-memory data structure: S-expressions held in the memory of a Koivu compiler, describing a stack machine. It exists only while a compiler is running.
-* **A `.ll` file** is text: LLVM IR written in the format defined by the LLVM specifications.
+* **Pino IR** is the in-memory form: S-expressions describing a stack machine, held in the memory of a Koivu compiler while it runs.
+* **A `.pino` image** is that IR written out canonically as text. It is the interface between a front end and Vesi ([Koivu Vesi](koivu-vesi.md), section 2), and it carries no target information.
+* **A `.ll` file** is LLVM IR written in the format defined by the LLVM specifications.
 
-Stages 1 and 2 build Pino IR and lower it themselves, so no `.ll` file appears anywhere in their path. Stage 3 emits `.ll`, and that is the only place textual LLVM IR enters the project.
+Stages 1 and 2 build Pino IR, write an image and stop. Neither carries an encoder, a container writer or a target description, so no `.ll` file appears anywhere in their path and neither of them knows what a target is. `koivu-vesi` lowers every image. Stage 3 emits `.ll`, and that is the only place textual LLVM IR enters the project.
 
-When a step below says a compiler "builds Pino IR", it means the compiler constructs those data structures in memory and hands them to the Pino compiler library. Nothing is written to disk in between. Pino IR can be printed to a file for debugging, but no stage passes it to another stage in that form.
+When a step below says a compiler "writes an image", it means it prints the Pino IR it built, in the canonical form Vesi reads. The image is the only artifact that crosses between the two programs.
 
 ### Step 1: Generating the Sapling Binary
 
 * **Input:** Stage 2 sapling source code
 * **Compiler running:** the Stage 1 seed
-* **Intermediate:** Pino IR, built in memory by the seed
-* **Lowering:** the Pino compiler library, linked into the seed
+* **Intermediate:** a `.pino` image, written by the seed
+* **Lowering:** `koivu-vesi`
 * **Output:** `koivu-sapling` binary
 
 ```
-+-----------------+      +-------------------------------+      +------------------+
-| Sapling Source  | ---> | Stage 1 Seed                  | ---> | Sapling Binary   |
-| (.scm)          |      | (front end + Pino compiler)   |      | (lowered+linked) |
-+-----------------+      +-------------------------------+      +------------------+
+Stage 2 source (.scm) ──► Stage 1 seed ──► image (.pino) ──► koivu-vesi ──► koivu-sapling
 ```
 
-No external tool appears in this step. The seed lowers Pino IR itself and writes the executable container itself; the only thing outside it is the shell script that starts it, which invokes and decides nothing ([Stage 1 (Seed)](04_stage1_seed.md), section 7). This is bootstrap goal 1, met at M0 (see [Backend](backend.md), section 1).
+No external tool appears in this step. The seed writes an image and Vesi lowers it; both are Koivu artifacts, and the only thing outside them is the shell script that starts them, which invokes and decides nothing ([Stage 1 (Seed)](04_stage1_seed.md), section 7). This is bootstrap goal 1, met at M0 (see [Backend](backend.md), section 1).
+
+The sapling's source is the seed's own Scheme front end plus a macro expander, compiled into a different program ([Stage 2 (Sapling)](05_stage2_sapling.md), section 1). The seed that compiles it here is the C scaffold; the same Scheme source becomes the seed itself at M2.
 
 ### Step 2: Generating the Stage 3 Binary
 
 * **Input:** Stage 3 source code
 * **Compiler running:** the sapling binary
-* **Intermediate:** Pino IR, built in memory by the sapling
-* **Lowering:** the Pino compiler library, linked into the sapling
+* **Intermediate:** a `.pino` image, written by the sapling
+* **Lowering:** `koivu-vesi`
 * **Output:** Stage 3 **Version A**
+
+```
+Stage 3 source (.scm) ──► sapling ──► image (.pino) ──► koivu-vesi ──► Version A
+```
+
+The sapling is what makes this step possible: Stage 3 source uses hygienic macros, and the sapling is the only compiler in the chain that expands them. Its output is an image like any other, so the lowering path is the one from Step 1, unchanged.
 
 ### Step 3: Native Rebuild
 
@@ -159,7 +165,7 @@ No external tool appears in this step. The seed lowers Pino IR itself and writes
 * **Lowering:** Version A's own production lowering stack
 * **Output:** Stage 3 **Version B**
 
-The difference between Version A and Version B is code quality, not capability: both emit machine code, and neither needs an external tool. Version A's own machine code was produced by the sapling, which lowers through Pino and optimises nothing; Version B's was produced by the production backend. That is the one-generation lag inherent to bootstrapping - a compiler can only use a lowerer it already contains.
+The difference between Version A and Version B is code quality, not capability: both emit machine code, and neither needs an external tool. Version A's own machine code was produced by Vesi from the sapling's image, and Vesi optimises nothing; Version B's was produced by the production backend. That is the one-generation lag inherent to bootstrapping - a compiler can only use a lowerer it already contains.
 
 ### Step 4: The Fixpoint Check
 
@@ -171,7 +177,7 @@ If Version B and Version C are **byte-for-byte identical**, the compiler has rea
 
 Three conditions make this check meaningful:
 
-1. **Compare B with C, not A with B.** Version A's own machine code was produced by the sapling, which optimises nothing, while Version B's was produced by the production backend. Comparing them would measure the difference between two lowering paths, not self-consistency.
+1. **Compare B with C, not A with B.** Version A's own machine code came from Vesi, which optimises nothing, while Version B's came from the production backend. Comparing them would measure the difference between two lowering paths, not self-consistency.
 2. **Use the same backend configuration for both builds.** A different target backend on either side invalidates the comparison.
 3. **Require deterministic emission.** No timestamps, no absolute paths, stable ordering, stable symbol-table iteration. Determinism is an acceptance criterion in [Backend](backend.md), section 8.
 
@@ -180,7 +186,7 @@ The same cycle is drawn as T-diagrams in [Roadmap to Self-hosting](selfhosting.m
 ## 7. Why This Ordering Is Mandatory
 
 1. **Language compatibility.** Stage 3 source uses features that Stage 1 does not understand, hygienic macros first of all. Feeding Stage 3 directly to the seed will crash it or fail to parse.
-2. **The sapling principle.** The sapling is written in a subset simple enough for the seed to compile, but its output is a compiler capable of handling the full Stage 3 language. It is the narrow waist of the whole chain.
+2. **The sapling principle.** The sapling's source is simple enough for the seed to compile, but the binary it becomes handles the full Stage 3 language. It is the narrow waist of the whole chain.
 
 ## 8. What the Chain Proves, and What It Does Not
 
