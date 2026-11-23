@@ -76,7 +76,7 @@ Pino IR preserves the Stage 1 data representation invariants defined in [Koivu S
 
 ### Pinned Machine State
 
-The Pino compiler keeps no stack frames, no spill slots and no register allocator. Instead it relies on three pieces of mutable machine state held continuously across all generated functions. These are **roles, not registers**:
+The lowerer keeps no stack frames, no spill slots and no register allocator. Instead it relies on three pieces of mutable machine state held continuously across all generated functions. These are **roles, not registers**:
 
 | Role | Invariant | Modified by |
 | :--- | :--- | :--- |
@@ -189,7 +189,7 @@ Variables are addressed statically via compile-time `(depth, index)` coordinates
 
 The host OS primitives are `mmap`, `open`, `fstat`, `read`, `write`, `close` and `exit` - **seven** calls, counted individually, each with its own entry in the target's syscall table. They are the complete set the seed is allowed to use; anything else must be built on top of them.
 
-The sapling uses the same seven. It links the same Pino compiler library and inherits its container writer and its syscall templates, so it needs no primitive the seed does not already have.
+The sapling uses the same seven. Its images are lowered by the same Vesi, which carries the syscall templates and the container writer, so it needs no primitive the seed does not already have.
 
 **Branch encoding is target-specific, not fixed.** `(jmp)` and `(jz)` lower to the target's own relative branch instruction - `rel32` on `x86_64`, `rel19` via `b`/`cbz` on `arm64` - so the backpatch placeholder width comes from the target description rather than from the ISA. The seed's own code is far below the ±1 MB arm64 range; the encoder asserts the range instead of silently truncating, and a range overflow is a build error.
 
@@ -242,25 +242,25 @@ Each fixup records the encoding width it must satisfy, taken from the target des
 
 ## 6. Executable Container Generation
 
-To eliminate external linkers (`ld`, `link.exe`), the Pino compiler prepends a minimal OS executable header to the emitted machine code before flushing to disk.
+To eliminate external linkers (`ld`, `link.exe`), `koivu-vesi` prepends a minimal OS executable header to the emitted machine code before flushing to disk.
 
 | Host OS & Format | Header Size | Execution & System Call Strategy |
 | :--- | :--- | :--- |
 | **Linux (`x86_64` / `arm64`) - ELF64** | **120 bytes** | Single `PT_LOAD` segment mapped RWX (`flags = 7`) at `0x400000`; entry at `0x400078`. Direct `syscall` / `svc #0` instructions. |
-| **macOS (`arm64`) - Mach-O** | **~448 bytes** | `__PAGEZERO` and `__TEXT` load commands; links against `libSystem`. The seed writes the container **unsigned**. |
+| **macOS (`arm64`) - Mach-O** | **~448 bytes** | `__PAGEZERO` and `__TEXT` load commands; links against `libSystem`. Vesi writes the container **unsigned**. |
 | **Windows (`x86_64`) - PE32+** | **~512 bytes** | Minimal DOS stub + PE header + single `.text` section + minimal Import Directory importing `kernel32.dll` (`VirtualAlloc`, `CreateFileA`, `ReadFile`, `WriteFile`, `CloseHandle`, `ExitProcess`). |
 
-**The seed writes containers; it does not sign them.** Writing a Mach-O and ad-hoc signing it are two different jobs, and only the first belongs in the seed. A code directory and a superblob are a second binary format to implement and audit, bought for no gain: the user runs `codesign --force --sign -` on the produced executable, which needs no certificate, no developer account and no network, and is the same command they already run for any locally built binary on Apple Silicon.
+**Vesi writes containers; it does not sign them.** Writing a Mach-O and ad-hoc signing it are two different jobs, and only the first belongs in Vesi. A code directory and a superblob are a second binary format to implement and audit, bought for no gain: the user runs `codesign --force --sign -` on the produced executable, which needs no certificate, no developer account and no network, and is the same command they already run for any locally built binary on Apple Silicon.
 
-Raw syscalls are not a stable interface on macOS, so the executables the seed produces link against `libSystem`, as the seed itself does ([Platforms and Targets](01_platforms.md), section 6.1). All three container formats are in scope and none is deferred; the signing step is the user's, not the seed's.
+Raw syscalls are not a stable interface on macOS, so the executables Vesi produces link against `libSystem`, as the seed itself does ([Platforms and Targets](01_platforms.md), section 6.1). All three container formats are in scope and none is deferred; the signing step is the user's, not Vesi's.
 
 ## 7. Bootstrapping and Self-Hosting Roadmap
 
 The milestones below are the ones defined in [Backend](backend.md), section 1. Pino IR is the IR of the first two.
 
-1. **M0 - the seed compiles the sapling.** The seed, written in C and built with an LLVM C compiler, implements the S-expression reader, the symbol interner, the bump allocator, the front end and the Pino compiler library. It compiles the sapling source and writes the sapling executable with no external tool.
-2. **M1 - the sapling compiles Stage 3.** The sapling adds hygienic macros and `flat-vector` support and compiles Stage 3 source to a working Version A, again with no external tool.
-3. **M2 - the seed becomes self-compilable.** The seed is rewritten in Scheme and rebuilt by a Koivu compiler produced by the chain, lowered through Pino. The C seed is deleted. This is the boundary between early and late development ([Bootstrapping Paths & Trust](02_bootstrapping_and_trust.md), section 2), and the point from which committed `.s` seeds become worth publishing ([Seed Artifacts](08_seed_artifacts.md), section 3).
+1. **M0 - the seed compiles the sapling.** The seed, written in C and built with an LLVM C compiler, implements the S-expression reader, the symbol interner, the bump allocator and the front end. It compiles the sapling source to an image, and `koivu-vesi` - also C before M2 - lowers that image to the sapling executable with no external tool.
+2. **M1 - the sapling compiles Stage 3.** The sapling adds hygienic macros and `flat-vector` support and compiles Stage 3 source to an image, which Vesi lowers into a working Version A, again with no external tool.
+3. **M2 - the seed becomes self-compilable.** The seed is rewritten in Scheme and rebuilt by a Koivu compiler produced by the chain, lowered through Pino. The C seed and the C Vesi are deleted. This is the boundary between early and late development ([Bootstrapping Paths & Trust](02_bootstrapping_and_trust.md), section 2), and the point from which committed `.s` seeds become worth publishing ([Seed Artifacts](08_seed_artifacts.md), section 3).
 4. **M3 - Stage 3 emits machine code natively.** Version A compiles Stage 3 source to Version B.
 5. **M4 - fixpoint.** Version B produces a byte-identical Version C.
 
