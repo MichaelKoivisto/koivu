@@ -30,6 +30,8 @@ Each form is described below with the verification it supports. No single form i
 
 Binaries are published, not committed. Assembly is committed as a convenience, not as a trust artifact.
 
+Every release publishes a binary for every supported platform. There is no on-request channel, so a platform is either in every release or not supported yet ([Platforms and Targets](01_platforms.md), section 2).
+
 ## 3. Why Assembly Sources Are Committed
 
 Committed assembly is an **educational and informative artifact, not a trust artifact.** Bootstrapping is enabled by the released seed binaries. The assembly is there so that a person meeting Koivu for the first time can see what the seed looks like on a particular target without building anything: assembly is far more widely readable than a compiler's source, and "what is actually in there?" is the question newcomers ask first.
@@ -98,4 +100,3 @@ Open item: the numeric ceiling per artifact is not set yet (see section 8).
 | :--- | :--- |
 | Numeric size budget per artifact | turns "small enough to audit" into a checkable requirement |
 | Whether CI regenerates `.s` and fails on a mismatch | prevents stale assembly from being committed |
-| Whether binaries for other targets are published per release or on request | affects the release checklist in [Platforms and Targets](01_platforms.md) |

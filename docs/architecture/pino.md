@@ -277,4 +277,4 @@ None. Both items previously listed here are settled, and recorded in the section
 | Mach-O container writer | the seed writes an unsigned Mach-O; the user ad-hoc signs the result (section 6; [Platforms and Targets](01_platforms.md), section 6.2) |
 | Static stack-depth verifier | `--verify` in `koivu-pino`, run on the Pino IR in memory before any output is written (section 1) |
 
-What remains open about macOS is release process rather than this document: [Platforms and Targets](01_platforms.md), section 7.
+Nothing remains open about macOS. The last item was release process rather than this document, and it is settled: every release publishes a binary for every supported platform ([Platforms and Targets](01_platforms.md), section 2).

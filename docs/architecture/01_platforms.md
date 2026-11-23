@@ -44,6 +44,8 @@ The order is a deliberate judgement, not a side effect of technical convenience.
 
 The artifact forms and their trust levels are defined in [Seed Artifacts](08_seed_artifacts.md), section 2. **Every host receives a published binary**, because a released binary is what actually enables bootstrapping; committed `.s` files are a convenience for readers and never a build input ([Seed Artifacts](08_seed_artifacts.md), section 3). A bare Windows OS has no assembler, so local assembly is not an option there at all. POSIX hosts can assemble locally, which is what makes their `.s` file useful to read alongside the binary.
 
+**Binaries are published per release, for every supported platform.** There is no on-request channel: a platform is either in every release or not supported yet. A binary that appears only after somebody asks is one most users never learn exists, and a fixed set per release keeps the checklist a list rather than a decision.
+
 ## 3. Target Architectures
 
 | Target architecture | Status | Notes |
@@ -124,9 +126,3 @@ That command needs no certificate, no developer account and no network, and it i
 Raw syscalls are not a stable interface on macOS, so the executables the seed produces link against `libSystem`, as the seed itself does (section 6.1).
 
 The consequence for the roadmap is that macOS reaches the bootstrap goal like the other two hosts: the seed lowers Pino IR and writes the container, and the only platform tool left is the signing command ([Roadmap to Self-hosting](selfhosting.md), section 7). All three container formats are in scope, as resolved decision 8 in [Backend](backend.md), section 9 records.
-
-## 7. Open Questions
-
-| # | Question | Why it matters |
-| :--- | :--- | :--- |
-| 1 | Are binaries for other targets published per release, or on request? | also recorded as an open item in [Seed Artifacts](08_seed_artifacts.md), section 8 |
