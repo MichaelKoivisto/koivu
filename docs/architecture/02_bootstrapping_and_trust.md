@@ -117,7 +117,7 @@ The chain has four steps. Each step names the compiler that runs, the intermedia
 
 ### Terminology: Pino IR versus a `.ll` file
 
-Two different kinds of intermediate exist in this chain, and conflating them is the easiest mistake to make here.
+Two different kinds of intermediate exist in this project, and conflating them is the easiest mistake to make here.
 
 * **Pino IR** is an in-memory data structure: S-expressions held in the memory of a Koivu compiler, describing a stack machine. It exists only while a compiler is running.
 * **A `.ll` file** is text: LLVM IR written in the format defined by the LLVM specifications.
