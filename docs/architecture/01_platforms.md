@@ -89,7 +89,7 @@ This workflow is the reason the seed source is kept and published: a porter need
 
 * **Between 64-bit hosts:** required by the porting workflow in section 4 and therefore in scope.
 * **To 32-bit targets** such as `arm32`: planned for the future, cross-compilation only. This is different from a compiler *running* on a 32-bit OS.
-* **Running on a 32-bit host:** still under question. It may become possible as the project matures, if it does not complicate things too much.
+* **Running on a 32-bit host:** declared a **far-future goal**. It is not planned work, no current decision depends on it, and it is recorded here only so that the option is not closed by accident.
 
 ## 6. Platform Notes: Linux and macOS
 

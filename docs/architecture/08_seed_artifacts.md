@@ -45,7 +45,7 @@ Rules that follow from committing them:
 * **Assembly is committed per target.** Adding a target adds an artifact, not a variant of an existing one.
 * **A missing `.s` is acceptable before the Scheme seed exists**, and is a defect afterwards.
 
-Open item: whether regeneration of `.s` is enforced by CI (see section 8).
+**CI regenerates the `.s` files and fails on a mismatch.** The check runs `koivu-pino` over the current seed source on every change, compares the result with what is committed and fails the build if the two differ. A stale `.s` therefore cannot be merged by an author who forgot to regenerate it, which is the only way it could arise: the files are never edited by hand.
 
 ## 4. What Each Artifact Proves
 
@@ -92,11 +92,22 @@ Components that do not count against it:
 * the seed's source in either language: reviewed as source, not shipped inside the binary;
 * committed `.s` files: derived artifacts, described in section 3.
 
-Open item: the numeric ceiling per artifact is not set yet (see section 8).
+### The Budget as It Stands
 
-## 8. Open Items
+The numbers below are an **estimate, not a measurement**. They are derived before the Scheme seed exists, from the size the program is expected to have and from the density unoptimised stack-machine lowering is expected to produce. They are a ceiling that keeps the audit assumption honest, and they are to be replaced by measured values once the seed can be built, not defended.
 
-| Item | Why it matters |
-| :--- | :--- |
-| Numeric size budget per artifact | turns "small enough to audit" into a checkable requirement |
-| Whether CI regenerates `.s` and fails on a mismatch | prevents stale assembly from being committed |
+Basis of the estimate:
+
+* the Scheme seed is about the same program as the C scaffold - reader, interner, arena, front end, Pino compiler library - and is expected to be on the order of 6,000 lines;
+* lowering is unoptimised, one fixed byte template per instruction, so a line of Scheme costs on the order of 150-200 bytes of machine code;
+* `arm64` templates are fixed-width 4-byte instructions and need more of them per operation than the one-byte `push`/`pop` pair on `x86_64`, so an `arm64` seed is expected to be roughly half again as large.
+
+| Artifact | Estimate | Ceiling - twice the estimate |
+| :--- | :--- | :--- |
+| `koivu-seed`, Linux `x86_64`, ELF64 | ~1 MiB | **2 MiB** (2097152 bytes) |
+| `koivu-seed.exe`, Windows `x86_64`, PE32+ | ~1 MiB | **2 MiB** (2097152 bytes) |
+| `koivu-seed`, macOS `arm64`, Mach-O | ~1.5 MiB | **3 MiB** (3145728 bytes) |
+
+The C scaffold is not budgeted. It is never distributed, and it is roughly an order of magnitude smaller, so its size would say nothing about the artifact that matters.
+
+Exceeding a ceiling is a signal that the audit assumption in section 4 needs revisiting, not an automatic build failure. The number exists to make that conversation happen while it is still cheap.
