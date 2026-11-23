@@ -13,15 +13,17 @@ The project is currently establishing its core bootstrap pipeline layers. It is 
 
 The infrastructure bootstraps and operates via a multi-stage execution model:
 
-1. **Stage 1 (Seed):** A minimal S-expression compiler, written in C before it becomes self-compilable and in Scheme afterwards. It builds Pino IR - an S-expression stack machine - and lowers it to machine code in an executable container it writes itself, with an arena allocator and a no-GC policy.
-2. **Stage 2 (Sapling):** A macro-expanding compiler written in Stage 1 Lisp, adding support for hygienic macros. Closures are already present in Stage 1, since the sapling itself is written in them.
-3. **Stage 3 (Production Core):** A statically typed, ahead-of-time (AOT) compiled dialect of Scheme utilizing a Nanopass architectural design and `flat-vector` Intermediate Representations.
+1. **Stage 1 (Seed):** A minimal S-expression compiler, written in C before it becomes self-compilable and in Scheme afterwards. It builds Pino IR - an S-expression stack machine - and writes it out as a `.pino` image, with an arena allocator and a no-GC policy. It writes no machine code.
+2. **Stage 2 (Sapling):** A macro-expanding compiler built from one source set with the seed's Scheme front end plus a hygienic macro expander. It compiles Stage 3 source to a `.pino` image. Closures are already present in Stage 1, since the sapling itself is written in them.
+3. **Stage 3 (Production Core):** A statically typed, ahead-of-time (AOT) compiled dialect of Scheme utilizing a Nanopass architectural design.
+
+`koivu-vesi` is not a stage: it is the Pino lowerer, a tool on the chain. It reads a `.pino` image, verifies it, and writes the executable for a target, or renders the same encoding as assembly. It is the only component in the bootstrap chain that knows what a target is.
 
 ## Repository Directory Overview
 
 * `docs/` — [Architecture Blueprints](docs/architecture.md), [Vision](docs/vision.md), and documentation [Style Guide](docs/style-guide.md).
-* `bootstrap/` - The bootstrap chain: `stage1/` (the seed), `pino/` (the Pino compiler library shared by the seed and the sapling) and `stage2/` (the macro-expanding sapling).
-* `targets/` - Target description data files, read by the Pino compiler.
+* `bootstrap/` - The bootstrap chain: `stage1/` (the seed), `pino/` (Vesi, the Pino lowerer) and `stage2/` (the macro-expanding sapling), plus the development build scripts that start them.
+* `targets/` - Target description data files, read by Vesi.
 * `tools/` - Command-line tools outside the bootstrap chain: `koivu-llc`.
 * `src/` - Stage 3 production infrastructure.
   * `frontends/` - AST generation targets (including structural interfaces for C/C++).
