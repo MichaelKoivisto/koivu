@@ -3,6 +3,10 @@
 > **Status:** Architecture Blueprint<br>
 > **Component:** Stage 1 Core / Stage 2 Bridge / Bootstrap Backend
 
+> Capt. Jack Sparrow: Put it away, son. It's not worth you getting beat again.<br>
+> Will Turner: You ignored the rules of engagement. In a fair fight, I'd kill you.<br>
+> Capt. Jack Sparrow: That's not much incentive for me to fight fair, is it?
+
 Pino IR (Finnish *pino*: "stack") is a minimalist, S-expression-encoded stack machine Intermediate Representation. It replaces LLVM IR across Stage 1 (Koivu Seed) and Stage 2 (Koivu Bridge). By decoupling the bootstrap pipeline from LLVM toolchains (`llc`) and text-heavy SSA generation, Pino IR keeps the Stage 1 seed minimal, auditable, and capable of direct lowering to native machine code.
 
 LLVM IR remains the primary interchange and lowering format exclusively for Stage 3 (Production Core).
