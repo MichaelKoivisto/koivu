@@ -68,9 +68,9 @@ Platform-specific glue code must abstract exactly seven host OS primitives, coun
 | **Close File** | `close` | `CloseHandle` | Release an open file handle |
 | **Exit Process** | `exit` | `ExitProcess` | Terminate the process with a status code |
 
-**macOS is not a raw-syscall platform.** The seven primitives above are the same on every host, but on macOS they cannot be reached through syscall instructions: syscall numbers are not a stable ABI there, and `libSystem` is the supported interface. The macOS glue therefore lives in a separate file and calls `libSystem` instead of issuing `svc`.
+**One POSIX source set.** Linux and macOS share the glue: `bootstrap/stage1/os/posix` is one source set, not two. The seven primitives above are the only part that differs between them, and only in how a primitive is issued - a syscall instruction on Linux, a call into `libSystem` on macOS, because syscall numbers are not a stable ABI there and `libSystem` is the supported interface. Everything above that boundary is shared ([Platforms and Targets](01_platforms.md), section 6.1).
 
-This has one consequence for the project's own claims, so it is stated rather than implied: on macOS the seed is a **dynamically linked** Mach-O executable. "Zero external dependencies" therefore means "no third-party dependencies" - on macOS the seed links against the OS-supplied `libSystem`, and static linking against macOS system libraries is not an option. See [Platforms and Targets](01_platforms.md), section 6.1.
+This has one consequence for the project's own claims, so it is stated rather than implied: on macOS the seed is a **dynamically linked** Mach-O executable. "Zero external dependencies" therefore means "no third-party dependencies" - on macOS the seed links against the OS-supplied `libSystem`, and static linking against macOS system libraries is not an option. On Linux the same holds only for the C scaffold before M2, which a C compiler builds against libc; from M2 the seed emits syscalls itself and links nothing. See [Platforms and Targets](01_platforms.md), section 6.1.
 
 ### Stream Logging Conventions
 * **`stdout`:** Prints `Koivu Seed v0001` when invoked with no arguments and no `koivu-bridge.scm` is present, or prints a brief completion confirmation upon successful compilation (exit code `0`).
@@ -162,7 +162,7 @@ The seed's sources live in `bootstrap/stage1/`. The directory name carries no la
 | `bootstrap/stage1/symbols` | Symbol interner |
 | `bootstrap/stage1/arena` | Bump allocator and byte buffers |
 | `bootstrap/stage1/frontend` | S-expression to Pino IR: type checks, `(depth, index)` resolution, primitive lowering |
-| `bootstrap/stage1/os/` | The seven primitives of section 3, one file per host: `linux`, `macos`, `windows` |
+| `bootstrap/stage1/os/` | The seven primitives of section 3: `posix` for Linux and macOS, `windows` for Windows `x86_64` |
 | `bootstrap/stage1/build.sh`, `bootstrap/stage1/build.cmd` | Development build scripts (see below) |
 | `bootstrap/pino/encode` | One byte template per Pino instruction per target |
 | `bootstrap/pino/fixup` | Label table and backpatch resolver |
@@ -185,7 +185,7 @@ The seed is built by a C compiler before M2 and by a Koivu compiler produced by 
 
 `build.sh` and `build.cmd` are deliberately the thinnest files in the tree. They select the host's source set and invoke one program; they hold no knowledge of what depends on what, no conditional compilation logic and no generated files. That is the whole of their job, and it is bounded by the rule in the [Architecture Map](../architecture.md): build orchestration belongs to Koivu, and a shell script may only start a program.
 
-* **Before M2:** `build.sh` invokes the host's LLVM C compiler on the C sources, selecting `os/linux` or `os/macos`; `build.cmd` does the same on Windows `x86_64` with `os/windows`. The C compiler is the only external build tool the project ever uses, and only during early development.
+* **Before M2:** `build.sh` invokes the host's LLVM C compiler on the C sources, always selecting `os/posix`; `build.cmd` does the same on Windows `x86_64` with `os/windows`. The C compiler is the only external build tool the project ever uses, and only during early development.
 * **From M2:** a Koivu compiler produced by the chain compiles the Scheme sources, lowers Pino IR and writes the container itself. No C compiler, assembler, linker or platform toolchain is involved.
 
 **The target is a build driven by Koivu.** Multi-file builds are Koivu's own responsibility, and the description is **read as data**, not executed: the seed has no evaluator, so a build description written in Koivu Scheme is a manifest of programs and their root sources, which the compiler reads and acts on ([Backend](backend.md), decision 5). Because every program has one root source and `include` supplies the rest ([Koivu Scheme](03_language.md), Multi-File Programs), the manifest needs no source lists, no ordering and no dependency graph. There is no separate compilation and nothing to link ([Backend](backend.md), decision 12); producing several executables is a loop over programs, not a compiler mode. Shell scripts survive only where the host leaves no alternative - starting the first binary, or reaching the external C compiler before M2 - and even there they only invoke.

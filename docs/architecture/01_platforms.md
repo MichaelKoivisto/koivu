@@ -89,19 +89,27 @@ This workflow is the reason the seed source is kept and published: a porter need
 * **To 32-bit targets** such as `arm32`: planned for the future, cross-compilation only. This is different from a compiler *running* on a 32-bit OS.
 * **Running on a 32-bit host:** still under question. It may become possible as the project matures, if it does not complicate things too much.
 
-## 6. Platform Notes: macOS
+## 6. Platform Notes: Linux and macOS
 
-macOS is the platform with the largest gap between "supported" and "as simple as Linux", for two reasons that are worth stating before any code is written.
+Linux and macOS share one glue source set and differ in their container format and in signing. macOS is also the platform with the largest gap between "supported" and "as simple as Linux". Both facts are worth stating before any code is written.
 
 ### 6.1 Glue Layer
 
-The seven host primitives in [Stage 1 (Seed)](04_stage1_seed.md), section 3 stay the same, but their implementation cannot use raw syscalls. On macOS, syscall numbers are not a stable ABI and `libSystem` is the supported interface, so a separate glue file calls `libSystem` instead of issuing `svc` instructions.
+Linux and macOS share **one POSIX source set**, `bootstrap/stage1/os/posix`. The seven host primitives of [Stage 1 (Seed)](04_stage1_seed.md), section 3 are the only thing that differs between the two, and the difference is confined to how a primitive is issued: on Linux it is a syscall instruction, on macOS a call into `libSystem`, because syscall numbers are not a stable ABI there and `libSystem` is the supported interface.
 
-This is the expected answer to the syscall problem, and it has one consequence for the project's own claims: on macOS the seed is a **dynamically linked** Mach-O executable. "Zero external dependencies" therefore has to be read as "no third-party dependencies"; on macOS the seed links against `libSystem`, which ships with the OS. Static linking against macOS system libraries is not an option.
+That boundary is the one the seed is already built around - the primitives are exactly where host-specific code is allowed to exist - so sharing everything above it costs nothing, and it keeps two POSIX hosts as one source set instead of two that must be kept in step. Windows keeps its own set, because its primitives are different functions over different handle types rather than the same functions reached a different way.
+
+Two consequences follow for the project's own claims, one permanent and one temporary.
+
+**Permanent:** on macOS the seed is a **dynamically linked** Mach-O executable. "Zero external dependencies" therefore has to be read as "no third-party dependencies"; on macOS the seed links against `libSystem`, which ships with the OS, and static linking against macOS system libraries is not an option.
+
+**Temporary:** on Linux the answer depends on the phase. The C scaffold before M2 is built by a C compiler and reaches the same seven primitives through libc, so it is a dynamically linked ELF as well. From M2 the seed emits syscalls itself and links nothing. That difference belongs to the scaffold rather than to the design, and it disappears when the scaffold does.
 
 ### 6.2 Container Writer and Signing
 
 The seed writes the executable container itself on all three hosts - ELF64, PE32+ and Mach-O ([Backend](backend.md), section 5) - so no assembler and no linker appear anywhere in the chain, on any platform.
+
+The container writer is not part of the shared POSIX source set. It is selected by output format rather than by host, and ELF64 and Mach-O share no structure: one is a table of program headers over flat segments, the other a linked list of load commands. Linux and macOS therefore share the glue and differ in the writer, which is the smallest split the formats allow.
 
 macOS still differs from the other two in one respect that no amount of care removes: an executable on Apple Silicon must be signed before it will run.
 
@@ -121,5 +129,4 @@ The consequence for the roadmap is that macOS reaches the bootstrap goal like th
 
 | # | Question | Why it matters |
 | :--- | :--- | :--- |
-| 1 | Do Linux and macOS share one POSIX source set (glue and container writer), or are they separate seed sources? | all three hosts write their own container, so the question is whether the two POSIX hosts share that code or keep it apart |
-| 2 | Are binaries for other targets published per release, or on request? | also recorded as an open item in [Seed Artifacts](08_seed_artifacts.md), section 8 |
+| 1 | Are binaries for other targets published per release, or on request? | also recorded as an open item in [Seed Artifacts](08_seed_artifacts.md), section 8 |
