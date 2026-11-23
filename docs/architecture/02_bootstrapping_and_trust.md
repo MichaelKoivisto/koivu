@@ -155,11 +155,11 @@ No external tool appears in this step. The seed lowers Pino IR itself and writes
 
 * **Input:** Stage 3 source code
 * **Compiler running:** Stage 3 **Version A**, which contains the native lowering stack
-* **Intermediate:** none - machine code is emitted directly
-* **Lowering:** none
+* **Intermediate:** LLVM IR, built in memory inside Version A - no file is written
+* **Lowering:** Version A's own production lowering stack
 * **Output:** Stage 3 **Version B**
 
-Version B emits machine code and was built by a compiler that emitted IR and was lowered by an external tool. That is the one-generation lag inherent to bootstrapping: a compiler can only use a lowerer it already contains.
+The difference between Version A and Version B is code quality, not capability: both emit machine code, and neither needs an external tool. Version A's own machine code was produced by the bridge, which lowers through Pino and optimises nothing; Version B's was produced by the production backend. That is the one-generation lag inherent to bootstrapping - a compiler can only use a lowerer it already contains.
 
 ### Step 4: The Fixpoint Check
 
@@ -171,7 +171,7 @@ If Version B and Version C are **byte-for-byte identical**, the compiler has rea
 
 Three conditions make this check meaningful:
 
-1. **Compare B with C, not A with B.** Version A emits IR and was lowered externally; Version B emits machine code. Comparing them would measure the toolchain difference, not self-consistency.
+1. **Compare B with C, not A with B.** Version A's own machine code was produced by the bridge, which optimises nothing, while Version B's was produced by the production backend. Comparing them would measure the difference between two lowering paths, not self-consistency.
 2. **Use the same backend configuration for both builds.** A different target backend on either side invalidates the comparison.
 3. **Require deterministic emission.** No timestamps, no absolute paths, stable ordering, stable symbol-table iteration. Determinism is an acceptance criterion in [Backend](backend.md), section 8.
 
