@@ -226,6 +226,6 @@ What that means for the roadmap:
 * **macOS reaches bootstrap goal 1 with the other two hosts.** No step waits for a Mach-O writer, because the seed has one, and no step needs an assembler or a linker.
 * **Signing is not part of the trust story.** An ad-hoc signature makes a binary runnable; it says nothing about who built it. Provenance remains the recorded non-goal of [Seed Artifacts](08_seed_artifacts.md), section 5, and the Secure Path is unaffected.
 
-The committed `.s` seed artifacts are a separate matter and are not affected by any of this: they are produced by `koivu-pino`, a development tool, not by the seed ([Seed Artifacts](08_seed_artifacts.md), section 3).
+The committed `.s` seed artifacts are a separate matter and are not affected by any of this: they are rendered by `koivu-vesi` from the same image the seed binary is lowered from, not by the seed itself ([Seed Artifacts](08_seed_artifacts.md), section 3).
 
 macOS is therefore a **Simple Path** platform in the sense of [Bootstrapping Paths and Trust](02_bootstrapping_and_trust.md), section 4 - and now for the same reason as the other two hosts, rather than in a weaker sense than them.

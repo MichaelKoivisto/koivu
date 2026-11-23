@@ -169,13 +169,13 @@ The seed's sources live in `bootstrap/stage1/`. The directory name carries no la
 | `bootstrap/pino/container/` | One file per executable format: `elf64`, `pe32plus`, `macho` |
 | `bootstrap/pino/target` | Reads a target description from `targets/` |
 | `targets/` | Target description data files, both kinds defined in [Backend](backend.md), section 6 |
-| `tools/` | Command-line tools outside the bootstrap chain: `koivu-pino` and `koivu-llc` |
+| `tools/` | Command-line tools outside the bootstrap chain: `koivu-llc` |
 
 A row naming a single file is one source file in the seed's current language (`main.c` now, `main.scm` from M2). A row naming a directory holds one file per host or per format.
 
 `bootstrap/pino/` is the Pino compiler library. It is not part of the seed alone: the sapling links the same library, which is why it sits beside `bootstrap/stage1/` rather than inside it ([Backend](backend.md), section 2). Stage 2 sources live in `bootstrap/stage2/`. Stage 3 is the production codebase rather than a bootstrap step, so it lives in `src/`; both are described in their own blueprints.
 
-`tools/` holds the command-line tools that are not part of the chain: `koivu-pino`, the development compiler that emits textual `.pino`, assembly or an executable and that runs the stack-depth verifier ([Pino IR](pino.md), section 1), and `koivu-llc`, the production LLVM IR lowerer ([Backend](backend.md), section 7.3).
+`tools/` holds the command-line tools that are not part of the chain. With lowering now in the chain as `koivu-vesi` ([Koivu Vesi](koivu-vesi.md)), that leaves `koivu-llc`, the production LLVM IR lowerer ([Backend](backend.md), section 7.3).
 
 There is no `kernel32.def` and no module-definition file of any kind: the PE writer builds the import directory itself, so no linker reads a definition file.
 

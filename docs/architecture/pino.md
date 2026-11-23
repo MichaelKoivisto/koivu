@@ -18,39 +18,35 @@ LLVM IR remains the interchange and lowering format of Stage 3 (Production Core)
 | | Pino IR | LLVM IR |
 | :--- | :--- | :--- |
 | **Produced by** | Stage 1, Stage 2 | Stage 3 and later |
-| **Form** | in-memory S-expressions describing a stack machine | textual `.ll` |
-| **Lowered by** | the Pino compiler library, inside the same compiler that emitted it | `koivu-llc`, or LLVM's own tools |
+| **Form** | S-expressions describing a stack machine: in memory while a compiler runs, written out as a `.pino` image | textual `.ll` |
+| **Lowered by** | `koivu-vesi`, from the image the compiler wrote ([Koivu Vesi](koivu-vesi.md)) | `koivu-llc`, or LLVM's own tools |
 | **Optimising** | no - one fixed byte template per instruction | yes - full production pipeline |
-| **Leaves the process?** | no | yes, as a file |
+| **Leaves the process?** | yes, as a `.pino` image | yes, as a `.ll` file |
 
-**No evaluator is required.** Stage 1 and Stage 2 build Pino IR and lower it themselves. Nothing interprets Scheme at build time, and nothing interprets Pino IR either: the Pino compiler is a library compiled into each compiler that emits Pino.
+**No evaluator is required.** Stage 1 and Stage 2 build Pino IR and write it out as an image; nothing interprets Scheme at build time, and nothing interprets Pino IR either. The image is lowered by `koivu-vesi`, a program of its own ([Koivu Vesi](koivu-vesi.md)).
 
-### Textual `.pino` is a debug dump only
+### Textual `.pino` is the interface to the lowerer
 
-Pino IR can be printed as S-expression text. During bootstrapping this is **a debugging aid and nothing more**: Stage 1 and Stage 2 never read textual `.pino` as part of a compile step, and no stage passes it to another stage.
+An image is what a front end hands to the lowerer: one `.pino` file per program, written by the compiler and read by `koivu-vesi`. It is a specified format rather than a printable debugging aid, and [Koivu Vesi](koivu-vesi.md), section 2 fixes what it may contain and how it is printed.
 
-The format has a second, legitimate use outside the bootstrap chain: **development tools** read it for analysis, and one development tool writes it. That tool is `koivu-pino`.
+What that means in practice:
 
-A tool that compiles textual `.pino` into machine code is theoretically possible. It is not needed: every compiler that produces Pino IR already contains the library that lowers it, so the only tool that touches `.pino` as text is the one below.
+* **Another program reads it.** A malformed image is rejected with a diagnostic; nothing is guessed at.
+* **It is printed canonically.** One form per line, one instruction per line, fixed spacing and number format, so two images can be compared byte for byte.
+* **It is versioned.** An incompatible change introduces a different head symbol instead of reinterpreting the old one.
 
-### `koivu-pino`, the development compiler
+It is also still what it always was: a readable artifact. A reviewer can read an image and see the instruction sequence a compiler produced without running anything, and the committed `.s` files serve the same reader one level lower ([Seed Artifacts](08_seed_artifacts.md), section 3).
 
-`koivu-pino` (`koivu-pino.exe` on Windows) is a command-line compiler for the project's own developers. It sits **outside the bootstrap chain** and is not part of any released artifact.
+**It is not a compatibility promise.** An image is an internal exchange between two programs of the same release. No third party is expected to write one by hand, and no compatibility across releases is offered beyond the versioned head symbol.
 
-| Property | Value |
-| :--- | :--- |
-| **Input** | Koivu Scheme source, compiled by the Stage 3 front end |
-| **Output** | selected by option: textual `.pino`, target assembly `.s`, or an executable |
-| **Verifier** | `--verify` runs the static stack-depth check on the Pino IR in memory, before any output is written |
-| **Placement** | `tools/`, beside `koivu-llc` |
-| **In the chain?** | no |
+### Two output forms, both from the lowerer
 
-Two consequences follow, and both keep the seed small:
+Neither the seed nor the sapling writes anything but an image, and neither carries a printer of any kind. Everything a human reads comes from `koivu-vesi`, which owns the encoder and can therefore render the same instructions as bytes or as text:
 
-* **The seed and the sapling have no assembly printer.** `.s` exists for people, not for the pipeline. The committed seed assembly ([Seed Artifacts](08_seed_artifacts.md), section 3) is produced by `koivu-pino` from the same source the seed is built from, so neither bootstrap compiler needs a second, text-emitting form of its lowering. A printer inside the seed would restate every byte template in a second representation, and that representation would have to be audited alongside the first.
-* **The stack-depth verifier lives here as well.** With an implicit operand stack, an unbalanced sequence is silent memory corruption rather than an error. `--verify` therefore runs over the Pino IR the tool has just built - at the point where an imbalance is introduced, not after a round trip through text. The same check also accepts a `.pino` file, which is how a dump produced elsewhere, or committed as a test fixture, can be verified without running anything.
+* **`.pino`** is what a compiler writes and the lowerer reads. It is the only form that crosses a component boundary.
+* **`.s`** is for people, not for the pipeline. The committed seed assembly ([Seed Artifacts](08_seed_artifacts.md), section 3) is produced by `koivu-vesi` from the same image the binary is produced from, so the two cannot drift apart: they are two renderings of one encoding pass. A printer inside a front end would restate every byte template in a second representation, and that representation would have to be audited alongside the first.
 
-`koivu-pino` is the only component in the project that turns Pino IR into assembly text.
+**The stack-depth verifier lives in the lowerer too.** With an implicit operand stack, an unbalanced sequence is silent memory corruption rather than an error, so `koivu-vesi` checks the balance of every function when it loads an image, before any byte is emitted ([Koivu Vesi](koivu-vesi.md), section 4). That is the last point at which the mistake is still cheap to report, and it is reached by every program the chain builds, not only by the ones a developer chose to check.
 
 ### Why the bootstrap stages do not use LLVM IR
 
@@ -275,6 +271,6 @@ None. Both items previously listed here are settled, and recorded in the section
 | Item | Resolution |
 | :--- | :--- |
 | Mach-O container writer | the seed writes an unsigned Mach-O; the user ad-hoc signs the result (section 6; [Platforms and Targets](01_platforms.md), section 6.2) |
-| Static stack-depth verifier | `--verify` in `koivu-pino`, run on the Pino IR in memory before any output is written (section 1) |
+| Static stack-depth verifier | runs in `koivu-vesi` when it loads an image, before any byte is emitted ([Koivu Vesi](koivu-vesi.md), section 4) |
 
 Nothing remains open about macOS. The last item was release process rather than this document, and it is settled: every release publishes a binary for every supported platform ([Platforms and Targets](01_platforms.md), section 2).

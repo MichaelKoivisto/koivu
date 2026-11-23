@@ -16,7 +16,7 @@ Confidence markers as in the seed sizes note: **[estimate]** derived here, **[un
 | :--- | :--- | :--- |
 | **V1 - interpreter in the seed** | the seed builds the sapling's Pino IR and *interprets* it instead of lowering it; the Pino compiler library is removed | large: changes what the seed is |
 | **V2 - seed shipped as an image** | the seed's own logic lives as a Pino image; the distributed seed is a small interpreter plus that image | large: adds a rung and a format |
-| **V3 - interpreter in `koivu-pino`** | a development mode that runs a Pino program directly | none: `koivu-pino` is outside the chain |
+| **V3 - interpreter as a development mode** | a mode that runs a Pino program directly, outside the chain | none: no chain artifact is touched |
 
 V3 is worth separating because it is cheap and separable: it touches no bootstrap artifact, and it would make Pino semantics testable without generating code. It is not what the size argument is about, and nothing below applies to it.
 
@@ -103,4 +103,4 @@ Revisit if any of these becomes true:
 * the supported target set grows past a handful, so that per-target templates stop being cheap;
 * a requirement appears to ship one artifact that runs on several hosts.
 
-V3 - an interpreter mode inside `koivu-pino` - is not covered by this recommendation. It is outside the chain, it adds no artifact to the trusted set, and it would make Pino semantics testable independently of any lowering. It is simply a separate, smaller decision.
+V3 - an interpreter mode kept outside the chain - is not covered by this recommendation. It adds no artifact to the trusted set, and it would make Pino semantics testable independently of any lowering. It is simply a separate, smaller decision.

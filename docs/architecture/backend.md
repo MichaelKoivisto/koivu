@@ -25,7 +25,7 @@ Koivu backend is closely aligned with LLVM backend architecture: it follows the 
 | **Lowerer** | IR -> machine code. |
 | **Target Description** | Data describing the target-specific subset of ISA and ABI that a lowerer needs. |
 | **`koivu-llc`** | Command-line tool that lowers textual LLVM IR using the production backend libraries. A drop-in replacement for LLVM's `llc`, used outside the bootstrap chain. |
-| **`koivu-pino`** | Development tool that compiles Koivu Scheme source through the Stage 3 front end and emits textual `.pino`, target assembly, or an executable, and that runs the static stack-depth verifier. Outside the bootstrap chain; defined in [Pino IR](pino.md), section 1. |
+| **`koivu-vesi`** | The Pino lowerer: reads a `.pino` image, verifies it, and writes a target executable, or renders the same encoding as assembly text. In the bootstrap chain; defined in [Koivu Vesi](koivu-vesi.md). |
 
 **Documentation rule:** blueprints do not use the bare word "backend" as a component name. Write "Pino compiler", "emitter" or "lowerer".
 

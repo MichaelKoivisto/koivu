@@ -24,7 +24,7 @@ Each form is described below with the verification it supports. No single form i
 | Artifact | Derived from | Stored in | Primary users | Verification available | Trust level |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Seed source, Scheme** | hand-written | repository | auditors, porters, new-platform bring-up | full human review; this is the source of truth | highest |
-| **Seed `.s` per target** | the Scheme seed, compiled by `koivu-pino` | **repository** (see section 3) | newcomers wanting to see what the seed looks like on a given target; porters | review of assembly; local reassembly with the platform assembler | high, but convenience only |
+| **Seed `.s` per target** | the seed's image, rendered by `koivu-vesi` | **repository** (see section 3) | newcomers wanting to see what the seed looks like on a given target; porters | review of assembly; local reassembly with the platform assembler | high, but convenience only |
 | **Seed binaries** (per target; Windows optionally digitally signed) | the seed source, built by a Koivu compiler or, before M2, by the C scaffold | release artifacts | everyone - this is what makes bootstrapping possible | hex review of a small binary; antivirus scan; signature check | medium |
 | **Seed source, C** | hand-written | repository until M2, then deleted | the authors, during early development | ordinary code review | none - never released |
 
@@ -36,16 +36,16 @@ Every release publishes a binary for every supported platform. There is no on-re
 
 Committed assembly is an **educational and informative artifact, not a trust artifact.** Bootstrapping is enabled by the released seed binaries. The assembly is there so that a person meeting Koivu for the first time can see what the seed looks like on a particular target without building anything: assembly is far more widely readable than a compiler's source, and "what is actually in there?" is the question newcomers ask first.
 
-The seed is therefore published in assembly for the supported targets **as soon as `koivu-pino` produces assembly for it that is reasonably easy to audit.** Assembly is produced by `koivu-pino`, a development tool, from the same Scheme source the seed is built from ([Pino IR](pino.md), section 1). Neither the seed nor the sapling carries an assembly printer: a text form of the lowering would restate every byte template in a second representation, and that representation would have to be audited alongside the first. Before the Scheme seed exists there is nothing worth committing: the C seed is a prototype whose assembly would describe a program that is about to be deleted.
+The seed is therefore published in assembly for the supported targets **as soon as `koivu-vesi` can render the seed's image as assembly that is reasonably easy to audit.** Assembly is rendered by `koivu-vesi` from the same image the seed binary is lowered from, so the two are outputs of one encoding pass rather than of two implementations that are supposed to agree ([Koivu Vesi](koivu-vesi.md), section 4). Neither the seed nor the sapling carries an assembly printer: a text form of the lowering would restate every byte template in a second representation, and that representation would have to be audited alongside the first. Before the Scheme seed exists there is nothing worth committing: the C seed is a prototype whose assembly would describe a program that is about to be deleted.
 
 Rules that follow from committing them:
 
-* **The Scheme seed source is the source of truth.** `.s` files are produced by `koivu-pino` and are never edited by hand.
+* **The Scheme seed source is the source of truth.** `.s` files are rendered by `koivu-vesi` and are never edited by hand.
 * **A stale `.s` is a defect.** Whenever the seed source changes, the `.s` files must be regenerated in the same change.
 * **Assembly is committed per target.** Adding a target adds an artifact, not a variant of an existing one.
 * **A missing `.s` is acceptable before the Scheme seed exists**, and is a defect afterwards.
 
-**CI regenerates the `.s` files and fails on a mismatch.** The check runs `koivu-pino` over the current seed source on every change, compares the result with what is committed and fails the build if the two differ. A stale `.s` therefore cannot be merged by an author who forgot to regenerate it, which is the only way it could arise: the files are never edited by hand.
+**CI regenerates the `.s` files and fails on a mismatch.** The check builds the seed's image from the current source and renders it with `koivu-vesi` on every change, compares the result with what is committed and fails the build if the two differ. A stale `.s` therefore cannot be merged by an author who forgot to regenerate it, which is the only way it could arise: the files are never edited by hand.
 
 ## 4. What Each Artifact Proves
 

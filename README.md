@@ -22,7 +22,7 @@ The infrastructure bootstraps and operates via a multi-stage execution model:
 * `docs/` — [Architecture Blueprints](docs/architecture.md), [Vision](docs/vision.md), and documentation [Style Guide](docs/style-guide.md).
 * `bootstrap/` - The bootstrap chain: `stage1/` (the seed), `pino/` (the Pino compiler library shared by the seed and the sapling) and `stage2/` (the macro-expanding sapling).
 * `targets/` - Target description data files, read by the Pino compiler.
-* `tools/` - Command-line tools outside the bootstrap chain: `koivu-pino` and `koivu-llc`.
+* `tools/` - Command-line tools outside the bootstrap chain: `koivu-llc`.
 * `src/` - Stage 3 production infrastructure.
   * `frontends/` - AST generation targets (including structural interfaces for C/C++).
   * `midend/` - Tree-walking optimization modules and pattern-matching engines.

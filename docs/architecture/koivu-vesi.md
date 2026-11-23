@@ -21,8 +21,7 @@ Vesi (Finnish *vesi*: "water") is the program that turns Pino IR into a target e
 | **Lowering** | Pino IR -> machine code -> executable container. The whole of Vesi's work. |
 | **Image** | The `.pino` file that a compiler emits for one program. One program, one image. |
 | **Front end** | A compiler that produces an image: the seed, the sapling, and later Stage 3's bootstrap path. |
-| **`koivu-pino`** | The development compiler, outside the chain ([Pino IR](pino.md), section 1). It is not Vesi and does not replace it. |
-| **`koivu-llc`** | The production LLVM IR lowerer, outside the chain ([Backend](backend.md), section 7.3). It is not Vesi either. |
+| **`koivu-llc`** | The production LLVM IR lowerer, outside the chain ([Backend](backend.md), section 7.3). It is not Vesi. |
 
 **Vesi is a tool, not a stage.** Stages in this project are compilers of Scheme, each written in the previous stage's output language. Vesi consumes Pino, not Scheme, so it sits on the tool axis, beside `koivu-llc`, and it does not disturb the stage numbering.
 
@@ -115,6 +114,7 @@ Vesi does:
 * patch branch displacements, asserting that each fits the encoding its target description declares;
 * encode every instruction through one fixed byte template per instruction per target;
 * write the executable container;
+* render that same encoding as assembly text on request - the committed `.s` artifacts come from here and from nowhere else ([Seed Artifacts](08_seed_artifacts.md), section 3);
 * report, on request, the instruction set it encoded, for the ISA conformance test.
 
 Vesi does not:
@@ -184,13 +184,14 @@ Both are needed. A chain whose compilers reach a fixpoint while its lowerer does
 | 6 | Interpreter instead of a lowerer | **Rejected** | see [Pino Interpreter Notes](notes_on_pino_interpreter.md) |
 | 7 | Where the stack-depth check runs | **In Vesi, on load, before emitting** | the last point at which an imbalance can be caught cheaply |
 | 8 | Where `(target ...)` is read | **By Vesi** | cross-compilation is a lowerer property |
+| 9 | Who emits `.s` | **Vesi**, from the same encoding pass as the binary | `.s` and the binary cannot drift, and no front end needs a printer |
 
 ## 10. What This Document Supersedes
 
 Recorded so the reconciliation is a checklist rather than a search:
 
 * [Backend](backend.md), section 9, **decision 3** — the Pino compiler is no longer a library linked into each compiler; it is this program. Sections 2 and 3 of that document describe the library and need rewriting.
-* [Pino IR](pino.md), section 1 — `.pino` is no longer a debug dump only; it is the interface described in section 2 here. The `koivu-pino` development compiler remains, but it is no longer the only writer of images.
+* [Pino IR](pino.md), section 1 — `.pino` is no longer a debug dump only; it is the interface described in section 2 here. The `koivu-pino` development compiler is gone with it: the sapling emits images, and Vesi renders `.s` and verifies them, so there is no third component with that job.
 * [Stage 1 (Seed)](04_stage1_seed.md) — the seed emits an image and writes no container; its CLI, layout and size budget follow.
 * [Stage 2 (Sapling)](05_stage2_sapling.md) — the sapling emits an image for Stage 3.
 * [Bootstrapping Paths & Trust](02_bootstrapping_and_trust.md), section 6 — every step gains a lowering sub-step performed by Vesi.
