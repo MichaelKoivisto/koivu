@@ -25,6 +25,7 @@ Koivu backend is closely aligned with LLVM backend architecture: it follows the 
 | **Lowerer** | IR -> machine code. |
 | **Target Description** | Data describing the target-specific subset of ISA and ABI that a lowerer needs. |
 | **`koivu-llc`** | Command-line tool that lowers textual LLVM IR using the production backend libraries. A drop-in replacement for LLVM's `llc`, used outside the bootstrap chain. |
+| **`koivu-pino`** | Development tool that compiles Koivu Scheme source through the Stage 3 front end and emits textual `.pino`, target assembly, or an executable, and that runs the static stack-depth verifier. Outside the bootstrap chain; defined in [Pino IR](pino.md), section 1. |
 
 **Documentation rule:** blueprints do not use the bare word "backend" as a component name. Write "Pino compiler", "emitter" or "lowerer".
 
@@ -141,11 +142,11 @@ The Pino compiler writes the executable container itself, so the seed needs no a
 | :--- | :--- | :--- |
 | Linux `x86_64` | ELF64 | near term |
 | Windows `x86_64` | PE32+ | near term |
-| macOS `arm64` | Mach-O | scope open, see below |
+| macOS `arm64` | Mach-O | near term; written unsigned, see below |
 
-Resolved decision: all three formats eventually; ELF and PE in the near term.
+Resolved decision: all three formats are in scope and none is deferred. The seed writes every container unsigned.
 
-**Mach-O is the open item.** It is the one container that carries a signing requirement and a dynamic-linker requirement on the target platform, so its cost is materially higher than the other two. Whether it belongs in the seed is discussed in [Platforms and Targets](01_platforms.md), section 7, question 1, and is deliberately not settled here.
+**The seed writes containers; it does not sign them.** Mach-O is the one format that carries a signing requirement on the target platform, and the two jobs separate cleanly: the seed emits an unsigned container, and the user ad-hoc signs the result with `codesign --force --sign -`, which needs no certificate, no developer account and no network. A code directory and a superblob inside the seed would be a second binary format to implement and audit, bought for no gain. Raw syscalls are not a stable interface on macOS, so the Mach-O path links against `libSystem` ([Platforms and Targets](01_platforms.md), section 6.1).
 
 ## 6. Target Descriptions
 
@@ -204,9 +205,9 @@ Stage 3 and other production compilers emit LLVM IR via `(koivu backend syntax l
 | 5 | Does the seed contain an evaluator? | **No** | the seed is a compiler and nothing else |
 | 6 | `koivu-llc` input format | **Textual `.ll`** (true drop-in) | the production stack needs an LLVM IR parser, see [notes](notes_on_llvm_ir_parsing.md); the parser is never part of the seed |
 | 7 | `koivu-llc` placement | **Outside the bootstrap chain** | it serves Stage 3, the planned frontends and LLVM-like tooling, not the seed or the bridge |
-| 8 | Executable container formats | **All three eventually: ELF, PE, Mach-O. Near term: ELF and PE only** | Mach-O remains open, see section 5 |
+| 8 | Executable container formats | **All three: ELF, PE and Mach-O, none deferred** | the seed writes every container unsigned; signing is a user step, see section 5 |
 | 9 | Bootstrap goal 1 | **The bridge build must not depend on any external tool** | met at M0 |
 | 10 | Bootstrap goal 2 | **The seed build must not depend on any external tool** | met at M2; this is the early/late boundary |
 | 11 | Stage 1 closure representation | **Chained frames: `closure = { code_ptr, env_ptr }`, frames linked by a parent pointer, variable access by a compile-time `(depth, index)` pair** | no free-variable analysis and no copying at closure creation; `set!` on captured variables is allowed and shares state; environments live in the arena, so no GC is needed |
 
-No decisions are currently open. The open item is the Mach-O container writer (section 5), recorded as question 1 in [Platforms and Targets](01_platforms.md), section 7.
+No decisions are currently open. The questions that remain concern release process and source sharing rather than this document: [Platforms and Targets](01_platforms.md), section 7.

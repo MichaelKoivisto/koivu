@@ -16,7 +16,7 @@ Three conventions are used throughout, and all three are inherited from other bl
 
 * **Step numbers** follow the four-step build chain in [Bootstrapping Paths and Trust](02_bootstrapping_and_trust.md), section 6. That chain starts at the bridge build, so building the seed itself is **Step 0**: a prerequisite, not one of the four steps.
 * **Milestone names** (M0 to M4) follow [Backend](backend.md), section 1. A milestone is not a release number; it marks the point at which a particular lowering capability appears.
-* **The reference host is Linux `x86_64`.** The diagrams show one platform because the chain is the same on every host. Section 6 adds a second axis - in what form each compiler exists - and section 7 covers the one host, macOS, where the chain takes a different shape. Other per-platform differences are out of scope here.
+* **The reference host is Linux `x86_64`.** The diagrams show one platform because the chain is the same on every host. Section 6 adds a second axis - in what form each compiler exists - and section 7 covers macOS, the one host that adds a step after the chain has run. Other per-platform differences are out of scope here.
 
 One distinction is worth stating before the first diagram, because the rest of the document depends on it: **no `.ll` file appears anywhere in this chain.** Stages 1 and 2 build Pino IR in memory and lower it themselves, so there is nothing between their source and their machine code. Stage 3 keeps the ability to emit textual LLVM IR permanently, as its primary debugging instrument and as the input to `koivu-llc`, but nothing in the chain consumes that output ([Pino IR](pino.md), section 1; [Backend](backend.md), section 7).
 
@@ -216,18 +216,16 @@ The axis matters here rather than in a footnote because the form of the seed is 
 
 ---
 
-## 7. macOS: the Simple Path Platform
+## 7. macOS: One Command Added, Not a Different Chain
 
-macOS is the one host where the chain as drawn is not quite what happens, and the reason belongs in the roadmap rather than only in the platform notes.
+macOS is not a host where the chain takes a different shape. The seed writes the executable container on all three hosts; the one thing macOS adds is a step the **user** performs, not the seed: an executable on Apple Silicon must be signed before it will run, so the seed writes an unsigned Mach-O and the user ad-hoc signs it with `codesign --force --sign -` ([Platforms and Targets](01_platforms.md), section 6.2).
 
-Emitting assembly solves **distribution**, not **execution**. On Apple Silicon the executable that the seed *produces* must also be signed, not only the seed itself. Whether the seed grows a Mach-O container writer and an ad-hoc signer is open question 1 in [Platforms and Targets](01_platforms.md), section 7, and it is deliberately unsettled. Until it is answered, macOS takes the other route: the seed's output for the bridge is finished by the platform assembler, linker and `codesign` instead of being written as a container.
+What that means for the roadmap:
 
-The consequences for the roadmap, stated plainly:
+* **The chain completes identically.** The seed lowers Pino IR and writes the container exactly as on Linux and Windows. The only platform tool is the signing command, and it runs after Step 1 has already produced its output.
+* **macOS reaches bootstrap goal 1 with the other two hosts.** No step waits for a Mach-O writer, because the seed has one, and no step needs an assembler or a linker.
+* **Signing is not part of the trust story.** An ad-hoc signature makes a binary runnable; it says nothing about who built it. Provenance remains the recorded non-goal of [Seed Artifacts](08_seed_artifacts.md), section 5, and the Secure Path is unaffected.
 
-* **The chain still completes.** Steps 2 to 4 are unchanged: once the platform tools have produced it, the bridge binary is an ordinary native binary.
-* **macOS does not reach bootstrap goal 1 in the near term.** Linux and Windows reach M0 with the seed lowering and wrapping the bridge itself; on macOS, Step 1 keeps using platform tools.
-* **Whether macOS reaches Steps 3 and 4 is the same open question.** Those steps require Stage 3 to produce a signed Mach-O executable itself, which is exactly whether a Mach-O container writer is in near-term scope.
+The committed `.s` seed artifacts are a separate matter and are not affected by any of this: they are produced by `koivu-pino`, a development tool, not by the seed ([Seed Artifacts](08_seed_artifacts.md), section 3).
 
-One gap has to be recorded with it, because the route depends on it and it is not part of the Mach-O question: the Pino compiler emits **bytes**, not assembly text. Rendering lowered code as assembly for a platform assembler to consume therefore needs a printer or a disassembler that the design does not yet have. The committed `.s` seed artifacts of [Seed Artifacts](08_seed_artifacts.md), section 3 need the same thing.
-
-macOS is therefore a **Simple Path** platform in the sense of [Bootstrapping Paths and Trust](02_bootstrapping_and_trust.md), section 4: supported, bootstrapping, and reliant on platform tools. This does not weaken the other two hosts and does not change the priority order in [Platforms and Targets](01_platforms.md), section 2.
+macOS is therefore a **Simple Path** platform in the sense of [Bootstrapping Paths and Trust](02_bootstrapping_and_trust.md), section 4 - and now for the same reason as the other two hosts, rather than in a weaker sense than them.

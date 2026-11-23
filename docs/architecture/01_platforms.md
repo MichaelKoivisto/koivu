@@ -30,7 +30,7 @@ Minimum host platforms for the Koivu project are 64-bit Windows, Linux and macOS
 | :--- | :--- | :--- | :--- |
 | Linux | `x86_64` | published `koivu-seed` binary; committed `.s` for reading | **1 - highest** |
 | Windows | `x86_64` | published `koivu-seed.exe`, optionally signed; committed `.s` for reading | **2** |
-| macOS | `arm64` | published binary; committed `.s`. How the binary is produced depends on open question 1 in section 7 | **3 - lowest of the three** |
+| macOS | `arm64` | published binary - unsigned Mach-O, ad-hoc signed by the user; committed `.s` | **3 - lowest of the three** |
 
 These three are the only host platforms. Other host architectures are not rejected, but they are very low priority: it is simply unlikely that anyone would want them.
 
@@ -95,31 +95,31 @@ macOS is the platform with the largest gap between "supported" and "as simple as
 
 ### 6.1 Glue Layer
 
-The seven host primitives in [Stage 1 (Seed)](04_stage1_seed.md), section 3 stay the same, but their implementation cannot use raw syscalls. On macOS, syscall numbers are not a stable ABI and `libSystem` is the supported interface, so a separate glue file (`koivu_seed_glue_macos.ll`) calls `libSystem` instead of issuing `svc` instructions.
+The seven host primitives in [Stage 1 (Seed)](04_stage1_seed.md), section 3 stay the same, but their implementation cannot use raw syscalls. On macOS, syscall numbers are not a stable ABI and `libSystem` is the supported interface, so a separate glue file calls `libSystem` instead of issuing `svc` instructions.
 
 This is the expected answer to the syscall problem, and it has one consequence for the project's own claims: on macOS the seed is a **dynamically linked** Mach-O executable. "Zero external dependencies" therefore has to be read as "no third-party dependencies"; on macOS the seed links against `libSystem`, which ships with the OS. Static linking against macOS system libraries is not an option.
 
 ### 6.2 Container Writer and Signing
 
-The seed writes the executable container itself on Linux and on Windows - ELF64 and PE32+ respectively ([Backend](backend.md), section 5). macOS is the one host where that is not the end of the story, because an executable on Apple Silicon must be signed before it will run.
+The seed writes the executable container itself on all three hosts - ELF64, PE32+ and Mach-O ([Backend](backend.md), section 5) - so no assembler and no linker appear anywhere in the chain, on any platform.
 
-Two ways exist to turn the seed's output into a runnable macOS executable, and they differ sharply in cost:
+macOS still differs from the other two in one respect that no amount of care removes: an executable on Apple Silicon must be signed before it will run.
 
-* **The seed emits `.s`, platform tools finish the job.** The user runs `as`, `ld` and, if needed, `codesign`. No Mach-O writer is required in the seed at all, but macOS then depends on external tools and does **not** reach bootstrap goal 1 as defined in [Backend](backend.md), section 1.
-* **The seed emits a signed Mach-O itself.** This requires a Mach-O container writer plus an ad-hoc signer inside the seed - a code directory and a superblob, not just headers - and it pulls a dynamic-link dependency on `libSystem` into the executables the seed produces. It is the opposite of the simplest option.
+**Writing the container and signing it are two separate jobs, and only the first belongs in the seed.** The seed writes an unsigned Mach-O, and the user ad-hoc signs the result:
 
-One consequence has to be stated clearly, because it is easy to miss:
+```
+codesign --force --sign - koivu-bridge
+```
 
-> Emitting `.s` solves **distribution**, not **execution**. On Apple Silicon, the executable that the seed *produces* must also be signed, not just the seed itself.
+That command needs no certificate, no developer account and no network, and it is the same command the user already runs for any locally built binary on Apple Silicon. The alternative - a code directory and a superblob inside the seed - would add a second binary format to implement and audit, bought for no gain in convenience.
 
-**Which of the two is chosen is open question 1 in section 7**, and it is deliberately not settled here. Until it is answered, macOS is supported as a host in the weaker sense: a published binary and a committed `.s` file both exist, produced through platform tools, so macOS bootstraps locally but does not reach the bootstrap goal. Linux and Windows are expected to reach it first, which is consistent with the priority order in section 2.
+Raw syscalls are not a stable interface on macOS, so the executables the seed produces link against `libSystem`, as the seed itself does (section 6.1).
 
-The long-term position is unaffected: all three container formats are eventually required - ELF, PE and Mach-O (resolved decision 8 in [Backend](backend.md), section 9). What is open is only whether Mach-O belongs on the near-term path.
+The consequence for the roadmap is that macOS reaches the bootstrap goal like the other two hosts: the seed lowers Pino IR and writes the container, and the only platform tool left is the signing command ([Roadmap to Self-hosting](selfhosting.md), section 7). All three container formats are in scope, as resolved decision 8 in [Backend](backend.md), section 9 records.
 
 ## 7. Open Questions
 
 | # | Question | Why it matters |
 | :--- | :--- | :--- |
-| 1 | Is a Mach-O container writer in scope in the near term, or is macOS served by `.s` output plus platform `as`, `ld` and `codesign` until further notice? | decides whether the seed grows by a Mach-O writer and an ad-hoc signer; revisits resolved decision 8 in [Backend](backend.md), section 9 |
-| 2 | Do Linux and macOS share one POSIX source set (glue and container writer), or are they separate seed sources? | if macOS uses no container writer, sharing is cheap; if it gets one, separate sources may be clearer |
-| 3 | Are binaries for other targets published per release, or on request? | also recorded as an open item in [Seed Artifacts](08_seed_artifacts.md), section 8 |
+| 1 | Do Linux and macOS share one POSIX source set (glue and container writer), or are they separate seed sources? | all three hosts write their own container, so the question is whether the two POSIX hosts share that code or keep it apart |
+| 2 | Are binaries for other targets published per release, or on request? | also recorded as an open item in [Seed Artifacts](08_seed_artifacts.md), section 8 |

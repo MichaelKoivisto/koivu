@@ -29,9 +29,28 @@ LLVM IR remains the interchange and lowering format of Stage 3 (Production Core)
 
 Pino IR can be printed as S-expression text. During bootstrapping this is **a debugging aid and nothing more**: Stage 1 and Stage 2 never read textual `.pino` as part of a compile step, and no stage passes it to another stage.
 
-The format has a second, legitimate use outside the bootstrap chain: **development tools** may read textual `.pino` for analysis. A Pino IR static stack-depth verifier is the obvious example - with an implicit operand stack, an unbalanced sequence is a silent memory corruption, and a verifier that reads a dump can catch it without running anything.
+The format has a second, legitimate use outside the bootstrap chain: **development tools** read it for analysis, and one development tool writes it. That tool is `koivu-pino`.
 
-A development tool that compiles textual `.pino` into machine code is theoretically possible. It is not planned: nothing in the pipeline needs it, because every compiler that produces Pino IR already contains the library that lowers it.
+A tool that compiles textual `.pino` into machine code is theoretically possible. It is not needed: every compiler that produces Pino IR already contains the library that lowers it, so the only tool that touches `.pino` as text is the one below.
+
+### `koivu-pino`, the development compiler
+
+`koivu-pino` (`koivu-pino.exe` on Windows) is a command-line compiler for the project's own developers. It sits **outside the bootstrap chain** and is not part of any released artifact.
+
+| Property | Value |
+| :--- | :--- |
+| **Input** | Koivu Scheme source, compiled by the Stage 3 front end |
+| **Output** | selected by option: textual `.pino`, target assembly `.s`, or an executable |
+| **Verifier** | `--verify` runs the static stack-depth check on the Pino IR in memory, before any output is written |
+| **Placement** | `tools/`, beside `koivu-llc` |
+| **In the chain?** | no |
+
+Two consequences follow, and both keep the seed small:
+
+* **The seed and the bridge have no assembly printer.** `.s` exists for people, not for the pipeline. The committed seed assembly ([Seed Artifacts](08_seed_artifacts.md), section 3) is produced by `koivu-pino` from the same source the seed is built from, so neither bootstrap compiler needs a second, text-emitting form of its lowering. A printer inside the seed would restate every byte template in a second representation, and that representation would have to be audited alongside the first.
+* **The stack-depth verifier lives here as well.** With an implicit operand stack, an unbalanced sequence is silent memory corruption rather than an error. `--verify` therefore runs over the Pino IR the tool has just built - at the point where an imbalance is introduced, not after a round trip through text. The same check also accepts a `.pino` file, which is how a dump produced elsewhere, or committed as a test fixture, can be verified without running anything.
+
+`koivu-pino` is the only component in the project that turns Pino IR into assembly text.
 
 ### Why the bootstrap stages do not use LLVM IR
 
@@ -232,10 +251,12 @@ To eliminate external linkers (`ld`, `link.exe`), the Pino compiler prepends a m
 | Host OS & Format | Header Size | Execution & System Call Strategy |
 | :--- | :--- | :--- |
 | **Linux (`x86_64` / `arm64`) - ELF64** | **120 bytes** | Single `PT_LOAD` segment mapped RWX (`flags = 7`) at `0x400000`; entry at `0x400078`. Direct `syscall` / `svc #0` instructions. |
-| **macOS (`arm64`) - Mach-O** | **~448 bytes** | `__PAGEZERO` and `__TEXT` load commands. **Open item** - see below. |
+| **macOS (`arm64`) - Mach-O** | **~448 bytes** | `__PAGEZERO` and `__TEXT` load commands; links against `libSystem`. The seed writes the container **unsigned**. |
 | **Windows (`x86_64`) - PE32+** | **~512 bytes** | Minimal DOS stub + PE header + single `.text` section + minimal Import Directory importing `kernel32.dll` (`VirtualAlloc`, `CreateFileA`, `ReadFile`, `WriteFile`, `CloseHandle`, `ExitProcess`). |
 
-**The Mach-O writer is an open item.** macOS requires a signing step, and raw syscalls are unstable there, so the Mach-O container is materially more expensive than the other two and drags a dynamic-link dependency on `libSystem` into the seed. Whether it belongs in the seed at all is question 1 in [Platforms and Targets](01_platforms.md), section 7, and is deliberately not settled here. ELF and PE are the near-term targets.
+**The seed writes containers; it does not sign them.** Writing a Mach-O and ad-hoc signing it are two different jobs, and only the first belongs in the seed. A code directory and a superblob are a second binary format to implement and audit, bought for no gain: the user runs `codesign --force --sign -` on the produced executable, which needs no certificate, no developer account and no network, and is the same command they already run for any locally built binary on Apple Silicon.
+
+Raw syscalls are not a stable interface on macOS, so the executables the seed produces link against `libSystem`, as the seed itself does ([Platforms and Targets](01_platforms.md), section 6.1). All three container formats are in scope and none is deferred; the signing step is the user's, not the seed's.
 
 ## 7. Bootstrapping and Self-Hosting Roadmap
 
@@ -249,7 +270,11 @@ The milestones below are the ones defined in [Backend](backend.md), section 1. P
 
 ## 8. Open Items
 
-| Item | Why it matters |
+None. Both items previously listed here are settled, and recorded in the sections that own them:
+
+| Item | Resolution |
 | :--- | :--- |
-| Mach-O container writer (section 6) | decides whether macOS can be served without platform tools |
-| Static stack-depth verifier (section 1) | an unbalanced operand stack is silent corruption; a verifier over textual `.pino` would catch it |
+| Mach-O container writer | the seed writes an unsigned Mach-O; the user ad-hoc signs the result (section 6; [Platforms and Targets](01_platforms.md), section 6.2) |
+| Static stack-depth verifier | `--verify` in `koivu-pino`, run on the Pino IR in memory before any output is written (section 1) |
+
+What remains open about macOS is release process rather than this document: [Platforms and Targets](01_platforms.md), section 7.
