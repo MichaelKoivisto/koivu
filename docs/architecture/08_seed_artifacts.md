@@ -52,7 +52,7 @@ Open item: whether regeneration of `.s` is enforced by CI (see section 8).
 | `.s` files | the intended instruction sequence, and that a local assembler can reproduce a binary | that the published binary matches, unless the user compares |
 | binaries | only what the user verifies: signature, scan result, hex inspection | provenance, in the general case |
 
-The practical auditability of a binary rests on its small size: a hex review is realistic for the seed and unrealistic for a full compiler. That is the reason the size budget in section 7 exists.
+The practical auditability of a binary rests on its size only in the negative sense: a hex review is realistic for the seed and unrealistic for a full compiler, so size sets the limit below which review stays feasible. Below that limit, size is not what makes a binary auditable - a simpler, more regular instruction sequence is easier to verify even when it is several times larger. See [Bootstrapping Paths & Trust](02_bootstrapping_and_trust.md), section 2.
 
 ## 5. Provenance Non-Goal
 
@@ -60,7 +60,7 @@ There is no practical way to prove that a distributed seed binary was produced f
 
 This is a deliberate limit, not an oversight. It is recorded here so that it is not rediscovered as a defect, and so that the two bootstrapping paths are understood as a trade-off rather than as competing claims.
 
-Because of this limit, a self-reproducing seed is not part of the plan: `(koivu backend simple-codegen)` does not cover the IR contained in the seed's own hand-written source (see [Backend](backend.md), section 4).
+This limit does not go away when the seed becomes self-compilable. A user holding the distributed seed can rebuild it from source and compare the result, but that demonstrates reproducibility, not honesty: a compromised seed reproduces itself perfectly, which is Thompson's point. The non-goal is about what can be proved, not about whether the seed can rebuild itself.
 
 ## 6. Verification Recipes
 
@@ -74,7 +74,7 @@ Ordered from strongest to weakest:
 
 ## 7. Seed Size Budget
 
-The acceptance criterion behind "Auditability & Simplicity" in the [Architecture Map](../architecture.md) is practical: a reviewer must be able to complete a hex review of a seed binary in a reasonable session. The size budget exists to keep that true.
+The acceptance criterion behind "Auditability & Simplicity" in the [Architecture Map](../architecture.md) is practical: a reviewer must be able to complete a hex review of a seed binary in a reasonable session. The budget is a ceiling that keeps review feasible. It is not a target to minimise, and a larger binary with simpler, more regular code may be the better choice ([Bootstrapping Paths & Trust](02_bootstrapping_and_trust.md), section 2).
 
 Components that count against the budget:
 

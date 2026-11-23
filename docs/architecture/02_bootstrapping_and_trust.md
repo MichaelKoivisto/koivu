@@ -22,11 +22,58 @@ The milestone names (M0 to M4) used below are defined in [Backend](backend.md), 
 
 ## 2. The Seed
 
-Bootstrapping starts from a simple Lisp compiler written in pure, generic LLVM IR.
+The seed is the only compiler Koivu distributes. Every other compiler in the chain is built from source on the machine that uses it. That asymmetry decides what has to be audited and what does not, and most of the reasoning in this document follows from it.
 
-Koivu also keeps, as part of its source code, target-dependent machine assembly files for the supported hosts. Those assembly files are obtained by translating the generic IR implementation of the seed: with LLVM's `llc` at the early stages, and with the Koivu tool `koivu-llc` once it exists (see [Backend](backend.md), section 6.5).
+### One implementation, not one per target
 
-The purpose of keeping the seed in portable generic IR is to simplify maintenance of the project: one implementation, translated per target. The target-specific assembly seeds keep one important property in common with the generic IR seed: they are all human-readable and human-inspectable, because they are small. That property is the reason the size budget in [Seed Artifacts](08_seed_artifacts.md), section 7 exists.
+The seed is written once and translated per target. It is not written separately in each target's assembly: duplicating it per host would multiply the review surface by the number of hosts and would guarantee that the hosts drift apart.
+
+### The implementation language is a staged decision
+
+The seed's source language changes once during the project's life. This is deliberate, not a compromise.
+
+* **Early development: C.** The seed is written in C and built with an LLVM C compiler. C is chosen because it is the fastest route to a working chain - the seed's hardest work is byte-level (container headers, instruction templates), and C is the natural language for it. The C seed is a prototype. It is deleted, not maintained, once the chain can build the seed itself.
+* **Late development: Scheme.** The seed is rewritten in Scheme and built by a Koivu compiler produced by the chain, lowered through Pino IR. The C source is then removed from the repository.
+
+The rewrite is an accepted cost. It is mechanical provided the C seed is organised around the instruction set rather than around C idioms, and it buys a seed whose machine code corresponds to its source by construction.
+
+### What auditability means here
+
+Auditability is the ability of an independent reviewer to satisfy themselves that the seed does what its sources say. It has two separate objects, and they are not interchangeable:
+
+* **Source auditability** - reading the seed's source and understanding what it computes.
+* **Machine code auditability** - checking that the distributed binary actually corresponds to that source.
+
+The distinction matters because the two pull in different directions. A source can be pleasant to read while its binary is produced by an optimizing translator that obscures the correspondence. A source can be awkward while every instruction maps to a fixed, checkable sequence of bytes.
+
+**Machine code auditability outranks source auditability.** The seed is the artifact a user downloads and runs without rebuilding it. What they need is confidence in the bytes they execute, not in the elegance of the code that produced them.
+
+### Size is a ceiling, not a target
+
+Auditability outranks machine code size, and the relationship is not linear:
+
+* Beyond some threshold a binary is simply not feasible to read, and auditability collapses however regular the code is.
+* Below that threshold size barely matters. A binary ten times larger is *easier* to audit if its machine code is simpler, more regular and more obviously derived from the source.
+
+The size budget in [Seed Artifacts](08_seed_artifacts.md), section 7 is therefore a ceiling to stay under, not a quantity to minimise. Its numeric value is an open item there.
+
+### How the priorities shift
+
+The priority order is not constant. It is staged, and the stages are defined by one event: **the seed becomes self-compilable**, meaning a Koivu compiler produced by the chain can build the seed from its own source.
+
+* **Early development, before that event.** The seed is built by an external scaffold - today an LLVM C compiler. The priority is a simple implementation: small source, easy to write and easy to change. Seed auditability is explicitly *not* a goal, because optimising for it would slow the work and would be aimed at a design that is still moving. **No public seed release happens in this period**, which is what makes a scaffold acceptable: nothing is distributed while the scaffold is in the trust chain.
+* **Late development, after that event.** The seed is a release artifact. Machine code auditability outranks both source size and source auditability. Where they conflict, the choice that leaves the distributed binary easier to verify wins.
+
+A seed implementation that can never become self-compilable cannot leave early development, and therefore cannot satisfy the late-stage priority.
+
+### Options considered and rejected
+
+Recorded so that they are not re-derived later.
+
+* **Writing the seed in Pino IR.** Rejected. Pino IR is a lowering target, not a programming language: a small fixed instruction set, an implicit operand stack, no structured control flow, no aggregates. Writing a compiler in it is assembly programming with S-expression syntax, and it would force the instruction set to grow into a real language before the seed could be written.
+* **Writing the seed in `.ll` and keeping it there permanently.** Rejected. The binary would always be the output of an optimizing translator, so machine code auditability - the top priority in late development - would never be reached.
+* **Writing the seed in `.ll` early and in Scheme later.** Rejected as dominated: the same end state as the C route, but a harder early scaffold. Emitting container headers and instruction templates in `.ll` is markedly more laborious than in C, and the existing `.ll` seed is an evaluator design that the stack-machine backend discards anyway.
+* **Writing the seed in Scheme from the start, built by an external Scheme compiler.** Rejected. It avoids the rewrite, but it requires choosing, installing and tracking a Scheme system, keeping the seed's source inside the intersection of that system's dialect and Koivu's own, and carrying a large opaque toolchain through the early phase.
 
 ## 3. Two Bootstrapping Paths
 
@@ -141,7 +188,7 @@ The same cycle is drawn as T-diagrams in [Roadmap to Self-hosting](selfhosting.m
 
 | Claim | Proved by |
 | :--- | :--- |
-| The seed does what its sources say | reading the `.ll`; inspecting the `.s` or the binary |
+| The seed does what its sources say | reading the seed source, then checking the distributed binary against it |
 | Stage 3 reproduces itself | the B == C fixpoint |
 | The compiler is free of deliberately planted backdoors | **nothing in this chain** |
 

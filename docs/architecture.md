@@ -72,7 +72,7 @@ All architectural modules must conform to these design priorities:
 
 Seed compiler (Stage 1) must conform to a strict design priority:
 
-* **Auditability & Simplicity:** The compiler's source code and resulting binaries must be minimal in footprint and transparent in design logic. This architectural minimalism ensures effortless human inspection and strict verification of the initial bootstrap layer.
+* **Auditability & Simplicity:** The compiler's source code and resulting binaries must be transparent in design logic, and auditability outranks footprint: a seed binary slightly larger but simpler to verify is preferable to a smaller opaque one. Size is a ceiling to stay under, not a quantity to minimise. See [Bootstrapping Paths and Trust](architecture/02_bootstrapping_and_trust.md), section 2.
 
 Bootstrap components must conform to one overriding priority:
 
