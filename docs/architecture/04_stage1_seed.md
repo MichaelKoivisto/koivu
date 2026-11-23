@@ -178,8 +178,12 @@ There is no `kernel32.def` and no module-definition file of any kind: the PE wri
 
 The seed is built by a C compiler before M2 and by a Koivu compiler produced by the chain from M2 onwards. Neither procedure is the distribution mechanism; the forms in which the seed is published, and what each of them can prove, are defined in [Seed Artifacts](08_seed_artifacts.md), section 2.
 
-* **Before M2:** `build.sh` compiles the C sources with the host's LLVM C compiler, selecting `os/linux` or `os/macos`; `build.cmd` does the same on Windows `x86_64` with `os/windows`. The C compiler is the only external build tool the project ever uses, and only during early development.
+`build.sh` and `build.cmd` are deliberately the thinnest files in the tree. They select the host's source set and invoke one program; they hold no knowledge of what depends on what, no conditional compilation logic and no generated files. That is the whole of their job, and it is bounded by the rule in the [Architecture Map](../architecture.md): build orchestration belongs to Koivu, and a shell script may only start a program.
+
+* **Before M2:** `build.sh` invokes the host's LLVM C compiler on the C sources, selecting `os/linux` or `os/macos`; `build.cmd` does the same on Windows `x86_64` with `os/windows`. The C compiler is the only external build tool the project ever uses, and only during early development.
 * **From M2:** a Koivu compiler produced by the chain compiles the Scheme sources, lowers Pino IR and writes the container itself. No C compiler, assembler, linker or platform toolchain is involved.
+
+**The target is a build driven by Koivu.** Multi-file builds are Koivu's own responsibility: a build description written in Koivu Scheme, executed by a Koivu compiler, decides which sources are compiled and in what order. Shell scripts survive only where the host leaves no alternative - starting the first binary, or reaching the external C compiler before M2 - and even there they only invoke.
 
 The per-host artifact table is in [Platforms and Targets](01_platforms.md), section 2.
 

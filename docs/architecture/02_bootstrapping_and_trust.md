@@ -141,7 +141,7 @@ When a step below says a compiler "builds Pino IR", it means the compiler constr
 +-----------------+      +-------------------------------+      +------------------+
 ```
 
-No external tool appears in this step. The seed lowers Pino IR itself and writes the executable container itself. This is bootstrap goal 1, met at M0 (see [Backend](backend.md), section 1).
+No external tool appears in this step. The seed lowers Pino IR itself and writes the executable container itself; the only thing outside it is the shell script that starts it, which invokes and decides nothing ([Stage 1 (Seed)](04_stage1_seed.md), section 7). This is bootstrap goal 1, met at M0 (see [Backend](backend.md), section 1).
 
 ### Step 2: Generating the Stage 3 Binary
 

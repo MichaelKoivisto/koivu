@@ -69,7 +69,9 @@ The forms in which the seed is distributed, and what each of them can prove, are
 
 All architectural modules must conform to these design priorities:
 
-* **Minimalist Kernel Surface:** The infrastructure must maintain an absolute minimum interface dependency on the host operating system. Builds must be managed by Koivu Scheme scripts. 
+* **Minimalist Kernel Surface:** The infrastructure must maintain an absolute minimum interface dependency on the host operating system. Build orchestration is Koivu's own job - **Koivu must be able to build its multi-file sources with Koivu** - and it is never delegated to a build system: no makefiles, no CMake, no Visual Studio projects, no Python or Perl scripts, no secondary compiler toolchain. Each of those is an unaudited dependency in the build of a compiler whose entire purpose is to have none.
+
+  Thin OS scripts are the one exception, and only where the host leaves no alternative: a `.sh` or `.cmd` file may start the first binary, or reach the external C compiler before M2, because every supported OS ships a shell and nothing smaller is guaranteed. The line is between **invoking** and **deciding**. A script may select sources and run one program; as soon as it decides what to build, in what order, or with which flags, it has become a build tool, and a build tool written in shell is an external dependency with extra steps. See [Stage 1 (Seed)](architecture/04_stage1_seed.md), section 7.
 
 Seed compiler (Stage 1) must conform to a strict design priority:
 
