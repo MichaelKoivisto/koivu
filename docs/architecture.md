@@ -26,6 +26,7 @@ The complete technical design is distributed across the following specialized do
 | [**Data-Oriented Design**](./architecture/data_oriented_design.md) | Data-Oriented Design for compiler passes. |
 | [**Pino IR**](./architecture/pino.md) | The bootstrap IR: instruction set, lowering, executable containers, `koivu-pino`. |
 | [**Backend**](./architecture/backend.md) | IR emission, machine-code lowering, target descriptions, `koivu-llc`. |
+| [**Koivu Vesi**](./architecture/koivu-vesi.md) | The Pino lowerer: the `.pino` interface, instruction encoding, containers, and the chain's per-host artifact. |
 | [**Seed Sizes**](./architecture/notes_on_seed_sizes.md) | Developer note: how large compiler seeds are in comparable chains, and why those figures are not directly comparable. |
 
 ---
