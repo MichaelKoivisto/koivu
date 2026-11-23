@@ -22,7 +22,7 @@ while generating high-performance, linear LLVM IR under the hood.
 Koivu Scheme adopts the [**R6RS (Revised^6 Report on Scheme)** specification](https://r6rs.org/) as its structural dialect baseline, strictly optimized to exclude non-compiler primitives. 
 R6RS is selected over other specifications for three primary reasons:
 
-* **Static Phasing:** R6RS enforces explicit separation between macro expansion and run-time code, which lets the Stage 3 Ahead-of-Time (AOT) batch compiler resolve a program before code generation. Koivu keeps that phasing discipline but not the library system that carries it in R6RS: a library is a separately compilable unit, and Koivu has no separate compilation (see the Multi-File Programs section above; [Backend](backend.md), decision 12).
+* **Static Phasing:** R6RS enforces explicit separation between macro expansion and run-time code, which lets the Stage 3 Ahead-of-Time (AOT) batch compiler resolve a program before code generation. Koivu keeps that phasing discipline but not the library system that carries it in R6RS: a library is a separately compilable unit, and Koivu has no separate compilation (see the Multi-File Programs section below; [Backend](backend.md), decision 12).
 * **Hygienic Macro Tooling:** The R6RS macro model scales naturally from simple `syntax-rules` up to complex compile-time transformations, ensuring that the Stage 2 Bridge macro-expander smoothly upgrades to support advanced Stage 3 modular code pipelines.
 * **Chez Scheme Alignment:** Basing the dialect on R6RS mirrors the architecture of Chez Scheme, allowing compiler logic, transformations and nanopasses to be prototyped on industrial tools during early development.
 
@@ -59,7 +59,7 @@ All Koivu stages support the following basic data types:
    A pair containing a pointer to compiled machine code instructions and a pointer to the environment frame holding captured variables. 
    Closures enable functional programming, passing pass-behaviors dynamically, and handling lexical scoping cleanly throughout compiler infrastructure pipeline.
 
-   Closures are a Stage 1 data type, not a Stage 2 addition: the Stage 2 bridge compiler is written in closures and is compiled by the seed. The Stage 1 model is deliberately simplified - `{ code_ptr, env_ptr }`, frames `{ parent_env_ptr, slot0, ... }` linked to their parent rather than copied, variable access compiled to a `(depth, index)` pair, `set!` permitted on captured variables, fixed arity only, and no `call/cc`. It is specified in [Stage 1 (Seed)](04_stage1_seed.md), section 4, and recorded as resolved decision 10 in [Backend](backend.md).
+   Closures are a Stage 1 data type, not a Stage 2 addition: the Stage 2 bridge compiler is written in closures and is compiled by the seed. The Stage 1 model is deliberately simplified - `{ code_ptr, env_ptr }`, frames `{ parent_env_ptr, slot0, ... }` linked to their parent rather than copied, variable access compiled to a `(depth, index)` pair, `set!` permitted on captured variables, fixed arity only, and no `call/cc`. It is specified in [Stage 1 (Seed)](04_stage1_seed.md), section 4, and recorded as resolved decision 11 in [Backend](backend.md).
 
 Cons Cells do not use value tagging, compiler must do type-checking and issue correct instuctions.
 
@@ -236,6 +236,32 @@ Koivu has no separate compilation: a program is compiled as one unit and nothing
 Because inclusion is textual, the whole program shares one namespace. **Two top-level definitions of the same name are an error**, whether they come from one file or from several. There is no shadowing rule, no "last one wins" and no warn-then-continue: a duplicate is a build failure.
 
 That rule is what makes textual inclusion safe to use. With separate compilation the question is "which definition does this unit see"; with `include` it is "does this program define anything twice", and that question can be answered by reading the source.
+
+### Program Entry Point
+
+A Koivu program is not a sequence of top-level forms to be evaluated in order: Koivu has no evaluator, and nothing runs at the top level. A program is a set of definitions plus one procedure named `main`, and the startup stub emitted into the executable calls it.
+
+```scheme
+(define (main)
+  ...)
+```
+
+* **Arity 0.** Stage 1 has fixed arity only, so the Gambit convention of `(define (main . args))` cannot be used. Zero is the simplest fixed arity that works.
+* **The return value is the exit status.** The startup stub passes it to the OS exit primitive, so `0` is success and any other value is a failure code.
+* **Every program has exactly one `main`.** There are no library programs, because there are no libraries and no separate compilation. A program with no `main` is a build error, and a program with two is the duplicate-definition error above.
+
+`main` is an ordinary top-level definition. It can live in any file of the program, including an included one, and it is not a reserved word outside this rule.
+
+### Command-Line Arguments
+
+`main` takes no parameters, so arguments are read through two primitives:
+
+```scheme
+(command-line-count)   ; → fixnum: number of arguments, counting the program name
+(command-line-ref i)   ; → byte buffer for argument i
+```
+
+Passing a list of strings to `main` would be the Guile and Gambit shape, and it is rejected for a Koivu-specific reason: the startup stub would have to build string objects and cons cells before `main` runs, which means emitting allocation code into every executable the seed produces. That is a run-time library by stealth. Instead the stub stores the OS argument vector in two globals, and a descriptor is allocated only for the arguments a program actually asks for. An index outside the range aborts the program with a diagnostic, the same way exceeding the arena limit does. A program that wants the whole list builds it in three lines of its own source, where a reviewer can see it.
 
 ### Rejected Alternatives
 

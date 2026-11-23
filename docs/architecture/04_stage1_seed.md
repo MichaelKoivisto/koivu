@@ -27,8 +27,11 @@ The seed emits native machine code wrapped in an executable container that it wr
 1. **Single Argument:** `koivu-seed <input.scm>` compiles the specified source file into an executable `<input>` (`<input>.exe` on Windows).
 2. **Zero Arguments:** `koivu-seed` looks for `koivu-bridge.scm` in the current working directory and compiles it to `koivu-bridge`.
 3. **Missing Default Input:** If no argument is present and `koivu-bridge.scm` is missing, it prints `Koivu Seed v0001` to `stdout` and exits with code `0`.
+4. **Build Manifest:** `koivu-seed --build build.koivu` reads a build manifest and produces every executable it lists (section 7). Without the flag the input is one program's root source. The two are different things, and which one was meant is not inferred from the extension.
 
 **One file, always.** The seed never takes a list of sources. A multi-file program has exactly one root source file and the rest enter through `include`, which the reader resolves textually ([Koivu Scheme](03_language.md), Multi-File Programs). Composition therefore lives in the source, where a reviewer can read it, rather than in the invocation.
+
+**Entry and exit.** The executable the seed writes carries a startup stub that calls the program's `main` and passes its return value to the host exit primitive ([Koivu Scheme](03_language.md), Program Entry Point). A program with no `main`, or with two, is rejected at compile time.
 
 ## 2. Memory Management & Execution Bounds
 
@@ -188,6 +191,29 @@ The seed is built by a C compiler before M2 and by a Koivu compiler produced by 
 **The target is a build driven by Koivu.** Multi-file builds are Koivu's own responsibility, and the description is **read as data**, not executed: the seed has no evaluator, so a build description written in Koivu Scheme is a manifest of programs and their root sources, which the compiler reads and acts on ([Backend](backend.md), decision 5). Because every program has one root source and `include` supplies the rest ([Koivu Scheme](03_language.md), Multi-File Programs), the manifest needs no source lists, no ordering and no dependency graph. There is no separate compilation and nothing to link ([Backend](backend.md), decision 12); producing several executables is a loop over programs, not a compiler mode. Shell scripts survive only where the host leaves no alternative - starting the first binary, or reaching the external C compiler before M2 - and even there they only invoke.
 
 The per-host artifact table is in [Platforms and Targets](01_platforms.md), section 2.
+
+### Build Manifest
+
+A manifest is Scheme **data** read by the compiler, not a program it runs: the seed has no evaluator, so a build description cannot be code ([Backend](backend.md), decision 5).
+
+```scheme
+(build
+  (program "koivu-bridge"
+    (root "bootstrap/stage2/koivu-bridge.scm")))
+```
+
+| Element | Meaning |
+| :--- | :--- |
+| `(build <program> ...)` | the whole manifest |
+| `(program <name> (root <path>))` | one executable; `<name>` is also its output file name |
+| `(target "...")` | optional, defaults to the host; how the seed is cross-compiled for a new platform ([Platforms and Targets](01_platforms.md), section 4) |
+
+* **The file is `build.koivu` at the repository root**, and paths inside it are relative to its own directory, so the build does not depend on where it is invoked from. The distinct extension follows the ASDF `.asd` tradition and marks the file as not-a-program, so nobody compiles it by accident.
+* **There is no ordering and no dependency graph.** `include` already encodes both ([Koivu Scheme](03_language.md), Multi-File Programs).
+* **There are no source lists, per-file flags or conditionals.** A manifest that needs logic has outgrown being a manifest, and that is a design smell to fix rather than a feature to add.
+* **The manifest describes what Koivu builds.** Before M2 that excludes the seed itself, which `build.sh` and the C compiler produce, so until then the manifest has one entry - the bridge - which is an honest statement of how much of the build Koivu actually owns at that point.
+
+A manifest has to exist at all because of the rule in the [Architecture Map](../architecture.md): without one, building several programs means several compiler invocations, and whatever issues them is a script deciding what to build. The manifest is what puts that loop inside Koivu instead of in a shell.
 
 ## 8. Testing Strategy
 
