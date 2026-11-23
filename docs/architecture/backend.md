@@ -1,4 +1,4 @@
-# Koivu Backend - IR Emission and Machine-Code Lowering
+# Koivu Backend - IR and Machine-Code Lowering
 
 **Status:** Architecture Blueprint
 
@@ -7,242 +7,206 @@
 > Anamaria: You stole my boat!<br>
 > Capt. Jack Sparrow: ...Borrowed! Borrowed without permission. With every intention of bringing it back.<br>
 
-Koivu backend is closely aligned with LLVM backend architecture: follows the same approach, uses the same or similar formats and similar algorithms.
+Koivu backend is closely aligned with LLVM backend architecture: it follows the same approach, uses the same or similar formats and similar algorithms in the production pipeline. In the bootstrap stages it deliberately diverges, because there the simplicity of the seed outranks the quality of the generated code.
 
 ---
 
 ## 0. Scope and Vocabulary
 
-"Backend" in Koivu covers two different jobs with opposite directions of translation. Confusing them has already caused ambiguity in the blueprints, so this document always states which one is meant.
+"Backend" in Koivu covers two jobs with opposite directions of translation. This document always states which one is meant.
 
 | Term | Definition |
 | :--- | :--- |
-| **S-LLVM IR** | In-memory generic LLVM IR abstract syntax tree, conforming to the [`ast-s-llvm-ir-` schema](ast-s-llvm-ir.md) and written in Koivu S-Expression LLVM IR syntax. |
-| **Emitter** | AST -> text. Turns S-LLVM IR into a textual `.ll` file. |
-| **Lowerer** | IR -> machine code. Turns LLVM IR into target assembly, an object file, or an executable. |
-| **Target Description** | Scheme data describing the target-specific subset of ISA and ABI that a lowerer needs. |
-| **Simple Target Description** | Minimal target description covering only the instructions the Stage 1 seed can emit. |
-| **Production Target Description** | Full target description used by the production code generator. |
-| **`koivu-llc`** | Command-line tool that lowers LLVM IR to machine code using the production backend libraries. Intended as a drop-in replacement for LLVM's `llc`. |
+| **Pino IR** | S-expression-encoded stack-machine intermediate representation used by Stage 1 and Stage 2. Defined in [Pino IR](pino.md). |
+| **Pino compiler** | The library that lowers Pino IR to target machine code and wraps the result in an executable container. |
+| **Container writer** | The part of the Pino compiler that prepends an OS executable header to the emitted machine code. |
+| **LLVM IR** | The textual format defined by the LLVM specifications. The production interchange format of Stage 3 and later. |
+| **Emitter** | AST -> text. Turns an in-memory LLVM IR representation into a textual `.ll` file. |
+| **Lowerer** | IR -> machine code. |
+| **Target Description** | Data describing the target-specific subset of ISA and ABI that a lowerer needs. |
+| **`koivu-llc`** | Command-line tool that lowers textual LLVM IR using the production backend libraries. A drop-in replacement for LLVM's `llc`, used outside the bootstrap chain. |
 
-**Documentation rule:** blueprints do not use the bare word "backend" as a component name. Write "emitter" or "lowerer".
+**Documentation rule:** blueprints do not use the bare word "backend" as a component name. Write "Pino compiler", "emitter" or "lowerer".
 
-## 1. The Two LLVM Dependencies
+## 1. Two Intermediate Representations
 
-Koivu has two independent relationships with LLVM. They are resolved at different milestones and must not be described as a single "LLVM dependency".
+Koivu uses two IRs. The boundary between them is a stage boundary, not a preference.
 
-| Dependency | What it is | Resolution | Status after resolution |
-| :--- | :--- | :--- | :--- |
-| **LLVM IR as an interchange format** | `.ll` / S-LLVM IR as the artifact passed between stages | **Permanent by design** | Retained in all stages, forever |
-| **LLVM's `llc` as a lowering tool** | External program that turns IR into machine code | Replaced by `koivu-llc` | Removed at late stages of development |
+| | Pino IR | LLVM IR |
+| :--- | :--- | :--- |
+| **Used by** | Stage 1, Stage 2 | Stage 3 and later |
+| **Form** | S-expression stack machine, held in memory; printable for debugging | Textual `.ll`, a public and documented format |
+| **Lowered by** | the Pino compiler, inside the same compiler that emitted it | `koivu-llc`, or LLVM's own tools |
+| **Optimising** | no - one fixed byte template per instruction | yes - full production pipeline |
+| **Why** | the seed must be small, must need no register allocator, and must produce machine code whose correspondence to the source is mechanically checkable | Stage 3 is a production compiler and needs real optimisation |
 
-Emitting `.ll` is never removed from any Koivu compiler, including after the project is fully self-hosting. A textual IR dump is the primary debugging instrument for a compiler infrastructure, and Koivu is a long-term, always-evolving project: an IR emission option will remain useful even when the seed, the full backend and the production frontends are all implemented.
+The stack machine is what makes the bootstrap tractable: with an implicit operand stack there is no register allocation, no instruction scheduling and no spilling, so lowering is a single linear pass over a fixed set of byte templates. That is also what makes the result auditable, which is the priority recorded in [Bootstrapping Paths & Trust](02_bootstrapping_and_trust.md), section 2.
 
-The `.ll` sources of the Stage 1 seed remain the canonical, human-auditable form of the seed. Derived artifacts (assembly, binaries) are described in [Seed Artifacts](08_seed_artifacts.md).
+### Bootstrap Goals
 
-### Bootstrap Goal
+Two distinct goals, reached at different milestones:
 
-The project goal is: **the bridge build must not depend on any external tool.** This is stronger than "no LLVM" - it excludes `llc`, the system assembler and the linker alike.
+1. **The bridge build must not depend on any external tool** - no `llc`, no assembler, no linker. Met at **M0**.
+2. **The seed build must not depend on any external tool** - the seed can be rebuilt from its own source by a Koivu compiler produced by the chain. Met at **M2**.
 
-The goal is met at M2, when the seed executes the lowerer and the container writer itself. Until then, an external `llc` is the accepted interim path.
+Goal 1 is the bootstrap goal proper. Goal 2 is what moves the seed from early to late development and allows a public seed release.
 
 ### Milestones
 
-| Milestone | Stage 1 emitter | `simple-codegen` | `koivu-llc` | External `llc` still required for |
-| :--- | :--- | :--- | :--- | :--- |
-| **M0** | emits `.ll` | - | - | seed build, bridge build |
-| **M1** | emits `.ll` | - | - | seed build, bridge build, Stage 3 Version A build |
-| **M2** | emits `.ll` | executed by the seed | - | seed build, Stage 3 Version A build |
-| **M3** | emits `.ll` | executed by the seed | - | seed build, Stage 3 Version A build (production backend appears, fixpoint reached) |
-| **M4** | emits `.ll` | executed by the seed | available | nothing |
+A milestone marks the point at which a lowering capability appears. It is not a release number.
 
-M3 marks the arrival of the production lowering stack inside Stage 3: Version A builds Version B natively, and the fixpoint check is performed (see [Roadmap to Self-hosting](selfhosting.md)). M4 marks `koivu-llc` as a shipped command-line replacement for `llc`.
+| Milestone | What works | External tools still needed |
+| :--- | :--- | :--- |
+| **M0** | The C seed compiles the bridge source; the resulting bridge binary runs | a C compiler, to build the seed |
+| **M1** | The bridge compiles Stage 3 source; the resulting Version A runs | a C compiler, to build the seed |
+| **M2** | A Koivu compiler produced by the chain rebuilds the seed from its Scheme source; the C seed is retired | none, given an existing Koivu compiler |
+| **M3** | Version A compiles Stage 3 source to Version B, emitting machine code natively | none |
+| **M4** | Version B produces a byte-identical Version C | none |
 
-Because the seed itself executes the lowerer and the container writer (resolved decision 7), the bridge build stops depending on an external `llc` at M2, which is where the bootstrap goal is met. M0 and M1 use the interim configuration E.
+M2 is the milestone that matters most outside this document: it is the boundary between early and late development defined in [Bootstrapping Paths & Trust](02_bootstrapping_and_trust.md), section 2, and therefore the point from which machine-code auditability outranks everything else.
 
-## 2. Backend Library and Tool Inventory
+## 2. The Pino Compiler Library
 
-| Library / Tool | Direction | Input | Output | Available from | Implementation | Consumers |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| `(koivu backend s-llvm-ir)` | AST -> text | S-LLVM IR AST (`ast-s-llvm-ir-`) | `.ll` file | M0 | hand-written `.ll` inside the seed; Scheme from Stage 2 up | `koivu-seed`, `koivu-bridge` |
-| `(koivu backend simple-codegen)` | AST -> machine code | in-memory S-LLVM IR AST emitted by Stage 1 when compiling the bridge | machine code for the target | M2 | Stage 1 Lisp, executed by the seed | `koivu-seed` |
-| container writer | machine code -> executable | machine code plus a target description | linked executable (ELF, PE or Mach-O) | M2 | Stage 1 Lisp, executed by the seed | `koivu-seed` |
-| `(koivu backend syntax llvm-ir)` | AST -> text | `flat-ast-llvm-ir-` | `.ll` file | M3 | Scheme | Stage 3, `koivu-llc` |
-| `(koivu backend analysis)` | IR analysis | IR | IR plus analysis metadata | M3 | Scheme | production pipeline |
-| `(koivu backend transforms)` | IR -> IR | IR | IR | M3 | Scheme | production pipeline |
-| `(koivu backend codegen)` | IR -> machine-ready IR | IR | machine-ready IR | M3 | Scheme | production pipeline |
-| `(koivu backend machine-code-layer)` | machine-ready IR -> machine code | machine-ready IR | assembly or object code | M3 | Scheme | Stage 3, `koivu-llc` |
-| `koivu-llc` (tool) | textual `.ll` -> machine code, command line | textual `.ll` file | assembly or object code | M4 | Scheme: production libraries, an LLVM IR parser and a CLI shim | build system, end users |
+The Pino compiler is a **library**, not a program. It is linked into whichever compiler emits Pino IR, and it has no command-line interface of its own.
 
-## 3. Stage 1 Backend
+| Property | Value |
+| :--- | :--- |
+| **Direction** | Pino IR -> machine code -> executable |
+| **Input** | Pino IR held in memory by the emitting compiler |
+| **Output** | a linked executable for the target |
+| **Available from** | M0 |
+| **Consumers** | `koivu-seed` (Stage 1), `koivu-bridge` (Stage 2) |
+| **Implementation** | C until M2, Scheme afterwards |
 
-The Stage 1 backend consists of exactly two components. They differ not only in function but in **where they run**: the emitter runs inside the seed, the lowerer runs inside the bridge.
+Contents of the library:
 
-### 3.1 Simple IR Emitter (M0)
+* the instruction encoder - one fixed byte template per Pino instruction per target;
+* the label table and the backpatch resolver;
+* the container writer (section 5);
+* target descriptions (section 6).
 
-The absolute minimum backend: it takes the S-LLVM IR data structures held in Stage 1 compiler memory and prints a correct textual representation of them into a `.ll` file. It does not parse LLVM IR, does not transform it and does not know anything about targets.
+Contents it deliberately does not have:
 
-* **Contract:** it must be able to print every IR form that Stage 1 can produce when compiling Lisp sources for the Stage 2 bridge.
-* **Input:** S-LLVM IR AST, built by the front end as plain Lisp data structures.
-* **Output:** a single `.ll` file, ready to be lowered by an external `llc`.
-* **Implementation:** a deliberate mirror (resolved decision 5). Inside the seed the emitter is hand-written LLVM IR; from Stage 2 up the same behaviour is provided as an actual Scheme library. Both implementations must produce identical `.ll` for the same S-LLVM IR AST, which is checked by the release criterion in section 8.
+* no register allocator - the operand stack is the register file;
+* no instruction scheduler;
+* no peephole pass;
+* no IR-to-IR transformation of any kind;
+* no parser for any textual IR.
 
-### 3.2 Simple Code Generator (M2)
+**Why a library and not a tool.** A separate Pino compiler binary would be a second distributed artifact, needing its own audit, its own versioning and its own build. Since the only consumers are the two compilers that emit Pino, linking it in costs nothing and keeps the seed the single artifact users must trust.
 
-The `(koivu backend simple-codegen)` library does naive lowering of LLVM IR to target machine code. It performs no IR transformations and no target-aware optimizations; lowering is its only capability.
+**Behaviour on unsupported input:** a hard, explicit error. Silent miscompilation is forbidden.
 
-* **Implementation:** Stage 1 Lisp, **executed** by the seed (resolved decision 7). The seed does not compile it into the bridge; it evaluates it during the build of the bridge. The function is therefore not part of the seed binary, but the evaluator that runs it is.
-* **Scope:** exactly the IR subset that Stage 1 emits when compiling the bridge. It does **not** need to support the IR contained in Stage 1's own hand-written source.
-* **Input:** in-memory S-LLVM IR AST only. No component in this chain parses textual LLVM IR, so `simple-codegen` works directly on the data structures the emitter has already built.
-* **Output:** machine code for the target, which the container writer turns into a linked executable. Together they replace `llc`, the assembler and the linker for the bridge build.
-* **Container formats:** ELF and PE in the near term, Mach-O eventually (resolved decision 6). They are written by a Lisp function, so the seed keeps only the ability to run, allocate from its arena and write bytes. Mach-O is deferred because macOS ships as `.s` and keeps using platform tools (see [Platforms and Targets](01_platforms.md), section 6.2).
-* **Target support:** uses simplified target descriptions (see section 5).
-* **Behaviour on unsupported input:** a hard, explicit error. Silent miscompilation is forbidden.
-* **Auditability:** the Lisp sources are reviewed as ordinary code and do not count against the seed's binary size budget. The evaluator that runs them does.
+## 3. Where the Lowering Code Runs
 
-### 3.3 Where the Lowering Code Runs
+The Pino compiler is compiled *into* the seed and *into* the bridge. It is not evaluated by the seed, and the seed contains no evaluator.
 
-**Design priority: a small seed always takes priority over a small bridge.** This rule governs every trade-off in this section, and it is recorded among the global structural principles in the [Architecture Map](../architecture.md).
+* **Stage 1.** The seed reads Scheme, builds Pino IR, and calls the Pino compiler library to lower it and write the executable. One program, one binary.
+* **Stage 2.** The bridge does the same, with a larger front end: hygienic macros and `flat-vector` become available. The Pino compiler library is the same code.
 
-**Bootstrap goal:** the bridge build must not depend on any external tool - not on `llc`, not on the system assembler, not on the linker. Lowering code can only be run by a program that already exists, so that program is the seed itself. Five configurations were considered:
+Two consequences follow, and both are deliberate:
 
-| Option | `simple-codegen` and container writer implemented in | Runs inside the seed | External tools needed to build the bridge | Verdict |
-| :--- | :--- | :--- | :--- | :--- |
-| **A. Native in seed** | hand-written `.ll` inside the seed | yes, as native code | none | rejected: raw IR is a poor medium for byte offsets and container constants, and three container formats written in hand-written IR are expensive to produce and to audit |
-| **B. Evaluated by seed** | Stage 1 Lisp, executed by the seed's evaluator | yes, as evaluated Lisp | none | **long-term answer** |
-| **C. Compiled into bridge** | Stage 1 Lisp, compiled by the seed into the bridge | no | `llc` | rejected: circular, because the bridge does not exist yet when its own executable has to be written |
-| **D. Platform assembler** | seed emits `.s`, the platform assembler and linker finish the job | no | assembler, linker | rejected: breaks the LLVM dependency only, not the external-tool dependency; Windows has no assembler |
-| **E. External `llc`** | seed emits `.ll`, `llc` lowers and links it | no | `llc` | **interim answer** |
+* **No evaluator.** Nothing in the seed interprets Scheme at build time. The seed is a compiler and nothing else. This is a substantial reduction compared with a design in which the seed evaluates its own backend.
+* **One implementation, twice written, never in parallel.** The library is written in C before M2 and in Scheme after it. The C version is deleted at M2 rather than maintained, which is why there is no permanent mirror to keep in step and no equivalence criterion between two live implementations.
 
-**B is the long-term answer and E is the interim one (resolved decision 7).** Until the seed has an evaluator, the bridge is built the interim way: the seed emits `.ll` and an external `llc` lowers and links it. When B lands, the same build is performed entirely by the seed, and the bootstrap goal is met.
+The seed's implementation language is a staged decision described in [Bootstrapping Paths & Trust](02_bootstrapping_and_trust.md), section 2.
 
-**Why B and not A.** The container writer is small, but the lowerer is not. A Lisp lowerer plus an evaluator is smaller and far more auditable than the same lowerer written in hand-written LLVM IR. A is technically possible and is recorded here so that it is not re-derived as a new idea; it is rejected on seed size and auditability, consistent with the priority stated above.
+## 4. Pino ISA Conformance
 
-Two costs follow from B, and both must be paid explicitly:
+Pino IR is a fixed instruction set, so conformance is a membership test rather than a subset closure:
 
-* **The seed must contain an evaluator.** Environments, `apply`, special forms and primitive dispatch become part of the seed binary. This is real seed growth and must be covered by the seed size budget in [Seed Artifacts](08_seed_artifacts.md). It is not a container writer in `.ll`, but it is not free.
-* **Evaluator and compiler must agree.** The same Lisp sources are executed by the seed and may later be compiled by it for other purposes. Semantic divergence between the two is a correctness risk, so an equivalence check belongs to the release criteria (section 8).
-
-## 4. Supported IR Subset and Conformance
-
-The correctness of `simple-codegen` depends on one invariant:
-
-> **Closure invariant:** `supported_subset(simple-codegen) >= IR_forms(Stage 1 compiling the bridge)`
+> **ISA invariant:** every instruction emitted by Stage 1 and by Stage 2 belongs to the declared Pino ISA, and every instruction has a lowering for every supported target.
 
 This is a build-time, machine-checked requirement, not a review guideline.
 
 ### Conformance test (required)
 
-1. Compile the bridge sources with the seed, capturing the emitted IR forms.
-2. Check that every captured form belongs to the declared `simple-codegen` subset.
-3. Fail the build if any form is missing from the subset.
+1. Compile the bridge sources with the seed, capturing the emitted instruction set.
+2. Compile the Stage 3 sources with the bridge, capturing the emitted instruction set.
+3. Check that every captured instruction is in the declared ISA and has a template for each supported target.
+4. Fail the build otherwise.
 
-The test belongs to the Stage 1 regression suite (see [Stage 1 (Seed)](04_stage1_seed.md), section 8). Its purpose is to prevent a front-end change from silently invalidating the lowerer.
+The test belongs to the regression suites of Stage 1 and Stage 2. Its purpose is to prevent a front-end change from introducing an instruction the Pino compiler cannot lower.
 
-### Explicitly out of scope for `simple-codegen`
+### Explicitly out of scope
 
-* IR contained in the Stage 1 hand-written source.
-* IR required to build Stage 3, which is lowered by an external `llc` until `koivu-llc` exists (resolved decision 8).
+* Lowering LLVM IR. Nothing in the bootstrap chain reads or writes `.ll`; that is Stage 3's business.
+* Optimisation. The Pino compiler has none, and none is planned.
 
-Consequence: after M2, an external `llc` is required for the seed build and the Stage 3 Version A build, until `koivu-llc` replaces it at M4.
+## 5. Container Writers
 
-## 5. Target Descriptions
+The Pino compiler writes the executable container itself, so the seed needs no assembler and no linker.
 
-Target descriptions are stored as Scheme source files. They are deliberately a **subset** of what LLVM target definitions provide, not a clone.
+| Target | Format | Notes |
+| :--- | :--- | :--- |
+| Linux `x86_64` | ELF64 | near term |
+| Windows `x86_64` | PE32+ | near term |
+| macOS `arm64` | Mach-O | scope open, see below |
+
+Resolved decision: all three formats eventually; ELF and PE in the near term.
+
+**Mach-O is the open item.** It is the one container that carries a signing requirement and a dynamic-linker requirement on the target platform, so its cost is materially higher than the other two. Whether it belongs in the seed is discussed in [Platforms and Targets](01_platforms.md), section 7, question 1, and is deliberately not settled here.
+
+## 6. Target Descriptions
+
+Target descriptions are stored as Scheme source files. They are a **subset** of what LLVM target definitions provide, not a clone.
 
 | Kind | Used by | Scope | Milestone |
 | :--- | :--- | :--- | :--- |
-| **Simple Target Description** | `(koivu backend simple-codegen)` | only the instructions required by the Stage 1 seed when compiling the Stage 2 bridge | M2 |
-| **Production Target Description** | production code generator, `koivu-llc` | full instruction set required by the production pipeline | M3 |
+| **Pino target description** | the Pino compiler | the byte template for each Pino instruction, plus the ABI facts the container writer needs | M0 |
+| **Production target description** | production code generator, `koivu-llc` | full instruction set required by the production pipeline | M3 |
 
-Adding a target means writing a target description and, for the seed, cross-compiling it from an existing host. The step-by-step procedure is described in [Platforms and Targets](01_platforms.md).
+Adding a target means writing a Pino target description - one template per instruction, and a container writer for its format. The step-by-step procedure is described in [Platforms and Targets](01_platforms.md).
 
-## 6. Production Backend
+## 7. Production Backend
 
-### 6.1 Production Generic LLVM IR Emitter
+Everything in this section belongs to Stage 3 and later. None of it is in the seed or the bridge.
 
-Stage 3 and other production compilers emit LLVM IR via the `(koivu backend syntax llvm-ir)` library. Production backends use the `flat-ast-llvm-ir` data scheme for representing the LLVM IR AST in memory.
+### 7.1 Production LLVM IR Emitter
 
-#### Bootstrapping vs. Production AST Layers
+Stage 3 and other production compilers emit LLVM IR via `(koivu backend syntax llvm-ir)`, using the `flat-ast-llvm-ir` in-memory scheme. Emitting `.ll` is a permanent capability: a textual IR dump is the primary debugging instrument for a compiler infrastructure, and it is never removed, including after full self-hosting.
 
-| Architectural Metric | Bootstrapping Layer | Production Layer |
-| :--- | :--- | :--- |
-| **Design Priority** | Simplicity & Easy Human Audit | Cache Line Saturation & No-GC |
-| **Physical Memory Shape** | Nested Pointer Lists (Pairs) | Flat, Contiguous `u32` Array Vectors |
-| **Library Descriptor** | `(koivu backend s-llvm-ir)` | `(koivu backend syntax llvm-ir)` |
-| **Data Node Prefix** | **`ast-s-llvm-ir-`** | **`flat-ast-llvm-ir-`** |
-| **Node Indexing Model** | Recursive list traversal (`car`/`cdr`) | Flat index offsets (`+1`, `+2`, `+3`) |
+### 7.2 Production Lowering Stack
 
-The bootstrapping layer has two consumers: the Stage 1 seed itself, and the Stage 2 bridge, which links the Scheme implementation of the same contract in order to emit IR for Stage 3.
+* `(koivu backend analysis)` - computes program information (dominance trees, scalar evolution, alias analysis) without altering the IR.
+* `(koivu backend transforms)` - the transform passes: dead code elimination, loop unrolling, inlining, vectorisation, interprocedural optimisation.
+* `(koivu backend codegen)` - target-independent code generation, including `CodeGenPrepare`.
+* `(koivu backend machine-code-layer)` - emission of assembly-level constructs: labels, sections, raw target instructions.
 
-### 6.2 Production Lowering Stack
+### 7.3 `koivu-llc`
 
-Later-stage Koivu libraries provide maximum capabilities for code generation in Stage 3 and other production compilers:
+`koivu-llc` (`koivu-llc.exe` on Windows) is a command-line tool built on the production lowering stack with a thin CLI shim.
 
-* `(koivu backend analysis)`: Computes program information (like dominance trees, scalar evolution, and alias analysis) without altering the IR.
-
-* `(koivu backend transforms)`: Contains sub-libraries like Scalar, Vectorize, IPO (Interprocedural Optimizations), and Utils that execute the actual transform passes (e.g., Dead Code Elimination, Loop Unrolling, Inlining).
-
-* `(koivu backend codegen)`: Bridges the gap between target-independent code generation and the final target emission. Contains CodeGenPrepare, a critical IR-to-IR transform pass that runs right before code generation to mutate the IR specifically to benefit the target machine.
-
-* `(koivu backend machine-code-layer)`: Definitive library for code emission. The Machine Code Layer handles assembly-level constructs entirely divorced from LLVM IR (e.g., labels, sections, raw target instructions).
-
-### 6.3 Production Target Descriptions
-
-Koivu backend stores production target descriptions as Scheme source files.
-
-### 6.4 Target Description Converter
-
-Koivu will provide a tool written in Scheme for parsing LLVM Target Descriptions and converting them to Scheme-format Koivu Target Descriptions.
-
-### 6.5 `koivu-llc` - CLI Replacement for `llc`
-
-`koivu-llc` (`koivu-llc.exe` on Windows) is a command-line tool built on top of the production lowering stack, with a thin CLI shim added. Its purpose is to remove the dependency on LLVM's `llc` at late stages of development, while keeping the `.ll` format as a first-class interchange and debugging format.
-
-* **Goal:** drop-in replacement for `llc` for the IR subset that Koivu emits.
-* **Built from:** `(koivu backend codegen)` and `(koivu backend machine-code-layer)`, plus production target descriptions.
-* **Milestone:** M4 (requires M3, because it depends on the production lowering stack).
-* **Input format:** textual `.ll` (resolved decision 3). A drop-in `llc` replacement must read textual LLVM IR, which implies an LLVM IR parser in the production stack. The cost of such a parser is analysed in [Parsing LLVM IR in Koivu Scheme](notes_on_llvm_ir_parsing.md). The parser is a production-stage component and is never part of the Stage 1 seed.
-* **`.ll` output is not removed:** Koivu compilers of all stages keep an option to emit `.ll`, and `koivu-llc` keeps the ability to consume it.
-
-## 7. Non-goals
-
-* `(koivu backend simple-codegen)` does not optimize, does not cover the full IR, and is not a general-purpose `llc` replacement.
-* `koivu-llc` does not aim to cover the whole LLVM IR grammar or the whole `llc` feature set; it aims to cover what Koivu emits.
-* LLVM IR emission is never removed from any stage, including after full self-hosting.
+* **Purpose:** a drop-in replacement for LLVM's `llc` for the IR subset Koivu emits.
+* **Placement:** **outside the bootstrap chain.** The seed and the bridge never lower LLVM IR, because they lower Pino. `koivu-llc` exists for Stage 3's textual output, for the multi-language frontends planned on top of Stage 3, and for the wider set of LLVM-like tools the project intends to maintain.
+* **Milestone:** not tied to a bootstrap milestone. It depends on the production lowering stack (M3) and is scheduled independently.
+* **Input format:** textual `.ll`. A drop-in `llc` replacement must read textual LLVM IR, which implies an LLVM IR parser in the production stack. The cost of that parser is analysed in [Parsing LLVM IR in Koivu Scheme](notes_on_llvm_ir_parsing.md). The parser is never part of the seed.
 
 ## 8. Acceptance Criteria
 
-1. **Emitter validity:** `.ll` produced by `(koivu backend s-llvm-ir)` is accepted by external `llc` without warnings for all Stage 1 test programs.
-2. **Lowerer equivalence:** the linked executable produced by `simple-codegen` runs on the target without any external assembler or linker, and passes the same test suite as the `llc`-lowered and linked output for the same input.
-3. **Subset conformance:** the closure invariant of section 4 is checked automatically in CI.
-4. **Determinism:** emitter and lowerer output is deterministic (stable ordering, no timestamps, no absolute paths), because the self-hosting fixpoint check compares binaries byte-for-byte.
-5. **`koivu-llc` parity:** for the supported subset, `koivu-llc` output passes the same tests as `llc` output.
-6. **Evaluator/compiler equivalence:** for the same Lisp source, evaluation by the seed and compilation by the seed produce the same observable results across the test suite. This criterion exists because option B puts both a reader/compiler and an evaluator in the seed. It explicitly covers **closure semantics**: mutation visibility through `set!` on captured variables, shared frames between sibling closures created in one invocation, and the lifetime of an environment that outlives its creating call.
-7. **Emitter mirror equivalence:** the hand-written `.ll` emitter inside the seed and the Scheme implementation of `(koivu backend s-llvm-ir)` produce identical `.ll` output for the same S-LLVM IR AST. This criterion exists because decision 5 keeps two implementations of the same behaviour.
+1. **ISA conformance:** the invariant of section 4 is checked automatically in CI, for both Stage 1 and Stage 2.
+2. **Container validity:** executables produced by the Pino compiler run on their target with no external assembler, linker or system toolchain.
+3. **No external tool in the bridge build:** from M0, the bridge build invokes nothing outside the seed.
+4. **Determinism:** Pino lowering and container writing are deterministic - stable ordering, no timestamps, no absolute paths - because the self-hosting fixpoint check compares binaries byte-for-byte.
+5. **Seed self-compilation equivalence:** from M2, a seed rebuilt from Scheme source by a Koivu compiler behaves identically to the seed built by the C scaffold across the full test suite. This is the criterion that retires the C seed.
+6. **Fixpoint:** Version B and Version C are byte-for-byte identical.
+7. **Mechanical auditability:** the mapping from Pino IR to emitted bytes is fixed and can be checked by a tool, so a distributed seed binary can be verified against the Pino source it was lowered from.
+8. **`koivu-llc` parity:** for the supported subset, `koivu-llc` output passes the same tests as `llc` output.
 
 ## 9. Decisions
 
-### Resolved
-
 | # | Decision | Resolution | Consequence |
 | :--- | :--- | :--- | :--- |
-| 1 | `simple-codegen` input format | **In-memory S-LLVM IR AST only** | the seed needs no LLVM IR parser at M2 |
-| 2 | `simple-codegen` output format | **Linked executable**, produced together with the container writer | together they replace `llc`, the assembler and the linker for the bridge build |
-| 3 | `koivu-llc` input format | **Textual `.ll`** (true drop-in) | the production stack needs an LLVM IR parser, see [notes](notes_on_llvm_ir_parsing.md); the parser is never part of the seed |
-| 4 | Does `simple-codegen`'s subset cover the Stage 3 build? | **No** | the supported subset covers only the IR emitted by Stage 1 for the bridge; the Stage 3 build is lowered by `llc` until `koivu-llc` |
-| 5 | `(koivu backend s-llvm-ir)` in Stage 1: contract or mirror? | **Mirror: two implementations of the same behaviour**, hand-written `.ll` inside the seed and Scheme from Stage 2 up | an equivalence check becomes a release criterion (section 8, criterion 7) |
-| 6 | Executable container formats written by `simple-codegen` | **All three eventually: ELF, PE, Mach-O. Near term: ELF and PE only** | the seed must produce a runnable executable on every supported host; Mach-O is deferred because macOS ships as `.s` and keeps using platform tools (see [Platforms and Targets](01_platforms.md), section 6.2) |
-| 7 | Where `simple-codegen` and the container writer run (see section 3.3) | **B long-term: Stage 1 Lisp executed by the seed's evaluator. E interim: external `llc` until the evaluator exists** | the seed gains an evaluator but no native container writer; the bootstrap goal is met at M2 |
-| 8 | How the Stage 3 build is lowered after M2 | **External `llc` until M4** | the supported IR subset does not need to cover the IR emitted for Stage 3; `koivu-llc` takes over at M4 |
-| 9 | Bootstrap goal | **The bridge build must not depend on any external tool** - no `llc`, no assembler, no linker | fixes the acceptance point at M2 and rules out option D, which breaks only the LLVM dependency |
-| 10 | Stage 1 closure representation | **Chained frames: `closure = { code_ptr, env_ptr }`, frames linked by a parent pointer, variable access by a compile-time `(depth, index)` pair** | no free-variable analysis and no copying at closure creation; `set!` on captured variables is allowed and shares state; environments live in the arena, so no GC is needed |
+| 1 | IR used by Stage 1 and Stage 2 | **Pino IR only** | no LLVM IR anywhere in the bootstrap chain |
+| 2 | IR used by Stage 3 and later | **LLVM IR** | `.ll` emission is permanent and is never removed |
+| 3 | Pino compiler: library or tool? | **Library**, linked into each compiler that emits Pino | the seed stays the single distributed artifact |
+| 4 | Seed implementation language | **C until M2, Scheme afterwards**; the C source is deleted, not maintained | one implementation at a time, no permanent mirror |
+| 5 | Does the seed contain an evaluator? | **No** | the seed is a compiler and nothing else |
+| 6 | `koivu-llc` input format | **Textual `.ll`** (true drop-in) | the production stack needs an LLVM IR parser, see [notes](notes_on_llvm_ir_parsing.md); the parser is never part of the seed |
+| 7 | `koivu-llc` placement | **Outside the bootstrap chain** | it serves Stage 3, the planned frontends and LLVM-like tooling, not the seed or the bridge |
+| 8 | Executable container formats | **All three eventually: ELF, PE, Mach-O. Near term: ELF and PE only** | Mach-O remains open, see section 5 |
+| 9 | Bootstrap goal 1 | **The bridge build must not depend on any external tool** | met at M0 |
+| 10 | Bootstrap goal 2 | **The seed build must not depend on any external tool** | met at M2; this is the early/late boundary |
+| 11 | Stage 1 closure representation | **Chained frames: `closure = { code_ptr, env_ptr }`, frames linked by a parent pointer, variable access by a compile-time `(depth, index)` pair** | no free-variable analysis and no copying at closure creation; `set!` on captured variables is allowed and shares state; environments live in the arena, so no GC is needed |
 
-### Provisional decisions
-
-Decisions 5 and 8 are recorded as provisional. Both may be re-evaluated in the future:
-
-* **Decision 5** may be revisited if maintaining two emitter implementations proves more expensive than the auditability it buys. The alternative is a single implementation, described in prose as a behavioural contract.
-* **Decision 8** may be revisited if a compiled-in copy of `simple-codegen` in the bridge turns out to be cheaper than keeping `llc` in the Stage 3 build until M4. That would extend the supported IR subset to cover the IR emitted for Stage 3.
-
-No decisions are currently open.
+No decisions are currently open. The open item is the Mach-O container writer (section 5), recorded as question 1 in [Platforms and Targets](01_platforms.md), section 7.

@@ -115,42 +115,40 @@ Linux is expected to be the first platform where this path is exercised in pract
 
 The chain has four steps. Each step names the compiler that runs, the intermediate artifact it produces, and the tool that lowers that artifact to machine code.
 
-### Terminology: S-LLVM IR versus a `.ll` file
+### Terminology: Pino IR versus a `.ll` file
 
-Two different things in this chain are both intermediate, and conflating them is the easiest mistake to make here.
+Two different kinds of intermediate exist in this chain, and conflating them is the easiest mistake to make here.
 
-* **S-LLVM IR** is an in-memory data structure: S-expressions held in the memory of a Koivu Lisp compiler, conforming to the `ast-s-llvm-ir-` schema. It exists only while a compiler is running.
-* **A `.ll` file** is text: LLVM IR written in the format defined by the LLVM specifications. It is what the emitter produces from S-LLVM IR, and what `llc` or `koivu-llc` consume.
+* **Pino IR** is an in-memory data structure: S-expressions held in the memory of a Koivu compiler, describing a stack machine. It exists only while a compiler is running.
+* **A `.ll` file** is text: LLVM IR written in the format defined by the LLVM specifications.
 
-When a step below says that a compiler "emits IR", it means the compiler builds S-LLVM IR in memory. A `.ll` file appears only when the lowering path goes through text.
+Stages 1 and 2 build Pino IR and lower it themselves, so no `.ll` file appears anywhere in their path. Stage 3 emits `.ll`, and that is the only place textual LLVM IR enters the project.
 
-A third form is possible in principle. S-LLVM IR could be written out as Lisp source text - S-expressions saved to a file and read back by an ordinary Lisp reader, which every Koivu stage already has. That would be cheaper to parse than `.ll`. Koivu does not use it anywhere today: no artifact is stored or passed between stages in that form. It is recorded here only as an option, to be adopted if it ever simplifies something concrete.
+When a step below says a compiler "builds Pino IR", it means the compiler constructs those data structures in memory and hands them to the Pino compiler library. Nothing is written to disk in between. Pino IR can be printed to a file for debugging, but no stage passes it to another stage in that form.
 
 ### Step 1: Generating the Bridge Binary
 
 * **Input:** Stage 2 bridge source code
 * **Compiler running:** the Stage 1 seed
-* **Intermediate:** in-memory S-LLVM IR built by the seed. It becomes the textual `koivu-bridge.ll` only when the lowering is an external `llc` (configuration E); under `simple-codegen` (configuration B) the AST is lowered to machine code directly and no `.ll` is written.
-* **Lowering:** an external `llc` (interim, configuration E), or `simple-codegen` executed by the seed itself (long-term, configuration B)
+* **Intermediate:** Pino IR, built in memory by the seed
+* **Lowering:** the Pino compiler library, linked into the seed
 * **Output:** `koivu-bridge` binary
 
 ```
-+-----------------+      +--------------------+      +----------------------+      +------------------+
-| Bridge Source   | ---> | Stage 1 Seed       | ---> | koivu-bridge.ll      | ---> | Bridge Binary    |
-| (.scm)          |      | (builds S-LLVM IR) |      | (textual LLVM IR)    |      | (lowered+linked) |
-+-----------------+      +--------------------+      +----------------------+      +------------------+
++-----------------+      +-------------------------------+      +------------------+
+| Bridge Source   | ---> | Stage 1 Seed                  | ---> | Bridge Binary    |
+| (.scm)          |      | (front end + Pino compiler)   |      | (lowered+linked) |
++-----------------+      +-------------------------------+      +------------------+
 ```
 
-The diagram shows configuration E. Under configuration B the middle box does not exist: the seed lowers its in-memory S-LLVM IR straight to the executable.
-
-The lowering column is the whole point of the milestone table in [Backend](backend.md), section 1: this is the step where the bootstrap goal - no external tools - is eventually reached.
+No external tool appears in this step. The seed lowers Pino IR itself and writes the executable container itself. This is bootstrap goal 1, met at M0 (see [Backend](backend.md), section 1).
 
 ### Step 2: Generating the Stage 3 Binary
 
 * **Input:** Stage 3 source code
 * **Compiler running:** the bridge binary
-* **Intermediate:** in-memory S-LLVM IR built by the bridge, emitted as the textual `koivu-core.ll` for `llc` or `koivu-llc` to lower.
-* **Lowering:** an external `llc` until M4, then `koivu-llc`
+* **Intermediate:** Pino IR, built in memory by the bridge
+* **Lowering:** the Pino compiler library, linked into the bridge
 * **Output:** Stage 3 **Version A**
 
 ### Step 3: Native Rebuild

@@ -23,24 +23,25 @@ Each form is described below with the verification it supports. No single form i
 
 | Artifact | Derived from | Stored in | Primary users | Verification available | Trust level |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Stage 1 `.ll` sources** | hand-written | repository | auditors, porters, new-platform bring-up | full human review; this is the source of truth | highest |
-| **Stage 1 `.s` per target** | `.ll` via `llc` | **repository** (see section 3) | Linux and macOS users on the standard path; people evaluating Koivu | review of assembly; local reassembly with the platform assembler | high |
-| **`koivu-seed.exe`** (Windows, optionally digitally signed) | `.ll` / `.s` via `llc` and a linker | release artifacts | Windows users on the standard path | hex review of a small binary; antivirus scan; signature check | medium |
-| **Seed binaries for other targets** | same as above | release artifacts | users on those platforms, rarely needed | same as Windows | medium |
-| **Koivu-built seed** | not planned, see section 5 | - | - | - | - |
+| **Seed source, Scheme** | hand-written | repository | auditors, porters, new-platform bring-up | full human review; this is the source of truth | highest |
+| **Seed `.s` per target** | the Scheme seed, lowered through Pino IR | **repository** (see section 3) | newcomers wanting to see what the seed looks like on a given target; porters | review of assembly; local reassembly with the platform assembler | high, but convenience only |
+| **Seed binaries** (per target; Windows optionally digitally signed) | the seed source, built by a Koivu compiler or, before M2, by the C scaffold | release artifacts | everyone - this is what makes bootstrapping possible | hex review of a small binary; antivirus scan; signature check | medium |
+| **Seed source, C** | hand-written | repository until M2, then deleted | the authors, during early development | ordinary code review | none - never released |
 
-The `.ll` sources and the `.s` files are both kept in the repository. Binaries are published, not committed.
+Binaries are published, not committed. Assembly is committed as a convenience, not as a trust artifact.
 
 ## 3. Why Assembly Sources Are Committed
 
-Assembly sources are committed so that a person considering Koivu can see, without building anything, what the seed looks like in every form it takes. The seed is the part of the project that must be trusted first, and a readable assembly file is a much faster answer to "what is actually in there?" than a build instruction.
+Committed assembly is an **educational and informative artifact, not a trust artifact.** Bootstrapping is enabled by the released seed binaries. The assembly is there so that a person meeting Koivu for the first time can see what the seed looks like on a particular target without building anything: assembly is far more widely readable than a compiler's source, and "what is actually in there?" is the question newcomers ask first.
+
+The seed is therefore published in assembly for the supported targets **as soon as the Scheme seed, lowered through Pino, produces assembly that is reasonably easy to audit.** Before that point there is nothing worth committing: the C seed is a prototype whose assembly would describe a program that is about to be deleted.
 
 Rules that follow from committing them:
 
-* **The `.ll` sources are the source of truth.** `.s` files are derived and are never edited by hand.
-* **A stale `.s` is a defect.** Whenever `.ll` sources change, the `.s` files must be regenerated in the same change.
-* **Reviewers of a `.ll` change review the corresponding `.s` diff as well.** The point of committing assembly is that the two stay in step.
+* **The Scheme seed source is the source of truth.** `.s` files are derived through Pino IR and are never edited by hand.
+* **A stale `.s` is a defect.** Whenever the seed source changes, the `.s` files must be regenerated in the same change.
 * **Assembly is committed per target.** Adding a target adds an artifact, not a variant of an existing one.
+* **A missing `.s` is acceptable before the Scheme seed exists**, and is a defect afterwards.
 
 Open item: whether regeneration of `.s` is enforced by CI (see section 8).
 
@@ -48,7 +49,7 @@ Open item: whether regeneration of `.s` is enforced by CI (see section 8).
 
 | Artifact | What it proves | What it does not prove |
 | :--- | :--- | :--- |
-| `.ll` sources | exactly what the seed is intended to do, at a level a person can read | that any distributed binary was built from them |
+| the seed source | exactly what the seed is intended to do, at a level a person can read | that any distributed binary was built from them |
 | `.s` files | the intended instruction sequence, and that a local assembler can reproduce a binary | that the published binary matches, unless the user compares |
 | binaries | only what the user verifies: signature, scan result, hex inspection | provenance, in the general case |
 
@@ -56,7 +57,7 @@ The practical auditability of a binary rests on its size only in the negative se
 
 ## 5. Provenance Non-Goal
 
-There is no practical way to prove that a distributed seed binary was produced from the published `.ll` sources, and the project does not attempt to provide one. A user who requires such a guarantee uses the Secure Path described in [Bootstrapping Paths & Trust](02_bootstrapping_and_trust.md), where the seed is bootstrapped inside a controlled environment.
+There is no practical way to prove that a distributed seed binary was produced from the published seed source, and the project does not attempt to provide one. A user who requires such a guarantee uses the Secure Path described in [Bootstrapping Paths & Trust](02_bootstrapping_and_trust.md), where the seed is bootstrapped inside a controlled environment.
 
 This is a deliberate limit, not an oversight. It is recorded here so that it is not rediscovered as a defect, and so that the two bootstrapping paths are understood as a trade-off rather than as competing claims.
 
@@ -66,7 +67,7 @@ This limit does not go away when the seed becomes self-compilable. A user holdin
 
 Ordered from strongest to weakest:
 
-1. **Read the `.ll` sources.** They are the source of truth and are small enough for a complete review.
+1. **Read the seed source.** It is the source of truth and is small enough for a complete review.
 2. **Rebuild locally.** Assemble the committed `.s` file with the platform assembler and compare behaviour with the distributed binary.
 3. **Compare binary to assembly.** Use a custom automated tool to check that the machine code corresponds to the committed assembly (mentioned in [Bootstrapping Paths & Trust](02_bootstrapping_and_trust.md)).
 4. **Hex review.** Inspect the entry point, the syscall stubs and the absence of unexpected imports and strings.
@@ -79,15 +80,15 @@ The acceptance criterion behind "Auditability & Simplicity" in the [Architecture
 Components that count against the budget:
 
 * the reader and the compiler front end;
-* the **evaluator** - environments, `apply`, special forms and primitive dispatch - required by resolved decision 7 in [Backend](backend.md), section 3.3;
+* the **Pino compiler library** - instruction encoder, backpatch resolver and container writer - which is linked into the seed;
 * the arena allocator and byte buffers;
-* the S-LLVM IR emitter;
 * the OS glue layer (the six host primitives listed in [Stage 1 (Seed)](04_stage1_seed.md), section 3).
 
 Components that do not count against it:
 
-* `simple-codegen` and the container writer: Stage 1 Lisp, executed at build time. They are reviewed as source, but they are not part of the binary.
-* target descriptions: data files.
+* target descriptions: data files, read at build time;
+* the seed's source in either language: reviewed as source, not shipped inside the binary;
+* committed `.s` files: derived artifacts, described in section 3.
 
 Open item: the numeric ceiling per artifact is not set yet (see section 8).
 
