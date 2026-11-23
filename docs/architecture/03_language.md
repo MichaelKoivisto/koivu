@@ -10,12 +10,27 @@ Foundational component of Koivu is a domain-specific programming language called
 Koivu Compiler Infrastructure will use it for writing compilers (and related tools), 
 and also for all three stages of bootstrapping and for all of build management. 
 
-Koivu Scheme is not a general-purpose programming language. It is intentionally stripped off many capabilities 
-to simplify the language and its libraries. It also features optimizations, specialized data types and memory management tools 
-that make sense when writing compilers but useless in other domains. 
+Koivu Scheme is not a general-purpose programming language. It exists to write compilers, and that purpose decides what it contains; the rule is stated in Purpose and Scope below. 
 
 Custom datatypes (`flat-vector`) in Koivu Scheme follow the spirit of Scheme (minimalism, expressive macros, and pattern matching) 
 while generating high-performance, linear LLVM IR under the hood.
+
+## Purpose and Scope
+
+Koivu Scheme exists to write compilers. Its users are the three bootstrap stages, the build system, and the frontends and backends for whatever languages Koivu is asked to compile. It is not a language for applications, and no part of its design is justified by application code.
+
+That purpose decides what the language contains, in both directions:
+
+* **What compilers need is in:** symbols, cons cells, closures, byte buffers, machine-width integers, `flat-vector`, and a macro system strong enough for a nanopass pipeline - together with the memory-management tools that make those cheap and that are useless in other domains.
+* **What compilers do not need is out**, however ordinary it is elsewhere in Scheme: no general-purpose library, no general garbage collector ([Stage 3](06_stage3_production_core.md)), no dynamic `eval` ([Stage 1](04_stage1_seed.md), section 4), no continuations in the bootstrap stages, and a deliberately small set of host system calls. Each of those is a recorded decision rather than an omission.
+
+### A Feature Belongs to the Stage That Needs It
+
+Koivu Scheme is not one language with one fixed feature set; it grows stage by stage. Each stage compiles a **subset** of the next stage's language, and the subset is fixed by what that next stage's source actually uses. The seed compiles the sapling's source, so the seed's language is what the sapling needs; the sapling compiles Stage 3's source, so the sapling's language is what Stage 3 needs.
+
+A feature's stage therefore follows from that rule rather than from taste. `flat-vector` is the case that matters: it exists so that frontends for C-family languages can lex, parse and emit over large codebases with data-oriented layouts ([Data-Oriented Design](data_oriented_design.md)), and Stage 3's own source does not use it. Stage 3 supports `flat-vector` for the frontends it hosts, and no earlier stage has to implement it - not because that would be hard, but because nothing that runs before Stage 3 would ever contain the form.
+
+For the same reason, a stage lacking a feature its successor has is not a defect. The seed is not an unfinished Stage 3; it is exactly as large as compiling the sapling requires.
 
 ## Dialect Baseline: R6RS Foundation
 
