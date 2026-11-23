@@ -93,16 +93,18 @@ Koivu Scheme Stage 2 and up compilers add following data types:
   When used for stand-alone variables, integer data types are implemented just like traditional Fixnums. 
   Compiler makes a distinction between signed/unsigned integers of different sizes in the following cases:
   - Type checking. 
-  - Creation of `flat-vector`s with binary buffers of proper size, stride and alignment.
-  
-* `flat-vector`
+  - Creation of binary buffers with the proper size, stride and alignment (Stage 3's `flat-vector`, below).
 
-#### `flat-vector`
+### Stage 3 Data Types
 
 Koivu production-level compilers will implement lexing, parsing and code emiting [data-oriented algorithms](data_oriented_design.md)
 similar to [Carbon compiler](https://docs.carbon-lang.dev/toolchain/docs/), and will use similar data structures. 
 
-For this purpose Koivu Scheme Stage 2 adds a built-in data type called `flat-vector` and intoduces new macros:
+Stages 1 and 2 do not have `flat-vector`. The sapling compiles Stage 3's source, Stage 3's own source uses no `define-flat-vector` form, so the form never reaches it ([Purpose and Scope](#purpose-and-scope)).
+
+#### `flat-vector`
+
+For this purpose Koivu Scheme Stage 3 adds a built-in data type called `flat-vector` and intoduces new macros:
 
 1. **`define-flat-vector:`** Declares the layout of an indexable, growable, dense, flat array.
 2. **`flat-vector-for-each:`** Combines a high-speed iterative loop, pointer/offset folding, and pattern matching into a single construct. It automatically binds field variables to the current item in the array without manual index math or offsets.

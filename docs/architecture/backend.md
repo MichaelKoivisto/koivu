@@ -105,7 +105,7 @@ What it deliberately does not contain:
 Lowering runs in `koivu-vesi`, outside every compiler in the chain. Neither the seed nor the sapling contains an encoder, a container writer or a target description: they read Scheme, build Pino IR, write an image and stop.
 
 * **Stage 1.** The seed reads Scheme, builds Pino IR and writes `koivu-sapling.pino`. Vesi lowers that image to the sapling executable.
-* **Stage 2.** The sapling does the same, with a larger front end: hygienic macros and `flat-vector` become available. Its image is lowered by the same Vesi.
+* **Stage 2.** The sapling does the same, with a larger front end: hygienic macros become available. Its image is lowered by the same Vesi. `flat-vector` is not part of this: it is a Stage 3 data type, because Stage 3's own source uses no `define-flat-vector` form ([Koivu Scheme](03_language.md), Purpose and Scope).
 
 Two consequences follow, and both are deliberate:
 

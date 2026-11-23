@@ -276,7 +276,7 @@ Raw syscalls are not a stable interface on macOS, so the executables Vesi produc
 The milestones below are the ones defined in [Backend](backend.md), section 1. Pino IR is the IR of the first two.
 
 1. **M0 - the seed compiles the sapling.** The seed, written in C and built with an LLVM C compiler, implements the S-expression reader, the symbol interner, the bump allocator and the front end. It compiles the sapling source to an image, and `koivu-vesi` - also C before M2 - lowers that image to the sapling executable with no external tool.
-2. **M1 - the sapling compiles Stage 3.** The sapling adds hygienic macros and `flat-vector` support and compiles Stage 3 source to an image, which Vesi lowers into a working Version A, again with no external tool.
+2. **M1 - the sapling compiles Stage 3.** The sapling adds hygienic macros and compiles Stage 3 source to an image, which Vesi lowers into a working Version A, again with no external tool. It needs no `flat-vector` support, because Stage 3's own source uses no `define-flat-vector` form ([Koivu Scheme](03_language.md), Purpose and Scope).
 3. **M2 - the seed becomes self-compilable.** The seed is rewritten in Scheme and rebuilt by a Koivu compiler produced by the chain, lowered through Pino. The C seed and the C Vesi are deleted. This is the boundary between early and late development ([Bootstrapping Paths & Trust](02_bootstrapping_and_trust.md), section 2), and the point from which committed `.s` seeds become worth publishing ([Seed Artifacts](08_seed_artifacts.md), section 3).
 4. **M3 - Stage 3 emits machine code natively.** Version A compiles Stage 3 source to Version B.
 5. **M4 - fixpoint.** Version B produces a byte-identical Version C.

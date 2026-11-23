@@ -5,6 +5,7 @@
 
 `flat-vector` is a built-in data type designed for use in lexing, parsing and code emiting [data-oriented algorithms](data_oriented_design.md). 
 Koivu Scheme Stage 3 compiler supports `flat-vector`. Stages 1 and 2 do not. 
+It exists for the frontends Stage 3 hosts rather than for Stage 3's own code, which does not use it ([Koivu Scheme](03_language.md), Purpose and Scope).
 
 ## Flat Vector API Surface Area
 
