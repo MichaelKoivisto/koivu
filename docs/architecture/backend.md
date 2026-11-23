@@ -107,7 +107,7 @@ The Pino compiler is compiled *into* the seed and *into* the bridge. It is not e
 Two consequences follow, and both are deliberate:
 
 * **No evaluator.** Nothing in the seed interprets Scheme at build time. The seed is a compiler and nothing else. This is a substantial reduction compared with a design in which the seed evaluates its own backend.
-* **One implementation, twice written, never in parallel.** The library is written in C before M2 and in Scheme after it. The C version is deleted at M2 rather than maintained, which is why there is no permanent mirror to keep in step and no equivalence criterion between two live implementations.
+* **One implementation, written twice, and only briefly twice.** The C version serves the seed until M2. The Scheme version is written for the bridge, which must lower its own Pino IR from M1; at M2 the seed adopts it and the C version is deleted. Between M1 and M2 both versions exist, and that overlap is the one window in which a difference between them could hide - which is why acceptance criterion 5 compares a seed built by the C scaffold against a seed built by the chain, over the full test suite. After M2 there is one implementation and no mirror to keep in step.
 
 The seed's implementation language is a staged decision described in [Bootstrapping Paths & Trust](02_bootstrapping_and_trust.md), section 2.
 
@@ -200,7 +200,7 @@ Stage 3 and other production compilers emit LLVM IR via `(koivu backend syntax l
 | 1 | IR used by Stage 1 and Stage 2 | **Pino IR only** | no LLVM IR anywhere in the bootstrap chain |
 | 2 | IR used by Stage 3 and later | **LLVM IR** | `.ll` emission is permanent and is never removed |
 | 3 | Pino compiler: library or tool? | **Library**, linked into each compiler that emits Pino | the seed stays the single distributed artifact |
-| 4 | Seed implementation language | **C until M2, Scheme afterwards**; the C source is deleted, not maintained | one implementation at a time, no permanent mirror |
+| 4 | Seed implementation language | **C until M2, Scheme afterwards**; the C source is deleted, not maintained | no permanent mirror; the two versions overlap only between M1 and M2, and criterion 5 closes that window |
 | 5 | Does the seed contain an evaluator? | **No** | the seed is a compiler and nothing else |
 | 6 | `koivu-llc` input format | **Textual `.ll`** (true drop-in) | the production stack needs an LLVM IR parser, see [notes](notes_on_llvm_ir_parsing.md); the parser is never part of the seed |
 | 7 | `koivu-llc` placement | **Outside the bootstrap chain** | it serves Stage 3, the planned frontends and LLVM-like tooling, not the seed or the bridge |
