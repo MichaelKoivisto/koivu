@@ -28,9 +28,9 @@ Minimum host platforms for the Koivu project are 64-bit Windows, Linux and macOS
 
 | Host platform | Architecture | Seed artifact form | Priority |
 | :--- | :--- | :--- | :--- |
-| Linux | `x86_64` | committed `.s`, assembled locally | **1 - highest** |
-| Windows | `x86_64` | published `koivu-seed.exe`, optionally signed | **2** |
-| macOS | `arm64` | committed `.s`, assembled locally | **3 - lowest of the three** |
+| Linux | `x86_64` | published `koivu-seed` binary; committed `.s` for reading | **1 - highest** |
+| Windows | `x86_64` | published `koivu-seed.exe`, optionally signed; committed `.s` for reading | **2** |
+| macOS | `arm64` | published binary; committed `.s`. How the binary is produced depends on open question 1 in section 7 | **3 - lowest of the three** |
 
 These three are the only host platforms. Other host architectures are not rejected, but they are very low priority: it is simply unlikely that anyone would want them.
 
@@ -38,11 +38,11 @@ These three are the only host platforms. Other host architectures are not reject
 
 The order is a deliberate judgement, not a side effect of technical convenience. It is recorded here because it drives several other decisions: which platform reaches the bootstrap goal first, which platform is the reference for the seed size budget, and where experimentation with trust is expected to happen.
 
-* **Linux is first.** It combines a high number of advanced users with the technical and organizational freedom to experiment with bootstrapping and trust. Those are exactly the users who will read the `.ll` sources, assemble the seed themselves and try the Secure Path.
+* **Linux is first.** It combines a high number of advanced users with the technical and organizational freedom to experiment with bootstrapping and trust. Those are exactly the users who will read the seed source, compare it against the committed assembly and try the Secure Path.
 * **Windows is second.** It has a large user base, but it is a closed platform, and its vendor is unlikely to experiment with bootstrapping. Koivu's role there is therefore narrower: a dependency-free compiler chain option for ordinary users, not a platform for trust experiments.
 * **macOS is third.** It has fewer users than Windows, it is an even more closed platform, and signing of executable files adds complexity that the other two platforms do not have (see section 6).
 
-The artifact forms and their trust levels are defined in [Seed Artifacts](08_seed_artifacts.md), section 2. Windows receives a binary because a bare Windows OS has no assembler; POSIX hosts receive assembly sources because they do.
+The artifact forms and their trust levels are defined in [Seed Artifacts](08_seed_artifacts.md), section 2. **Every host receives a published binary**, because a released binary is what actually enables bootstrapping; committed `.s` files are a convenience for readers and never a build input ([Seed Artifacts](08_seed_artifacts.md), section 3). A bare Windows OS has no assembler, so local assembly is not an option there at all. POSIX hosts can assemble locally, which is what makes their `.s` file useful to read alongside the binary.
 
 ## 3. Target Architectures
 
@@ -53,7 +53,7 @@ The artifact forms and their trust levels are defined in [Seed Artifacts](08_see
 | 32-bit targets, for example `arm32` | future, cross-compilation only | see section 5 |
 | any other architecture | reachable through a new target description | see section 4 |
 
-A target is supported when a production target description exists for it (see [Backend](backend.md), section 5). A target becomes a *host* only when a seed artifact exists for it as well.
+A target is supported when a production target description exists for it (see [Backend](backend.md), section 6). A target becomes a *host* only when a seed artifact exists for it as well.
 
 ## 4. Porting to a New Platform
 
@@ -72,7 +72,7 @@ Result: a native Koivu compiler that emits code for the new platform. This goal 
 
 This is what makes the chain bootstrappable locally, without an existing host of that platform.
 
-1. Write a **simple target description** for the new target. Its scope is fixed by the closure invariant in [Backend](backend.md), section 4: exactly the IR that Stage 1 emits when compiling the bridge, plus the OS glue.
+1. Write a **Pino target description** for the new target. Its scope is fixed by the ISA invariant in [Backend](backend.md), section 4: a byte template for every instruction in the declared Pino ISA, plus the OS glue.
 2. Cross-compile the Stage 1 seed on an existing host.
 3. Add the resulting artifact to the published set for that platform (see [Seed Artifacts](08_seed_artifacts.md), section 2).
 4. Verify in order: Stage 1 test suite, bridge build, Stage 3 build.
@@ -81,7 +81,7 @@ Result: the platform can bootstrap Koivu locally. This goal does **not** by itse
 
 Neither goal implies the other. Goal B is the prerequisite for local bootstrapping; Goal A is the prerequisite for emitting code for the platform.
 
-This workflow is the reason the `.ll` sources of the seed are kept and published: a porter needs the source, not only a binary (see [Seed Artifacts](08_seed_artifacts.md), section 3).
+This workflow is the reason the seed source is kept and published: a porter needs the source, not only a binary ([Seed Artifacts](08_seed_artifacts.md), sections 2 and 3). The seed source is Scheme. The C seed that precedes it is a development scaffold and is never released.
 
 ## 5. Cross-Compilation Scope
 
@@ -101,25 +101,25 @@ This is the expected answer to the syscall problem, and it has one consequence f
 
 ### 6.2 Container Writer and Signing
 
-**Decision: macOS ships as `.s` only.** The seed artifact for macOS is a committed assembly file that the user assembles locally. No ad-hoc signature is embedded in a distributed binary and no notarization is required for the seed artifact itself. This is the simplest option, and it matches the priority reasoning in section 2.
+The seed writes the executable container itself on Linux and on Windows - ELF64 and PE32+ respectively ([Backend](backend.md), section 5). macOS is the one host where that is not the end of the story, because an executable on Apple Silicon must be signed before it will run.
+
+Two ways exist to turn the seed's output into a runnable macOS executable, and they differ sharply in cost:
+
+* **The seed emits `.s`, platform tools finish the job.** The user runs `as`, `ld` and, if needed, `codesign`. No Mach-O writer is required in the seed at all, but macOS then depends on external tools and does **not** reach bootstrap goal 1 as defined in [Backend](backend.md), section 1.
+* **The seed emits a signed Mach-O itself.** This requires a Mach-O container writer plus an ad-hoc signer inside the seed - a code directory and a superblob, not just headers - and it pulls a dynamic-link dependency on `libSystem` into the executables the seed produces. It is the opposite of the simplest option.
 
 One consequence has to be stated clearly, because it is easy to miss:
 
-> Shipping `.s` only solves **distribution**, not **execution**. On Apple Silicon, the executable that the seed *produces* must also be signed, not just the seed itself.
+> Emitting `.s` solves **distribution**, not **execution**. On Apple Silicon, the executable that the seed *produces* must also be signed, not just the seed itself.
 
-So on macOS there are two ways to get a runnable bridge binary, and only one of them is simple:
+**Which of the two is chosen is open question 1 in section 7**, and it is deliberately not settled here. Until it is answered, macOS is supported as a host in the weaker sense: a published binary and a committed `.s` file both exist, produced through platform tools, so macOS bootstraps locally but does not reach the bootstrap goal. Linux and Windows are expected to reach it first, which is consistent with the priority order in section 2.
 
-* **Seed emits `.s` for the bridge, platform tools finish the job.** The seed uses the emitter it already has; the user runs the platform assembler, linker and, if needed, `codesign`. No Mach-O writer is required at all, but macOS then depends on external tools and does **not** reach the bootstrap goal defined in [Backend](backend.md), section 1.
-* **Seed emits a signed Mach-O itself.** This requires a Mach-O container writer plus an ad-hoc signer inside the seed - a code directory and a superblob, not just headers - which is the opposite of the simplest option.
-
-The first option is chosen for now. macOS is therefore a Simple Path platform: it is supported, it bootstraps, but it keeps using platform tools, while Linux and Windows are expected to reach the bootstrap goal first.
-
-This also means that whether a Mach-O container writer is needed at all in the near term is open question 1. Resolved decision 6 in [Backend](backend.md), section 9 lists ELF, PE and Mach-O as eventually required; that remains true as a long-term statement, but Mach-O is no longer on the near-term path.
+The long-term position is unaffected: all three container formats are eventually required - ELF, PE and Mach-O (resolved decision 8 in [Backend](backend.md), section 9). What is open is only whether Mach-O belongs on the near-term path.
 
 ## 7. Open Questions
 
 | # | Question | Why it matters |
 | :--- | :--- | :--- |
-| 1 | Is a Mach-O container writer in scope in the near term, or is macOS served by `.s` output plus platform `as`, `ld` and `codesign` until further notice? | decides whether the seed grows by a Mach-O writer and an ad-hoc signer; revisits resolved decision 6 in [Backend](backend.md), section 9 |
-| 2 | Do Linux and macOS share one POSIX source set (glue, emitter, ELF writer), or are they separate seed sources? | if macOS uses no container writer, sharing is cheap; if it gets one, separate sources may be clearer |
+| 1 | Is a Mach-O container writer in scope in the near term, or is macOS served by `.s` output plus platform `as`, `ld` and `codesign` until further notice? | decides whether the seed grows by a Mach-O writer and an ad-hoc signer; revisits resolved decision 8 in [Backend](backend.md), section 9 |
+| 2 | Do Linux and macOS share one POSIX source set (glue and container writer), or are they separate seed sources? | if macOS uses no container writer, sharing is cheap; if it gets one, separate sources may be clearer |
 | 3 | Are binaries for other targets published per release, or on request? | also recorded as an open item in [Seed Artifacts](08_seed_artifacts.md), section 8 |
