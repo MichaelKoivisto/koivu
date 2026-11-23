@@ -18,8 +18,7 @@ Koivu backend is closely aligned with LLVM backend architecture: it follows the 
 | Term | Definition |
 | :--- | :--- |
 | **Pino IR** | S-expression-encoded stack-machine intermediate representation used by Stage 1 and Stage 2. Defined in [Pino IR](pino.md). |
-| **Pino compiler** | The library that lowers Pino IR to target machine code and wraps the result in an executable container. |
-| **Container writer** | The part of the Pino compiler that prepends an OS executable header to the emitted machine code. |
+| **Container writer** | The part of Vesi that prepends an OS executable header to the emitted machine code. |
 | **LLVM IR** | The textual format defined by the LLVM specifications. The production interchange format of Stage 3 and later. |
 | **Emitter** | AST -> text. Turns an in-memory LLVM IR representation into a textual `.ll` file. |
 | **Lowerer** | IR -> machine code. |
@@ -27,7 +26,7 @@ Koivu backend is closely aligned with LLVM backend architecture: it follows the 
 | **`koivu-llc`** | Command-line tool that lowers textual LLVM IR using the production backend libraries. A drop-in replacement for LLVM's `llc`, used outside the bootstrap chain. |
 | **`koivu-vesi`** | The Pino lowerer: reads a `.pino` image, verifies it, and writes a target executable, or renders the same encoding as assembly text. In the bootstrap chain; defined in [Koivu Vesi](koivu-vesi.md). |
 
-**Documentation rule:** blueprints do not use the bare word "backend" as a component name. Write "Pino compiler", "emitter" or "lowerer".
+**Documentation rule:** blueprints do not use the bare word "backend" as a component name. Write "Vesi", "emitter" or "lowerer".
 
 ## 1. Two Intermediate Representations
 
@@ -36,8 +35,8 @@ Koivu uses two IRs. The boundary between them is a stage boundary, not a prefere
 | | Pino IR | LLVM IR |
 | :--- | :--- | :--- |
 | **Used by** | Stage 1, Stage 2 | Stage 3 and later |
-| **Form** | S-expression stack machine, held in memory; printable for debugging | Textual `.ll`, a public and documented format |
-| **Lowered by** | the Pino compiler, inside the same compiler that emitted it | `koivu-llc`, or LLVM's own tools |
+| **Form** | S-expression stack machine, written out as a canonical `.pino` image ([Pino IR](pino.md)) | Textual `.ll`, a public and documented format |
+| **Lowered by** | `koivu-vesi`, from the image the compiler wrote ([Koivu Vesi](koivu-vesi.md)) | `koivu-llc`, or LLVM's own tools |
 | **Optimising** | no - one fixed byte template per instruction | yes - full production pipeline |
 | **Why** | the seed must be small, must need no register allocator, and must produce machine code whose correspondence to the source is mechanically checkable | Stage 3 is a production compiler and needs real optimisation |
 
@@ -47,7 +46,7 @@ The stack machine is what makes the bootstrap tractable: with an implicit operan
 
 Two distinct goals, reached at different milestones:
 
-1. **The sapling build must not depend on any external tool** - no `llc`, no assembler, no linker, and no build system beyond the thin OS script that starts the seed. Met at **M0**.
+1. **The sapling build must not depend on any external tool** - no `llc`, no assembler, no linker, and no build system beyond the thin OS script that starts the seed and Vesi. `koivu-vesi` is a Koivu artifact, not an external tool. Met at **M0**.
 2. **The seed build must not depend on any external tool** - the seed can be rebuilt from its own source by a Koivu compiler produced by the chain. Met at **M2**.
 
 Goal 1 is the bootstrap goal proper. Goal 2 is what moves the seed from early to late development and allows a public seed release.
@@ -58,58 +57,60 @@ A milestone marks the point at which a lowering capability appears. It is not a 
 
 | Milestone | What works | External tools still needed |
 | :--- | :--- | :--- |
-| **M0** | The C seed compiles the sapling source; the resulting sapling binary runs | a C compiler, to build the seed |
-| **M1** | The sapling compiles Stage 3 source; the resulting Version A runs | a C compiler, to build the seed |
-| **M2** | A Koivu compiler produced by the chain rebuilds the seed from its Scheme source; the C seed is retired | none, given an existing Koivu compiler |
+| **M0** | The C seed compiles the sapling source to an image; Vesi lowers it; the sapling binary runs | a C compiler, to build the seed and Vesi |
+| **M1** | The sapling compiles Stage 3 source to an image; Vesi lowers it; Version A runs | a C compiler, to build the seed and Vesi |
+| **M2** | A Koivu compiler produced by the chain rebuilds the seed and Vesi from their Scheme sources; the C scaffold is retired | none, given an existing Koivu compiler |
 | **M3** | Version A compiles Stage 3 source to Version B, emitting machine code natively | none |
 | **M4** | Version B produces a byte-identical Version C | none |
 
 M2 is the milestone that matters most outside this document: it is the boundary between early and late development defined in [Bootstrapping Paths & Trust](02_bootstrapping_and_trust.md), section 2, and therefore the point from which machine-code auditability outranks everything else.
 
-## 2. The Pino Compiler Library
+## 2. The Pino Lowerer
 
-The Pino compiler is a **library**, not a program. It is linked into whichever compiler emits Pino IR, and it has no command-line interface of its own.
+Lowering is a **program**, not a library: `koivu-vesi`, defined in [Koivu Vesi](koivu-vesi.md). Nothing links it in, and it has a command-line interface of its own.
 
 | Property | Value |
 | :--- | :--- |
-| **Direction** | Pino IR -> machine code -> executable |
-| **Input** | Pino IR held in memory by the emitting compiler |
-| **Output** | a linked executable for the target |
+| **Direction** | `.pino` image -> machine code -> executable |
+| **Input** | one image file per program |
+| **Output** | an executable for the selected target, or the same encoding as `.s` |
 | **Available from** | M0 |
-| **Consumers** | `koivu-seed` (Stage 1), `koivu-sapling` (Stage 2) |
+| **Consumers** | none - it is run, not linked |
 | **Implementation** | C until M2, Scheme afterwards |
 
-Contents of the library:
+What it contains:
 
+* the `.pino` reader, and the static stack-balance verifier that runs before any byte is emitted;
 * the instruction encoder - one fixed byte template per Pino instruction per target;
 * the label table and the backpatch resolver;
 * the container writer (section 5);
 * target descriptions (section 6).
 
-Contents it deliberately does not have:
+What it deliberately does not contain:
 
+* no type checking, no scope resolution and no control-flow synthesis - those belong to a front end and are finished before an image exists;
 * no register allocator - the operand stack is the register file;
 * no instruction scheduler;
 * no peephole pass;
 * no IR-to-IR transformation of any kind;
-* no parser for any textual IR;
+* no macro expander;
 * no linker and no object-file format - Koivu has no separate compilation (section 9, decision 12).
 
-**Why a library and not a tool.** A separate Pino compiler binary would be a second distributed artifact, needing its own audit, its own versioning and its own build. Since the only consumers are the two compilers that emit Pino, linking it in costs nothing and keeps the seed the single artifact users must trust.
+**Why a program and not a library.** A library would have to be linked into each compiler that emits Pino, which puts the encoder, the container writer and the target descriptions inside every front end and makes each of them target-specific. As a program, the front end needs none of that and becomes one artifact for every host. The full argument, including the cost, is in [Koivu Vesi](koivu-vesi.md), section 1.
 
 **Behaviour on unsupported input:** a hard, explicit error. Silent miscompilation is forbidden.
 
 ## 3. Where the Lowering Code Runs
 
-The Pino compiler is compiled *into* the seed and *into* the sapling. It is not evaluated by the seed, and the seed contains no evaluator.
+Lowering runs in `koivu-vesi`, outside every compiler in the chain. Neither the seed nor the sapling contains an encoder, a container writer or a target description: they read Scheme, build Pino IR, write an image and stop.
 
-* **Stage 1.** The seed reads Scheme, builds Pino IR, and calls the Pino compiler library to lower it and write the executable. One program, one binary.
-* **Stage 2.** The sapling does the same, with a larger front end: hygienic macros and `flat-vector` become available. The Pino compiler library is the same code.
+* **Stage 1.** The seed reads Scheme, builds Pino IR and writes `koivu-sapling.pino`. Vesi lowers that image to the sapling executable.
+* **Stage 2.** The sapling does the same, with a larger front end: hygienic macros and `flat-vector` become available. Its image is lowered by the same Vesi.
 
 Two consequences follow, and both are deliberate:
 
 * **No evaluator.** Nothing in the seed interprets Scheme at build time. The seed is a compiler and nothing else. This is a substantial reduction compared with a design in which the seed evaluates its own backend.
-* **One implementation, written twice, and only briefly twice.** The C version serves the seed until M2. The Scheme version is written for the sapling, which must lower its own Pino IR from M1; at M2 the seed adopts it and the C version is deleted. Between M1 and M2 both versions exist, and that overlap is the one window in which a difference between them could hide - which is why acceptance criterion 5 compares a seed built by the C scaffold against a seed built by the chain, over the full test suite. After M2 there is one implementation and no mirror to keep in step.
+* **One lowering implementation, in one place.** There is no in-process copy to keep in step with a second one, and no compiler can disagree with Vesi about what an instruction means, because there is only Vesi. It is still written twice - C before M2, Scheme after - but that is the same single rewrite the seed goes through, and it is closed by the same kind of criterion: the C version and the Scheme version must produce identical output, checked over the whole test suite (section 8, criterion 9).
 
 The seed's implementation language is a staged decision described in [Bootstrapping Paths & Trust](02_bootstrapping_and_trust.md), section 2.
 
@@ -123,21 +124,21 @@ This is a build-time, machine-checked requirement, not a review guideline.
 
 ### Conformance test (required)
 
-1. Compile the sapling sources with the seed, capturing the emitted instruction set.
-2. Compile the Stage 3 sources with the sapling, capturing the emitted instruction set.
-3. Check that every captured instruction is in the declared ISA and has a template for each supported target.
+1. Compile the sapling sources with the seed, capturing the emitted `.pino` image.
+2. Compile the Stage 3 sources with the sapling, capturing the emitted image.
+3. Check that every instruction in both images is in the declared ISA and has a template for each supported target.
 4. Fail the build otherwise.
 
-The test belongs to the regression suites of Stage 1 and Stage 2. Its purpose is to prevent a front-end change from introducing an instruction the Pino compiler cannot lower.
+The test belongs to the regression suites of Stage 1 and Stage 2. Its purpose is to prevent a front-end change from introducing an instruction that Vesi cannot lower.
 
 ### Explicitly out of scope
 
 * Lowering LLVM IR. Nothing in the bootstrap chain reads or writes `.ll`; that is Stage 3's business.
-* Optimisation. The Pino compiler has none, and none is planned.
+* Optimisation. Vesi has none, and none is planned.
 
 ## 5. Container Writers
 
-The Pino compiler writes the executable container itself, so the seed needs no assembler and no linker.
+Vesi writes the executable container itself, so no compiler in the chain needs an assembler and no build needs a linker.
 
 | Target | Format | Notes |
 | :--- | :--- | :--- |
@@ -145,9 +146,9 @@ The Pino compiler writes the executable container itself, so the seed needs no a
 | Windows `x86_64` | PE32+ | near term |
 | macOS `arm64` | Mach-O | near term; written unsigned, see below |
 
-Resolved decision: all three formats are in scope and none is deferred. The seed writes every container unsigned.
+Resolved decision: all three formats are in scope and none is deferred. Vesi writes every container unsigned.
 
-**The seed writes containers; it does not sign them.** Mach-O is the one format that carries a signing requirement on the target platform, and the two jobs separate cleanly: the seed emits an unsigned container, and the user ad-hoc signs the result with `codesign --force --sign -`, which needs no certificate, no developer account and no network. A code directory and a superblob inside the seed would be a second binary format to implement and audit, bought for no gain. Raw syscalls are not a stable interface on macOS, so the Mach-O path links against `libSystem` ([Platforms and Targets](01_platforms.md), section 6.1).
+**Vesi writes containers; it does not sign them.** Mach-O is the one format that carries a signing requirement on the target platform, and the two jobs separate cleanly: the emitter writes an unsigned container, and the user ad-hoc signs the result with `codesign --force --sign -`, which needs no certificate, no developer account and no network. A code directory and a superblob inside Vesi would be a second binary format to implement and audit, bought for no gain. Raw syscalls are not a stable interface on macOS, so the Mach-O path links against `libSystem` ([Platforms and Targets](01_platforms.md), section 6.1).
 
 ## 6. Target Descriptions
 
@@ -155,7 +156,7 @@ Target descriptions are stored as Scheme source files. They are a **subset** of 
 
 | Kind | Used by | Scope | Milestone |
 | :--- | :--- | :--- | :--- |
-| **Pino target description** | the Pino compiler | the byte template for each Pino instruction, plus the ABI facts the container writer needs | M0 |
+| **Pino target description** | Vesi | the byte template for each Pino instruction, plus the ABI facts the container writer needs | M0 |
 | **Production target description** | production code generator, `koivu-llc` | full instruction set required by the production pipeline | M3 |
 
 Adding a target means writing a Pino target description - one template per instruction, and a container writer for its format. The step-by-step procedure is described in [Platforms and Targets](01_platforms.md).
@@ -189,13 +190,14 @@ Stage 3 and other production compilers emit LLVM IR via `(koivu backend syntax l
 ## 8. Acceptance Criteria
 
 1. **ISA conformance:** the invariant of section 4 is checked automatically in CI, for both Stage 1 and Stage 2.
-2. **Container validity:** executables produced by the Pino compiler run on their target with no external assembler, linker or system toolchain.
-3. **No external tool in the sapling build:** from M0, the sapling build invokes nothing outside the seed.
+2. **Container validity:** executables produced by Vesi run on their target with no external assembler, linker or system toolchain.
+3. **No external tool in the sapling build:** from M0, the sapling build invokes nothing outside the seed and Vesi.
 4. **Determinism:** Pino lowering and container writing are deterministic - stable ordering, no timestamps, no absolute paths - because the self-hosting fixpoint check compares binaries byte-for-byte.
 5. **Seed self-compilation equivalence:** from M2, a seed rebuilt from Scheme source by a Koivu compiler behaves identically to the seed built by the C scaffold across the full test suite. This is the criterion that retires the C seed.
 6. **Fixpoint:** Version B and Version C are byte-for-byte identical.
 7. **Mechanical auditability:** the mapping from Pino IR to emitted bytes is fixed and can be checked by a tool, so a distributed seed binary can be verified against the Pino source it was lowered from.
 8. **`koivu-llc` parity:** for the supported subset, `koivu-llc` output passes the same tests as `llc` output.
+9. **Lowerer equivalence:** the C and the Scheme implementation of Vesi produce byte-identical output for every image in the test suite. This is the criterion that retires the C version at M2.
 
 ## 9. Decisions
 
@@ -203,16 +205,16 @@ Stage 3 and other production compilers emit LLVM IR via `(koivu backend syntax l
 | :--- | :--- | :--- | :--- |
 | 1 | IR used by Stage 1 and Stage 2 | **Pino IR only** | no LLVM IR anywhere in the bootstrap chain |
 | 2 | IR used by Stage 3 and later | **LLVM IR** | `.ll` emission is permanent and is never removed |
-| 3 | Pino compiler: library or tool? | **Library**, linked into each compiler that emits Pino | the seed stays the single distributed artifact |
-| 4 | Seed implementation language | **C until M2, Scheme afterwards**; the C source is deleted, not maintained | no permanent mirror; the two versions overlap only between M1 and M2, and criterion 5 closes that window |
+| 3 | Pino compiler: library or tool? | **Program**, `koivu-vesi`, run by the build and never linked into a compiler | the front end stays portable and target-independent, at the cost of two artifacts per host instead of one; reasoning and rejected alternatives in [Koivu Vesi](koivu-vesi.md), section 1 |
+| 4 | Seed implementation language | **C until M2, Scheme afterwards**; the C source is deleted, not maintained | no permanent mirror; the two versions of the seed overlap only between M1 and M2, and criterion 5 closes that window. Vesi goes through the same rewrite, closed by criterion 9 |
 | 5 | Does the seed contain an evaluator? | **No** | the seed is a compiler and nothing else |
 | 6 | `koivu-llc` input format | **Textual `.ll`** (true drop-in) | the production stack needs an LLVM IR parser, see [notes](notes_on_llvm_ir_parsing.md); the parser is never part of the seed |
 | 7 | `koivu-llc` placement | **Outside the bootstrap chain** | it serves Stage 3, the planned frontends and LLVM-like tooling, not the seed or the sapling |
-| 8 | Executable container formats | **All three: ELF, PE and Mach-O, none deferred** | the seed writes every container unsigned; signing is a user step, see section 5 |
+| 8 | Executable container formats | **All three: ELF, PE and Mach-O, none deferred** | Vesi writes every container unsigned; signing is a user step, see section 5 |
 | 9 | Bootstrap goal 1 | **The sapling build must not depend on any external tool** | met at M0 |
 | 10 | Bootstrap goal 2 | **The seed build must not depend on any external tool** | met at M2; this is the early/late boundary |
 | 11 | Stage 1 closure representation | **Chained frames: `closure = { code_ptr, env_ptr }`, frames linked by a parent pointer, variable access by a compile-time `(depth, index)` pair** | no free-variable analysis and no copying at closure creation; `set!` on captured variables is allowed and shares state; environments live in the arena, so no GC is needed |
-| 12 | Compilation model | **Whole-program only: no separate compilation, no object files, no linker.** A compilation starts from one root source and produces one executable | further files enter through `include`, textually, at read time ([Koivu Scheme](03_language.md), Multi-File Programs); producing several executables is a loop over programs, not a compiler mode |
+| 12 | Compilation model | **Whole-program only: no separate compilation, no object files, no linker.** A compilation starts from one root source and produces one image, which Vesi lowers to one executable | further files enter through `include`, textually, at read time ([Koivu Scheme](03_language.md), Multi-File Programs); producing several executables is a loop over programs, not a compiler mode |
 | 13 | Program entry point | **A top-level procedure `main` of arity 0, whose return value is the exit status**; the executable's startup stub calls it | a program with no `main` or two is a build error; arguments are read through primitives instead of being passed as a list, so nothing is allocated before `main` runs ([Koivu Scheme](03_language.md), Program Entry Point) |
 | 14 | Build description | **`build.koivu`, a manifest read as data by the compiler**, listing programs and their root sources | no executable build script and no ordering, because `include` encodes the program and the compiler has no evaluator ([Stage 1 (Seed)](04_stage1_seed.md), section 7) |
 
