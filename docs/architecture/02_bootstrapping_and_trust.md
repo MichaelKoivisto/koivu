@@ -89,7 +89,7 @@ They are a trade-off, not competing claims. Each path is described below with wh
 > Capt. Barbossa: I must admit, Jack, I thought I had you figured. But it turns out you're a hard man to predict.<br>
 > Capt. Jack Sparrow: Me? I'm dishonest. And a dishonest man you can always trust to be dishonest. Honestly. It's the honest ones you want to watch out for, because you can never predict when they're going to do something incredibly... stupid.
 
-Simple Path is a convenience for the majority of developers and users. Linux and macOS users translate the committed seed assembly into an executable with their platform assembler. Windows users receive a binary seed as part of the Koivu download, because a bare Windows OS has no assembler tool.
+Simple Path is a convenience for the majority of developers and users. Every user downloads a seed binary for their platform, because that binary is what makes bootstrapping possible. Linux and macOS users additionally have the committed seed assembly: they can assemble it with the platform assembler and compare the result against the binary they downloaded. Windows users have no such option, because a bare Windows OS has no assembler tool.
 
 A small binary is still suitable for human inspection, at least in theory: it can be opened in a hex editor and compared against the assembly. More practical options exist as well: an antivirus scan, a digital signature check, an automated comparison of the binary against the source assembly, and so on. The smaller the binary, the easier the inspection. The available recipes are listed in [Seed Artifacts](08_seed_artifacts.md), section 6.
 
