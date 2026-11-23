@@ -183,7 +183,7 @@ The seed is built by a C compiler before M2 and by a Koivu compiler produced by 
 * **Before M2:** `build.sh` invokes the host's LLVM C compiler on the C sources, selecting `os/linux` or `os/macos`; `build.cmd` does the same on Windows `x86_64` with `os/windows`. The C compiler is the only external build tool the project ever uses, and only during early development.
 * **From M2:** a Koivu compiler produced by the chain compiles the Scheme sources, lowers Pino IR and writes the container itself. No C compiler, assembler, linker or platform toolchain is involved.
 
-**The target is a build driven by Koivu.** Multi-file builds are Koivu's own responsibility: a build description written in Koivu Scheme, executed by a Koivu compiler, decides which sources are compiled and in what order. Shell scripts survive only where the host leaves no alternative - starting the first binary, or reaching the external C compiler before M2 - and even there they only invoke.
+**The target is a build driven by Koivu.** Multi-file builds are Koivu's own responsibility: a build description written in Koivu Scheme, executed by a Koivu compiler, decides which sources form a program. There is no separate compilation and nothing to link ([Backend](backend.md), section 9, decision 12); producing several executables is a loop over programs, not a compiler mode. Shell scripts survive only where the host leaves no alternative - starting the first binary, or reaching the external C compiler before M2 - and even there they only invoke.
 
 The per-host artifact table is in [Platforms and Targets](01_platforms.md), section 2.
 

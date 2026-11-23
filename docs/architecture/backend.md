@@ -47,7 +47,7 @@ The stack machine is what makes the bootstrap tractable: with an implicit operan
 
 Two distinct goals, reached at different milestones:
 
-1. **The bridge build must not depend on any external tool** - no `llc`, no assembler, no linker. Met at **M0**.
+1. **The bridge build must not depend on any external tool** - no `llc`, no assembler, no linker, and no build system beyond the thin OS script that starts the seed. Met at **M0**.
 2. **The seed build must not depend on any external tool** - the seed can be rebuilt from its own source by a Koivu compiler produced by the chain. Met at **M2**.
 
 Goal 1 is the bootstrap goal proper. Goal 2 is what moves the seed from early to late development and allows a public seed release.
@@ -92,7 +92,8 @@ Contents it deliberately does not have:
 * no instruction scheduler;
 * no peephole pass;
 * no IR-to-IR transformation of any kind;
-* no parser for any textual IR.
+* no parser for any textual IR;
+* no linker and no object-file format - Koivu has no separate compilation (section 9, decision 12).
 
 **Why a library and not a tool.** A separate Pino compiler binary would be a second distributed artifact, needing its own audit, its own versioning and its own build. Since the only consumers are the two compilers that emit Pino, linking it in costs nothing and keeps the seed the single artifact users must trust.
 
@@ -209,5 +210,6 @@ Stage 3 and other production compilers emit LLVM IR via `(koivu backend syntax l
 | 9 | Bootstrap goal 1 | **The bridge build must not depend on any external tool** | met at M0 |
 | 10 | Bootstrap goal 2 | **The seed build must not depend on any external tool** | met at M2; this is the early/late boundary |
 | 11 | Stage 1 closure representation | **Chained frames: `closure = { code_ptr, env_ptr }`, frames linked by a parent pointer, variable access by a compile-time `(depth, index)` pair** | no free-variable analysis and no copying at closure creation; `set!` on captured variables is allowed and shares state; environments live in the arena, so no GC is needed |
+| 12 | Compilation model | **Whole-program only: no separate compilation, no object files, no linker.** A compilation is given a set of sources and produces one executable | several `.scm` files are read into a single program rather than linked together; producing several executables is a loop over programs, not a compiler mode |
 
 No decisions are currently open. The questions that remain concern release process and source sharing rather than this document: [Platforms and Targets](01_platforms.md), section 7.
