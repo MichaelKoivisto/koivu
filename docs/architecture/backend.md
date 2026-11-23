@@ -184,6 +184,8 @@ Stage 3 and other production compilers emit LLVM IR via `(koivu backend syntax l
 * **Milestone:** not tied to a bootstrap milestone. It depends on the production lowering stack (M3) and is scheduled independently.
 * **Input format:** textual `.ll`. A drop-in `llc` replacement must read textual LLVM IR, which implies an LLVM IR parser in the production stack. The cost of that parser is analysed in [Parsing LLVM IR in Koivu Scheme](notes_on_llvm_ir_parsing.md). The parser is never part of the seed.
 
+**The production stack is a library before it is a tool.** `koivu-llc` is one client of it; a build program written in Koivu Scheme is another. Because Stage 3 is written in the language it compiles, a build program can be compiled together with the production stack and then call it directly. That is why Koivu needs no `(compile ... into ...)` form: in Stage 3, compiling is an ordinary function call, and a front-end directive that duplicated it would be a second way to say the same thing. The seed and the bridge are not in that position - neither can be reached from Scheme code - which is why their build is driven by a data manifest instead ([Stage 1 (Seed)](04_stage1_seed.md), section 7).
+
 ## 8. Acceptance Criteria
 
 1. **ISA conformance:** the invariant of section 4 is checked automatically in CI, for both Stage 1 and Stage 2.
@@ -210,6 +212,6 @@ Stage 3 and other production compilers emit LLVM IR via `(koivu backend syntax l
 | 9 | Bootstrap goal 1 | **The bridge build must not depend on any external tool** | met at M0 |
 | 10 | Bootstrap goal 2 | **The seed build must not depend on any external tool** | met at M2; this is the early/late boundary |
 | 11 | Stage 1 closure representation | **Chained frames: `closure = { code_ptr, env_ptr }`, frames linked by a parent pointer, variable access by a compile-time `(depth, index)` pair** | no free-variable analysis and no copying at closure creation; `set!` on captured variables is allowed and shares state; environments live in the arena, so no GC is needed |
-| 12 | Compilation model | **Whole-program only: no separate compilation, no object files, no linker.** A compilation is given a set of sources and produces one executable | several `.scm` files are read into a single program rather than linked together; producing several executables is a loop over programs, not a compiler mode |
+| 12 | Compilation model | **Whole-program only: no separate compilation, no object files, no linker.** A compilation starts from one root source and produces one executable | further files enter through `include`, textually, at read time ([Koivu Scheme](03_language.md), Multi-File Programs); producing several executables is a loop over programs, not a compiler mode |
 
 No decisions are currently open. The questions that remain concern release process and source sharing rather than this document: [Platforms and Targets](01_platforms.md), section 7.

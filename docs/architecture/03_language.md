@@ -22,7 +22,7 @@ while generating high-performance, linear LLVM IR under the hood.
 Koivu Scheme adopts the [**R6RS (Revised^6 Report on Scheme)** specification](https://r6rs.org/) as its structural dialect baseline, strictly optimized to exclude non-compiler primitives. 
 R6RS is selected over other specifications for three primary reasons:
 
-* **Static Library Architecture:** The R6RS formal `(library ...)` syntax enforces explicit, compile-time separation between macro expansion and runtime code. This allows the Stage 3 Ahead-of-Time (AOT) batch compiler to statically analyze dependency graphs before code generation.
+* **Static Phasing:** R6RS enforces explicit separation between macro expansion and run-time code, which lets the Stage 3 Ahead-of-Time (AOT) batch compiler resolve a program before code generation. Koivu keeps that phasing discipline but not the library system that carries it in R6RS: a library is a separately compilable unit, and Koivu has no separate compilation (see the Multi-File Programs section above; [Backend](backend.md), decision 12).
 * **Hygienic Macro Tooling:** The R6RS macro model scales naturally from simple `syntax-rules` up to complex compile-time transformations, ensuring that the Stage 2 Bridge macro-expander smoothly upgrades to support advanced Stage 3 modular code pipelines.
 * **Chez Scheme Alignment:** Basing the dialect on R6RS mirrors the architecture of Chez Scheme, allowing compiler logic, transformations and nanopasses to be prototyped on industrial tools during early development.
 
@@ -212,6 +212,36 @@ Koivu's base reader syntax derives from the **R6RS Lexical Structure (Chapter 4)
 To protect code transparency and keep the parser loop predictable for human inspectors, the following extensions are strictly illegal in the Koivu codebase:
 * **Global Table Mutation** (code blocks that dynamically re-bind dispatch characters mid-file).
 * **Infix/Precedence Shifters** (syntactic sugar that alters standard Lisp prefix structural hierarchy into infix mathematical notation).
+
+## Multi-File Programs
+
+Koivu has no separate compilation: a program is compiled as one unit and nothing is linked ([Backend](backend.md), decision 12). Multi-file programs are therefore assembled textually, at read time.
+
+### `include`
+
+```scheme
+(include "path/to/file.scm")
+```
+
+`include` is a **reader directive**, not a form that the front end or the macro expander ever sees. When the reader meets it, it opens the named file and continues reading from it, splicing those forms into the enclosing read exactly as if they had been written at that point.
+
+* **Textual, not modular.** There is no export list, no import set, no namespace and no unit boundary. An included file contributes top-level definitions to the same program as the file that included it.
+* **Resolved before macro expansion.** Because the reader splices, no macro can produce an `include`, and no include path can depend on expansion. The read phase stays a pure function of the file set, so the full text of the program is knowable before any pass runs.
+* **Top level only.** `include` is legal only where a top-level form is legal. R7RS also permits it in a body; Koivu does not, because splicing into an expression context buys nothing and complicates the reader.
+* **Paths are relative to the including file**, never to the working directory, so a program reads the same wherever it is invoked from.
+* **Cycles are an error.** An include that is already on the open-include stack is a diagnostic, not infinite recursion.
+
+### Duplicate Definitions
+
+Because inclusion is textual, the whole program shares one namespace. **Two top-level definitions of the same name are an error**, whether they come from one file or from several. There is no shadowing rule, no "last one wins" and no warn-then-continue: a duplicate is a build failure.
+
+That rule is what makes textual inclusion safe to use. With separate compilation the question is "which definition does this unit see"; with `include` it is "does this program define anything twice", and that question can be answered by reading the source.
+
+### Rejected Alternatives
+
+* **`import` and the R6RS library system.** A library is a separately compilable unit with explicit exports, which is precisely the separate compilation that [Backend](backend.md), decision 12 excludes. Using `import` for program composition would reintroduce object files, symbol export and a linker under different names.
+* **`load`.** `load` evaluates a file at run time, which requires an evaluator. Koivu has none: the seed is a compiler and nothing else ([Backend](backend.md), decision 5).
+* **A list of file names on the command line.** The composition of a program would then live in an invocation rather than in the source, where a reviewer can read it. With `include`, a program has exactly one root source file.
 
 ## Other considerations
 

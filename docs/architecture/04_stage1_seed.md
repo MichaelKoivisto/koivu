@@ -28,6 +28,8 @@ The seed emits native machine code wrapped in an executable container that it wr
 2. **Zero Arguments:** `koivu-seed` looks for `koivu-bridge.scm` in the current working directory and compiles it to `koivu-bridge`.
 3. **Missing Default Input:** If no argument is present and `koivu-bridge.scm` is missing, it prints `Koivu Seed v0001` to `stdout` and exits with code `0`.
 
+**One file, always.** The seed never takes a list of sources. A multi-file program has exactly one root source file and the rest enter through `include`, which the reader resolves textually ([Koivu Scheme](03_language.md), Multi-File Programs). Composition therefore lives in the source, where a reviewer can read it, rather than in the invocation.
+
 ## 2. Memory Management & Execution Bounds
 
 Targeting hosts with at least 2 GiB of RAM, Koivu Seed uses a **Bump Allocator** with a strict **No-GC** policy.
@@ -37,7 +39,7 @@ Targeting hosts with at least 2 GiB of RAM, Koivu Seed uses a **Bump Allocator**
 
 * **Key Parameters:**
   * `ABS_MEM_LIMIT_BYTES`: `536870912` (512 MiB) hard-coded total arena reserved via `mmap` / `VirtualAlloc`.
-  * `MAX_INPUT_BYTES`: `16777216` (16 MiB) maximum input `.scm` file size.
+  * `MAX_INPUT_BYTES`: `16777216` (16 MiB) maximum total size of the sources a program draws in, counted across every file reached through `include`.
   * `EMIT_BUFFER_BYTES`: `67108864` (64 MiB) pre-allocated slice for emitted machine code and container bytes.
 * **Arena Mechanics:** Allocations advance a bump pointer and verify against `ABS_MEM_LIMIT_BYTES`; exceeding the limit writes an error to `stderr` and exits with code `1`.
 * **Tail-Call Optimization (TCO):** Tail calls lower to the Pino `(tail-call)` instruction, which overwrites the current frame's arguments and jumps to the callee. Constant stack space follows from the instruction, not from a lowerer's cooperation, so nothing has to be checked or trusted.
@@ -183,7 +185,7 @@ The seed is built by a C compiler before M2 and by a Koivu compiler produced by 
 * **Before M2:** `build.sh` invokes the host's LLVM C compiler on the C sources, selecting `os/linux` or `os/macos`; `build.cmd` does the same on Windows `x86_64` with `os/windows`. The C compiler is the only external build tool the project ever uses, and only during early development.
 * **From M2:** a Koivu compiler produced by the chain compiles the Scheme sources, lowers Pino IR and writes the container itself. No C compiler, assembler, linker or platform toolchain is involved.
 
-**The target is a build driven by Koivu.** Multi-file builds are Koivu's own responsibility: a build description written in Koivu Scheme, executed by a Koivu compiler, decides which sources form a program. There is no separate compilation and nothing to link ([Backend](backend.md), section 9, decision 12); producing several executables is a loop over programs, not a compiler mode. Shell scripts survive only where the host leaves no alternative - starting the first binary, or reaching the external C compiler before M2 - and even there they only invoke.
+**The target is a build driven by Koivu.** Multi-file builds are Koivu's own responsibility, and the description is **read as data**, not executed: the seed has no evaluator, so a build description written in Koivu Scheme is a manifest of programs and their root sources, which the compiler reads and acts on ([Backend](backend.md), decision 5). Because every program has one root source and `include` supplies the rest ([Koivu Scheme](03_language.md), Multi-File Programs), the manifest needs no source lists, no ordering and no dependency graph. There is no separate compilation and nothing to link ([Backend](backend.md), decision 12); producing several executables is a loop over programs, not a compiler mode. Shell scripts survive only where the host leaves no alternative - starting the first binary, or reaching the external C compiler before M2 - and even there they only invoke.
 
 The per-host artifact table is in [Platforms and Targets](01_platforms.md), section 2.
 
