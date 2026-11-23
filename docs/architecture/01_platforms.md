@@ -95,7 +95,7 @@ macOS is the platform with the largest gap between "supported" and "as simple as
 
 ### 6.1 Glue Layer
 
-The six host primitives in [Stage 1 (Seed)](04_stage1_seed.md), section 3 stay the same, but their implementation cannot use raw syscalls. On macOS, syscall numbers are not a stable ABI and `libSystem` is the supported interface, so a separate glue file (`koivu_seed_glue_macos.ll`) calls `libSystem` instead of issuing `svc` instructions.
+The seven host primitives in [Stage 1 (Seed)](04_stage1_seed.md), section 3 stay the same, but their implementation cannot use raw syscalls. On macOS, syscall numbers are not a stable ABI and `libSystem` is the supported interface, so a separate glue file (`koivu_seed_glue_macos.ll`) calls `libSystem` instead of issuing `svc` instructions.
 
 This is the expected answer to the syscall problem, and it has one consequence for the project's own claims: on macOS the seed is a **dynamically linked** Mach-O executable. "Zero external dependencies" therefore has to be read as "no third-party dependencies"; on macOS the seed links against `libSystem`, which ships with the OS. Static linking against macOS system libraries is not an option.
 

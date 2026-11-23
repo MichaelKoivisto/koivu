@@ -49,7 +49,7 @@ Koivu Seed avoids streaming state machines by performing whole-file buffered I/O
 * **Output (`EmitBuffer`):** Appends emitted LLVM IR or machine code bytes into the pre-allocated `EMIT_BUFFER_BYTES` slice. On successful compilation, flushes `data[0..len]` to disk in a single write call and closes the file. Overflowing `EMIT_BUFFER_BYTES` aborts with an error.
 
 ### Required Host System Calls
-Platform-specific glue code must abstract exactly six host OS primitives:
+Platform-specific glue code must abstract exactly seven host OS primitives, counted individually:
 
 | Primitive | POSIX (`Linux` / `macOS`) | Windows (`x86_64`) | Purpose |
 | :--- | :--- | :--- | :--- |
@@ -58,9 +58,10 @@ Platform-specific glue code must abstract exactly six host OS primitives:
 | **Query Size** | `fstat` / `lseek` | `GetFileSizeEx` | Determine source file byte length |
 | **Read Stream** | `read` | `ReadFile` | Load entire `.scm` source into `SourceBuffer` |
 | **Write Stream** | `write` | `WriteFile` | Flush `EmitBuffer` to file or write to `stdout`/`stderr` |
-| **Close / Exit** | `close` / `exit` | `CloseHandle` / `ExitProcess` | Release file handles and terminate process |
+| **Close File** | `close` | `CloseHandle` | Release an open file handle |
+| **Exit Process** | `exit` | `ExitProcess` | Terminate the process with a status code |
 
-**macOS is not a raw-syscall platform.** The six primitives above are the same on every host, but on macOS they cannot be reached through syscall instructions: syscall numbers are not a stable ABI there, and `libSystem` is the supported interface. The macOS glue therefore lives in a separate file, `koivu_seed_glue_macos.ll`, and calls `libSystem` instead of issuing `svc`.
+**macOS is not a raw-syscall platform.** The seven primitives above are the same on every host, but on macOS they cannot be reached through syscall instructions: syscall numbers are not a stable ABI there, and `libSystem` is the supported interface. The macOS glue therefore lives in a separate file, `koivu_seed_glue_macos.ll`, and calls `libSystem` instead of issuing `svc`.
 
 This has one consequence for the project's own claims, so it is stated rather than implied: on macOS the seed is a **dynamically linked** Mach-O executable. "Zero external dependencies" therefore means "no third-party dependencies" - on macOS the seed links against the OS-supplied `libSystem`, and static linking against macOS system libraries is not an option. See [Platforms and Targets](01_platforms.md), section 6.1.
 

@@ -82,7 +82,7 @@ Components that count against the budget:
 * the reader and the compiler front end;
 * the **Pino compiler library** - instruction encoder, backpatch resolver and container writer - which is linked into the seed;
 * the arena allocator and byte buffers;
-* the OS glue layer (the six host primitives listed in [Stage 1 (Seed)](04_stage1_seed.md), section 3).
+* the OS glue layer (the seven host primitives listed in [Stage 1 (Seed)](04_stage1_seed.md), section 3).
 
 Components that do not count against it:
 

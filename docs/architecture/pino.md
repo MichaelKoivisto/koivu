@@ -7,36 +7,43 @@
 > Will Turner: You ignored the rules of engagement. In a fair fight, I'd kill you.<br>
 > Capt. Jack Sparrow: That's not much incentive for me to fight fair, is it?
 
-Pino IR (Finnish *pino*: "stack") is a minimalist, S-expression-encoded stack machine Intermediate Representation. It replaces LLVM IR across Stage 1 (Koivu Seed) and Stage 2 (Koivu Bridge). By decoupling the bootstrap pipeline from LLVM toolchains (`llc`) and text-heavy SSA generation, Pino IR keeps the Stage 1 seed minimal, auditable, and capable of direct lowering to native machine code.
+Pino IR (Finnish *pino*: "stack") is a minimalist, S-expression-encoded stack machine intermediate representation used by Stage 1 (Koivu Seed) and Stage 2 (Koivu Bridge). It decouples the bootstrap pipeline from LLVM toolchains and from text-heavy SSA generation, and it lets both stages lower directly to native machine code.
 
-LLVM IR remains the primary interchange and lowering format exclusively for Stage 3 (Production Core).
+LLVM IR remains the interchange and lowering format of Stage 3 (Production Core) and later.
 
 ---
 
-## 1. Architectural Rationale & Pipeline Shift
+## 1. Role and Pipeline Position
 
-Replacing LLVM IR with Pino IR in Stages 1 and 2 eliminates external toolchain dependencies during bootstrap while enforcing the **Small Seed Over Small Bridge** rule.
-
-| Pipeline Attribute | Legacy Bootstrap Plan | Pino IR Bootstrap Plan |
+| | Pino IR | LLVM IR |
 | :--- | :--- | :--- |
-| **Stage 1 Seed Implementation** | Written in generic LLVM IR (`.ll`). | Written in generic LLVM IR (`.ll`). |
-| **Stage 1 Output Format** | Textual LLVM IR (`.ll`). | Pino IR S-expressions (`.pino`) (may be printed out for debugging), lowered directly to native binary. |
-| **Stage 2 Bridge Output** | Textual LLVM IR (`.ll`); requires `llc` to link Stage 3. | Pino IR S-expressions (`.pino`) lowered directly to native binary. |
-| **Stage 3 Production Core** | Emits LLVM IR (`.ll`). | Emits LLVM IR (`.ll`) and native machine code (unchanged). |
-| **Evaluator Requirement** | Seed embeds a Lisp evaluator to run `simple-codegen`. | **None.** Stage 1 and Stage 2 lower S-expressions directly to Pino IR. |
+| **Produced by** | Stage 1, Stage 2 | Stage 3 and later |
+| **Form** | in-memory S-expressions describing a stack machine | textual `.ll` |
+| **Lowered by** | the Pino compiler library, inside the same compiler that emitted it | `koivu-llc`, or LLVM's own tools |
+| **Optimising** | no - one fixed byte template per instruction | yes - full production pipeline |
+| **Leaves the process?** | no | yes, as a file |
 
-### Key Design Invariants
+**No evaluator is required.** Stage 1 and Stage 2 build Pino IR and lower it themselves. Nothing interprets Scheme at build time, and nothing interprets Pino IR either: the Pino compiler is a library compiled into each compiler that emits Pino.
 
-1. **Zero Parser Overhead:** Pino IR uses standard Koivu Scheme S-expressions. The Stage 1 Reader parses both `.scm` source files and `.pino` instruction streams without additional lexer logic.
-2. **Implicit Operand Stack:** All arithmetic, memory, and control-flow instructions operate on an implicit evaluation stack. The backend lowerer requires zero register allocation or register spilling logic.
-3. **Single-Pass Backpatching:** Forward branch targets (`jmp`, `jz`) emit fixed 32-bit relative placeholders and resolve byte offsets in a single linear scan via a Pass-Based Arena fixup list.
-4. **Direct OS Container Emission:** The Pino IR backend wraps emitted machine instructions in minimal, statically linked ELF64 (`Linux`), Mach-O (`macOS` via `libSystem`), or PE32+ (`Windows`) headers directly from memory.
+### Textual `.pino` is a debug dump only
 
----
+Pino IR can be printed as S-expression text. During bootstrapping this is **a debugging aid and nothing more**: Stage 1 and Stage 2 never read textual `.pino` as part of a compile step, and no stage passes it to another stage.
 
-## 2. Memory & Data Layout Model
+The format has a second, legitimate use outside the bootstrap chain: **development tools** may read textual `.pino` for analysis. A Pino IR static stack-depth verifier is the obvious example - with an implicit operand stack, an unbalanced sequence is a silent memory corruption, and a verifier that reads a dump can catch it without running anything.
 
-Pino IR preserves all Stage 1 data representation invariants defined in *Koivu Scheme Language* (`03_language.md`) and *Koivu Scheme Stage 1 (Seed) Compiler* (`04_stage1_seed.md`).
+A development tool that compiles textual `.pino` into machine code is theoretically possible. It is not planned: nothing in the pipeline needs it, because every compiler that produces Pino IR already contains the library that lowers it.
+
+### Why the bootstrap stages do not use LLVM IR
+
+Considered and rejected: keeping LLVM IR in Stages 1 and 2, as the production stages do.
+
+* It requires `llc` - an external, opaque, optimizing translator - in the bootstrap chain, so the seed's machine code cannot be mechanically derived from its source. That defeats the auditability priority recorded in [Bootstrapping Paths & Trust](02_bootstrapping_and_trust.md), section 2.
+* SSA and typed IR are the wrong tools for a seed that must stay small: they demand value numbering, virtual registers and a real lowering pipeline.
+* A stack machine needs no register allocation, no scheduling and no spilling, so lowering becomes a single linear pass over fixed byte templates - which is exactly what a small, auditable seed needs.
+
+## 2. Memory and Data Layout Model
+
+Pino IR preserves the Stage 1 data representation invariants defined in [Koivu Scheme Language](03_language.md) and [Stage 1 (Seed)](04_stage1_seed.md).
 
 > [!WARNING]
 > **Untagged Value Representation:** Pino IR does not use pointer tagging. All values on the evaluation stack occupy a uniform **64-bit machine word** (`word64`). Static type-checking in the frontend must guarantee type safety before emitting Pino IR instructions.
@@ -50,46 +57,62 @@ Pino IR preserves all Stage 1 data representation invariants defined in *Koivu S
 | **Cons Cell** | Raw 64-bit pointer to 16-byte heap pair. | `{ word64 car, word64 cdr }` (16 bytes, 8-byte aligned). |
 | **Byte Buffer** | Raw 64-bit pointer to 16-byte descriptor. | `{ ptr data, i32 len, i32 cap }` (16 bytes). |
 | **Closure Object** | Raw 64-bit pointer to 16-byte pair. | `{ ptr code_addr, ptr env_ptr }` (16 bytes). |
-| **Environment Frame** | Referenced via `env_ptr` register (`R12` / `X19`). | `{ ptr parent_env, word64 slot0, word64 slot1, ... }`. |
+| **Environment Frame** | Referenced through the Environment Pointer role. | `{ ptr parent_env, word64 slot0, word64 slot1, ... }`. |
 
-### Dedicated Hardware Register Pinning
+### Pinned Machine State
 
-To eliminate stack-frame bookkeeping in the seed lowerer, Pino IR pins three architectural registers across all generated functions:
+The Pino compiler keeps no stack frames, no spill slots and no register allocator. Instead it relies on three pieces of mutable machine state held continuously across all generated functions. These are **roles, not registers**:
 
-| Role | `x86_64` Register | `arm64` Register | Purpose |
-| :--- | :--- | :--- | :--- |
-| **Evaluation Stack Pointer** | `RSP` | `SP` | Hardware stack used directly as the Pino operand stack. |
-| **Current Environment Pointer** | `R12` | `X19` | Points to the active linked lexical environment frame. |
-| **Bump Arena Pointer** | `R13` | `X20` | Points to the next free 8-byte aligned byte in the bump arena. |
+| Role | Invariant | Modified by |
+| :--- | :--- | :--- |
+| **Operand Stack Pointer** | points at the topmost occupied word of the Pino operand stack | every instruction with a non-empty stack effect |
+| **Environment Pointer** | points at the active lexical environment frame | `(env-push)`, `(env-pop)`, `(call)`, `(tail-call)` |
+| **Arena Pointer** | points at the next free 8-byte aligned byte in the bump arena | `(alloc)`, `(env-push)`, `(make-closure)` |
 
----
+Any concrete mapping of these roles must satisfy three requirements:
 
-## 3. Pino IR Lexical & Structural Syntax
+1. **Base-address usability.** The operand stack pointer and the arena pointer appear as base registers in the load and store templates, with 8-byte granularity, so the mapping must permit base addressing that is not 16-byte aligned.
+2. **Survival across generated calls.** The seed defines the calling convention for its own generated code, so it may require whatever it needs rather than inheriting an external ABI. The environment pointer is saved and restored explicitly by the `(call)` sequence (section 4.5); the operand stack pointer and the arena pointer are never touched by a callee except through the balance of its own stack effects. No role depends on a host ABI to be preserved.
+3. **No clash with the host.** The mapping must stay valid at the process entry point and at the syscall boundary, where the host OS - not the seed - decides what a register means.
 
-A `.pino` module is a flat S-expression list containing top-level symbol declarations, function definitions, and linear instruction sequences.
+Which concrete resource realises a role is a **target description** decision ([Backend](backend.md), section 6), not part of the ISA. The first two targets make different choices:
+
+| Role | `x86_64` (example) | `arm64` (example) |
+| :--- | :--- | :--- |
+| Operand Stack Pointer | `RSP` | `X21` |
+| Environment Pointer | `R12` | `X19` |
+| Arena Pointer | `R13` | `X20` |
+
+**Why the operand stack pointer is not portable.** `x86_64` can put the operand stack on the hardware stack pointer: `push` and `pop` have one-byte encodings, and generated code calls nothing but itself and the host's syscall entry, so no external alignment rule applies to `RSP` there. On `arm64` the hardware stack pointer must be 16-byte aligned whenever it is used as a base address register, while the operand stack advances in 8-byte units - so `SP` is reserved strictly for call and return addresses and a general register carries the operand stack. A target description states which of the two shapes it has, and the lowering templates follow from that statement.
+
+The asymmetry has one observable consequence: on `x86_64` a return address sits on the same stack as the operands, while on `arm64` the two stacks are separate. Both are correct as long as the operand stack is balanced at every call boundary - which is exactly what the static stack-depth verifier (section 1) exists to check.
+
+## 3. Lexical and Structural Syntax
+
+A Pino module is a flat S-expression list containing top-level symbol declarations, function definitions, and linear instruction sequences.
 
 ```lisp
 (pino-module
   (symbols "quote" "if" "cons" "car" "cdr")
 
-  (fn main ()
+  (fn main (0)
     (push-i32 10)
     (push-i32 20)
     (add)
-    (sys-exit)))
+    (syscall exit)))
 ```
 
 ### Top-Level Forms
 
 * `(pino-module <form> ...)`: Root container for a compilation unit.
 * `(symbols <string> ...)`: Declares interned string literals placed in the read-only data segment at startup.
-* `(fn <symbol> (<param-count>) <inst> ...)`: Declares a compiled procedure entry point with fixed arity `<param-count>`.
+* `(fn <symbol> (<param-count>) <inst> ...)`: Declares a compiled procedure with fixed arity `<param-count>`.
 
----
+Arity is always an explicit integer. Variable arity is not part of the ISA.
 
 ## 4. Instruction Set Architecture (ISA)
 
-Pino IR consists of **26 instructions** partitioned into five functional groups. Every instruction specifies its exact stack transition (`before -- after`).
+Pino IR consists of **27 instructions** partitioned into five functional groups. Every instruction specifies its exact stack transition (`before -- after`).
 
 ### 4.1 Stack & Constant Manipulation
 
@@ -115,49 +138,54 @@ All arithmetic instructions operate on the lower 32 bits of stack words and sign
 
 ### 4.3 Lexical Environments & Closures
 
-Variables are addressed statically via compile-time `(depth, index)` coordinates, matching Section 4 of `04_stage1_seed.md`.
+Variables are addressed statically via compile-time `(depth, index)` coordinates, matching [Stage 1 (Seed)](04_stage1_seed.md), section 4.
 
 | Instruction | Stack Effect | Semantics |
 | :--- | :--- | :--- |
-| `(env-push <slots>)` | `( arg0..argN -- )` | Allocates `(slots + 1) * 8` bytes in bump arena, links `parent_env = R12/X19`, pops arguments into slots, and updates `R12/X19`. |
-| `(env-pop)` | `( -- )` | Restores `R12/X19 = [R12/X19 + 0]` (parent frame pointer). |
-| `(env-get <depth> <idx>)` | `( -- val )` | Traverses `<depth>` parent pointers from `R12/X19` and pushes `slot[idx]`. |
-| `(env-set <depth> <idx>)` | `( val -- )` | Pops `val`, traverses `<depth>` parent pointers from `R12/X19`, and writes `slot[idx] = val`. |
-| `(make-closure <fn>)` | `( -- ptr )` | Allocates 16 bytes in bump arena; writes `{ code_addr(<fn>), env_ptr(R12/X19) }` and pushes pointer. |
+| `(env-push <slots>)` | `( arg0..argN -- )` | Allocates `(slots + 1) * 8` bytes in bump arena, links `parent_env` to the current frame, pops arguments into slots, and updates the Environment Pointer role. |
+| `(env-pop)` | `( -- )` | Restores the Environment Pointer role to the parent frame pointer. |
+| `(env-get <depth> <idx>)` | `( -- val )` | Traverses `<depth>` parent pointers from the current frame and pushes `slot[idx]`. |
+| `(env-set <depth> <idx>)` | `( val -- )` | Pops `val`, traverses `<depth>` parent pointers, and writes `slot[idx] = val`. |
+| `(make-closure <fn>)` | `( -- ptr )` | Allocates 16 bytes in bump arena; writes `{ code_addr(<fn>), env_ptr }` and pushes the pointer. |
 
 ### 4.4 Memory & Primitive Data Structures
 
 | Instruction | Stack Effect | Semantics |
 | :--- | :--- | :--- |
-| `(alloc <bytes>)` | `( -- ptr )` | Advances bump pointer `R13/X20` by `<bytes>` (8-byte aligned); aborts if `ABS_MEM_LIMIT_BYTES` exceeded. |
-| `(load64 <offset>)` | `( ptr -- val )` | Pops `ptr` and pushes 64-bit word at `[ptr + offset]`. |
-| `(store64 <offset>)` | `( ptr val -- )` | Pops `val`, pops `ptr`, and writes 64-bit word `val` to `[ptr + offset]`. |
-| `(load8 <offset>)` | `( ptr -- byte )` | Pops `ptr` and pushes zero-extended byte at `[ptr + offset]`. |
-| `(store8 <offset>)` | `( ptr byte -- )` | Pops `byte`, pops `ptr`, and writes low 8 bits to `[ptr + offset]`. |
+| `(alloc <bytes>)` | `( -- ptr )` | Advances the bump pointer by `<bytes>` (8-byte aligned); aborts if `ABS_MEM_LIMIT_BYTES` is exceeded. |
+| `(load64 <offset>)` | `( ptr -- val )` | Pops `ptr` and pushes the 64-bit word at `[ptr + offset]`. |
+| `(store64 <offset>)` | `( ptr val -- )` | Pops `val`, pops `ptr`, and writes the 64-bit word `val` to `[ptr + offset]`. |
+| `(load8 <offset>)` | `( ptr -- byte )` | Pops `ptr` and pushes the zero-extended byte at `[ptr + offset]`. |
+| `(store8 <offset>)` | `( ptr byte -- )` | Pops `byte`, pops `ptr`, and writes the low 8 bits to `[ptr + offset]`. |
 
-*(Note: Stage 1 `cons`, `car`, `cdr`, `set-car!`, `set-cdr!`, and `byte-buffer` operations lower directly to `(alloc 16)`, `(load64 0/8)`, `(store64 0/8)`, `(load8 0)`, and `(store8 0)` in the frontend, keeping the core ISA minimal.)*
+*(Note: Stage 1 `cons`, `car`, `cdr`, `set-car!`, `set-cdr!` and the byte-buffer operations lower directly to `(alloc 16)`, `(load64 0/8)`, `(store64 0/8)`, `(load8 0)` and `(store8 0)` in the frontend, keeping the core ISA minimal.)*
 
 ### 4.5 Control Flow & Host OS Primitives
 
 | Instruction | Stack Effect | Semantics |
 | :--- | :--- | :--- |
-| `(label <sym>)` | `( -- )` | Binds symbol `<sym>` to the current byte offset in `EmitBuffer`. |
-| `(jmp <sym>)` | `( -- )` | Unconditional 32-bit relative jump to `<sym>`. |
+| `(label <sym>)` | `( -- )` | Binds symbol `<sym>` to the current byte offset in the emit buffer. |
+| `(jmp <sym>)` | `( -- )` | Unconditional relative jump to `<sym>`. |
 | `(jz <sym>)` | `( cond -- )` | Pops `cond`; jumps to `<sym>` if `cond == 0`. |
-| `(call <arity>)` | `( closure arg0..argN -- ret )` | Saves caller `R12/X19`, loads closure `env_ptr` into `R12/X19`, calls `code_addr`, restores `R12/X19`, and pushes return value. |
-| `(tail-call <arity>)` | `( closure arg0..argN -- )` | Overwrites current stack frame arguments, loads closure `env_ptr` into `R12/X19`, and jumps directly to `code_addr` (constant stack space). |
-| `(ret)` | `( val -- )` | Pops return value into hardware return register (`RAX` / `X0`) and returns to caller. |
-| `(syscall <id>)` | `( a0..aN -- ret )` | Invokes one of the 6 mandatory host OS primitives (`mmap`, `open`, `fstat`, `read`, `write`, `close/exit`). |
+| `(call <arity>)` | `( closure arg0..argN -- ret )` | Saves the caller's environment pointer, loads the closure's `env_ptr`, calls `code_addr`, restores the environment pointer, and pushes the return value. |
+| `(tail-call <arity>)` | `( closure arg0..argN -- )` | Overwrites the current frame's arguments, loads the closure's `env_ptr`, and jumps directly to `code_addr` (constant stack space). |
+| `(ret)` | `( val -- )` | Pops the return value into the hardware return register (`RAX` / `X0`) and returns to the caller. |
+| `(syscall <id>)` | `( a0..aN -- ret )` | Invokes one of the mandatory host OS primitives. |
 
----
+The host OS primitives are `mmap`, `open`, `fstat`, `read`, `write`, `close` and `exit` - **seven** calls, counted individually, each with its own entry in the target's syscall table. They are the complete set the seed is allowed to use; anything else must be built on top of them.
+
+The bridge uses the same seven. It links the same Pino compiler library and inherits its container writer and its syscall templates, so it needs no primitive the seed does not already have.
+
+**Branch encoding is target-specific, not fixed.** `(jmp)` and `(jz)` lower to the target's own relative branch instruction - `rel32` on `x86_64`, `rel19` via `b`/`cbz` on `arm64` - so the backpatch placeholder width comes from the target description rather than from the ISA. The seed's own code is far below the ±1 MB arm64 range; the encoder asserts the range instead of silently truncating, and a range overflow is a build error.
+
 ## 5. Target Lowering Specifications
 
-Each Pino IR instruction maps to a fixed, context-free byte template. No register allocator or instruction scheduler is required in Stage 1 or Stage 2.
+Each Pino IR instruction maps to a fixed, context-free byte template. No register allocator and no instruction scheduler are required.
 
 ### 5.1 Example Lowering: `(add)` and `(jz <label>)`
 
 ```assembly
-; Target: x86_64
+; Target: x86_64  (operand stack on RSP)
 ; Pino IR: (add)
 pop rbx                 ; 5B
 pop rax                 ; 58
@@ -172,57 +200,56 @@ jz rel32_placeholder    ; 0F 84 00 00 00 00 (patched via backpatch list)
 ```
 
 ```assembly
-; Target: arm64
+; Target: arm64  (operand stack on X21, SP reserved for call/return)
 ; Pino IR: (add)
-ldr x1, [x21], #8       ; Pop 64-bit word from dedicated evaluation stack (X21)
+ldr x1, [x21], #8       ; Pop 64-bit word from the operand stack
 ldr x0, [x21], #8       ; Pop second 64-bit word
 add w0, w0, w1          ; 32-bit fixnum addition
 sxtw x0, w0             ; Sign-extend 32-bit result to 64 bits
-str x0, [x21, #-8]!     ; Push 64-bit result onto evaluation stack
+str x0, [x21, #-8]!     ; Push 64-bit result onto the operand stack
 
 ; Pino IR: (jz target_label)
 ldr x0, [x21], #8       ; Pop condition word
 cbz x0, rel19_placeholder ; Compare and branch if zero (patched via backpatch list)
 ```
 
-> [!WARNING]
-> **ARM64 Stack Alignment Constraint:** The `arm64` hardware architecture enforces strict 16-byte alignment on `SP` whenever `SP` is used as a base address register. The `arm64` Pino IR lowerer must either allocate 16 bytes per stack slot on `SP` (leaving 8 bytes as padding) or pin a dedicated general-purpose register (`X21`) as the Pino evaluation stack pointer while reserving `SP` strictly for hardware call/return addresses. Using `X21` cuts stack memory traffic by 50% and prevents alignment faults.
-
 ### 5.2 Forward Jump Backpatching
 
-Because Pino IR lowers S-expressions in a single linear pass, forward jumps (`jmp`, `jz`) encounter target labels before their final byte offsets are known.
+Because Pino IR lowers in a single linear pass, forward jumps encounter target labels before their final byte offsets are known.
 
 | Pass Step | Action | Data Structure |
 | :--- | :--- | :--- |
-| **1. Emit Jump** | Write jump opcode and zero-initialized offset bytes into `EmitBuffer`. | Append `(label-sym . patch-offset)` to Pass-Based Arena fixup list. |
-| **2. Bind Label** | Record current `EmitBuffer` byte offset when `(label <sym>)` is reached. | Insert `(label-sym . target-offset)` into symbol/label table. |
-| **3. Resolve Fixups** | At function or module end, compute `target-offset - next-inst-offset` and overwrite placeholder bytes. | Reset Pass-Based Arena fixup list upon completion. |
+| **1. Emit jump** | Write the jump opcode and zero-initialized offset bytes into the emit buffer. | Append `(label-sym . patch-offset)` to the fixup list. |
+| **2. Bind label** | Record the current emit-buffer byte offset when `(label <sym>)` is reached. | Insert `(label-sym . target-offset)` into the label table. |
+| **3. Resolve fixups** | At function or module end, compute `target-offset - next-inst-offset` and overwrite the placeholder bytes. | Reset the fixup list on completion. |
 
----
+Each fixup records the encoding width it must satisfy, taken from the target description. A displacement that does not fit the encoding is a build error, never a truncation.
 
 ## 6. Executable Container Generation
 
-To eliminate external linkers (`ld`, `link.exe`), the Pino IR backend prepends a minimal OS executable header directly to the emitted machine code buffer before flushing to disk.
+To eliminate external linkers (`ld`, `link.exe`), the Pino compiler prepends a minimal OS executable header to the emitted machine code before flushing to disk.
 
 | Host OS & Format | Header Size | Execution & System Call Strategy |
 | :--- | :--- | :--- |
-| **Linux (`x86_64` / `arm64`) — ELF64** | **120 bytes** | Single `PT_LOAD` segment mapped RWX (`flags = 7`) at `0x400000`; entry at `0x400078`. Direct `syscall` / `svc #0` instructions. |
-| **macOS (`arm64`) — Mach-O** | **~448 bytes** | `__PAGEZERO` and `__TEXT` load commands; dynamically linked against `libSystem.B.dylib` (raw syscalls are unstable on macOS). Requires ad-hoc `codesign -s -`. |
-| **Windows (`x86_64`) — PE32+** | **~512 bytes** | Minimal DOS stub + PE header + single `.text` section + minimal Import Directory importing `kernel32.dll` (`VirtualAlloc`, `CreateFileA`, `ReadFile`, `WriteFile`, `CloseHandle`, `ExitProcess`). |
+| **Linux (`x86_64` / `arm64`) - ELF64** | **120 bytes** | Single `PT_LOAD` segment mapped RWX (`flags = 7`) at `0x400000`; entry at `0x400078`. Direct `syscall` / `svc #0` instructions. |
+| **macOS (`arm64`) - Mach-O** | **~448 bytes** | `__PAGEZERO` and `__TEXT` load commands. **Open item** - see below. |
+| **Windows (`x86_64`) - PE32+** | **~512 bytes** | Minimal DOS stub + PE header + single `.text` section + minimal Import Directory importing `kernel32.dll` (`VirtualAlloc`, `CreateFileA`, `ReadFile`, `WriteFile`, `CloseHandle`, `ExitProcess`). |
 
----
+**The Mach-O writer is an open item.** macOS requires a signing step, and raw syscalls are unstable there, so the Mach-O container is materially more expensive than the other two and drags a dynamic-link dependency on `libSystem` into the seed. Whether it belongs in the seed at all is question 1 in [Platforms and Targets](01_platforms.md), section 7, and is deliberately not settled here. ELF and PE are the near-term targets.
 
-## 7. Bootstrapping & Self-Hosting Roadmap
+## 7. Bootstrapping and Self-Hosting Roadmap
 
-Replacing LLVM IR in Stages 1 and 2 updates the repository layout under `bootstrap/` and removes `llc` from the bootstrap trust chain:
+The milestones below are the ones defined in [Backend](backend.md), section 1. Pino IR is the IR of the first two.
 
-1. **M0 — Assembly Seed Lowerer (`bootstrap/stage1-pino/`):**
-   * Implement the S-expression Reader, symbol interner, bump allocator, Pino IR lowerer, and OS binary emitter in minimal `x86_64` and `arm64` assembly (~800–1,200 lines per target).
-   * Deprecate `bootstrap/stage1-ll/*.ll` and external LLVM build scripts.
-2. **M1 — Stage 1 Compiler in Koivu Scheme (`bootstrap/stage1-scm/`):**
-   * Implement the macro-free Stage 1 compiler (`koivu-seed.scm`) in Stage 1 Scheme, lowering `.scm` directly into Pino IR (`.pino`).
-   * Compile `koivu-seed.scm` with the assembly seed to produce a self-hosted `koivu-seed` binary.
-3. **M2 — Stage 2 Bridge (`bootstrap/stage2-bridge/`):**
-   * `koivu-seed` compiles `koivu-bridge.scm` (adding hygienic macros and `flat-vector` support) via Pino IR directly into a standalone `koivu-bridge` executable with zero external tool dependencies.
-4. **M3 — Stage 3 Production Core (`src/`):**
-   * `koivu-bridge` compiles the Stage 3 Nanopass compiler (`src/`), which introduces linear-scan register allocation, SSA optimizations, and LLVM IR (`.ll`) emission for production targets (`C`, `C++`, `Rust`, `Swift`).
+1. **M0 - the seed compiles the bridge.** The seed, written in C and built with an LLVM C compiler, implements the S-expression reader, the symbol interner, the bump allocator, the front end and the Pino compiler library. It compiles the bridge source and writes the bridge executable with no external tool.
+2. **M1 - the bridge compiles Stage 3.** The bridge adds hygienic macros and `flat-vector` support and compiles Stage 3 source to a working Version A, again with no external tool.
+3. **M2 - the seed becomes self-compilable.** The seed is rewritten in Scheme and rebuilt by a Koivu compiler produced by the chain, lowered through Pino. The C seed is deleted. This is the boundary between early and late development ([Bootstrapping Paths & Trust](02_bootstrapping_and_trust.md), section 2), and the point from which committed `.s` seeds become worth publishing ([Seed Artifacts](08_seed_artifacts.md), section 3).
+4. **M3 - Stage 3 emits machine code natively.** Version A compiles Stage 3 source to Version B.
+5. **M4 - fixpoint.** Version B produces a byte-identical Version C.
+
+## 8. Open Items
+
+| Item | Why it matters |
+| :--- | :--- |
+| Mach-O container writer (section 6) | decides whether macOS can be served without platform tools |
+| Static stack-depth verifier (section 1) | an unbalanced operand stack is silent corruption; a verifier over textual `.pino` would catch it |
