@@ -10,64 +10,91 @@
 > Will Turner: What did he use for rope?<br>
 > Jack Sparrow: (from beside them) Human hair.<br>
 > (pause)<br>
-> Jack Sparrow: From my back.<br>
+> Jack Sparrow: From my back.
     
-The Stage 2 Sapling Compiler is a dedicated macro-expanding utility written entirely in the minimalist Stage 1 Lisp subset. Its exclusive responsibility is to ingest the high-level, macro-heavy R6RS source files of the Stage 3 Production Core and emit macro-eliminated, statically structured Scheme code that can be easily parsed by a primitive compiler backend.
+The Stage 2 Sapling Compiler is a macro-expanding compiler written in the Stage 1 Lisp subset. It compiles the Stage 3 Production Core: it reads Stage 3's source, expands its hygienic macros, runs the front end over the result, and writes a `.pino` image that `koivu-vesi` lowers into the Version A executable ([Koivu Vesi](koivu-vesi.md)).
+
+The sapling is not a second compiler implementation. It is **one source set with the seed's Scheme front end plus a macro expander**, built into a second program.
 
 ---
 
-## 1. Operational Context and Lifecycle
+## 1. One Source Set, Two Programs
 
-Stage 2 is a binary produced by Stage 1. Because Stage 1 lacks native macro processing, Stage 2 does not use syntax hooks or compiler macros. Instead, it operates strictly as a user-level program that processes source files as structured data pipelines:
+The seed is written in C before M2 and in Scheme afterwards ([Stage 1 (Seed)](04_stage1_seed.md), introduction). That Scheme front end - reader, interner, arena, type checker and Pino emitter - is written once, and two programs are built from it:
+
+| Program | Sources | Built by | Job |
+| :--- | :--- | :--- | :--- |
+| the sapling | the Scheme front end + the macro expander | the C seed, at M0 | compiles Stage 3 source to an image |
+| the seed, from M2 | the Scheme front end | a compiler produced by the chain | compiles the sapling's source to an image |
+
+This is why the sapling exists, and why it retires: it is the vehicle by which the Scheme front end enters the chain. Between M0 and M2 the front end exists in two languages - C in the seed, Scheme in the sapling - which is the same overlap [Backend](backend.md), section 9, decision 4 already accepts for the seed, closed by the same kind of criterion. Once Version A exists, nothing needs the sapling: Stage 3 compiles Stage 3, and the sapling is retired along with the C scaffold.
+
+Three consequences are worth stating:
+
+* **No duplicate compiler.** The sapling does not reimplement reading, type checking or Pino emission. Those files are the seed's files, compiled into a different program.
+* **The front end is written earlier, not twice.** It has to be written eventually; writing it early is what lets the sapling compile Stage 3 in the meantime.
+* **The sapling is portable.** It writes an image and no machine code, so it is one program for every host, exactly as the seed is ([Koivu Vesi](koivu-vesi.md), section 1). Only Vesi is per-host.
+
+### The Language It Accepts
+
+The sapling compiles Stage 3's source, so its language is the subset Stage 3's source actually uses, plus hygienic macros ([Koivu Scheme](03_language.md), Purpose and Scope).
+
+* **The wider integer types are in.** Stage 3's source uses them, so the sapling implements them ([Koivu Scheme](03_language.md), Stage 2 Data Types).
+* **`flat-vector` is not.** Stage 3's own source contains no `define-flat-vector` form, so the form never reaches the sapling and the sapling needs no support for it ([Flat Vector](flat-vector.md); [Koivu Scheme](03_language.md), Purpose and Scope).
+* **`syntax-case` is not.** `syntax-rules` is the whole of the macro language ([section 4](#4-scope-boundaries-and-simplifications)).
+
+## 2. Operational Context and Lifecycle
+
+Stage 2 is a binary produced by Stage 1. Because Stage 1 has no native macro processing, the sapling uses no syntax hooks and no compiler macros: expansion is a user-level program over S-expressions, and the expander is ordinary Lisp code operating on ordinary data.
 
 ```
-[Source] ──► [Stage 2 Sapling] ──► [Core S-Expressions]
+[Stage 3 source] ──► [read + include] ──► [expand] ──► [front end] ──► image (.pino) ──► Vesi ──► Version A
 ```
 
-To preserve the ABS_MEM_LIMIT_BYTES heap ceiling and guarantee deterministic termination, Stage 2 enforces a strict memory pipeline:
-* **In-Memory Tracking:** Syntax transformations, identifier tables, and macro expansion state are maintained inside Stage 1 Cons cells and vectors.
-* **Wiped State Output:** Once expansion completes, the resulting macro-eliminated S-expression tree is directly serialized to a staging file on the host file system via basic `write` system calls, and the process terminates cleanly.
+* **No staging file.** Expansion produces an in-memory tree that the front end consumes directly. Nothing is written between the two phases; the only file the sapling writes is the image.
+* **Arena, no GC.** The sapling allocates from a bump arena and never frees, exactly as the seed does ([Stage 1 (Seed)](04_stage1_seed.md), section 2). Expansion state - environments, ribs, renamed identifiers - lives in the same arena as the AST it is transforming.
+* **`include`, not `import`.** Multi-file Stage 3 source is assembled by the reader through `include` ([Koivu Scheme](03_language.md), Multi-File Programs). There is no library envelope, no export list and no import set, because Koivu has no separate compilation ([Backend](backend.md), decision 12).
 
----
+## 3. What the Sapling Adds
 
-## 2. Core Architecture Subsystems
-
-The macro expander program is split into three decoupled operational layers to ensure code maintainability and clear inspection boundaries.
+Three subsystems, and nothing else. Reading, type checking and image emission belong to the shared front end ([Stage 1 (Seed)](04_stage1_seed.md), sections 4 to 7), and this section describes only what is new.
 
 ### A. Environment and Binding Layer
+
 To guarantee the strict hygiene mandated by the R6RS dialect, the sapling tracking system must isolate variable scopes using a dual-environment model:
 * **Global Environment Table:** A continuous open-addressing lookup vector matching basic core keywords (`define`, `if`, `lambda`, `set!`) and newly encountered user macros to their structural transformation definitions.
 * **Lexical Scope Ribs:** A sequential chain of linked local lists representing lexical depth. When an expander pass traverses a nested structural scope, it shifts a new "rib" onto the evaluation context to manage active local variable definitions.
 * **Hygienic Identifier Renamer:** A monotonic integer-indexing utility that operates like a primitive `gensym`. Any identifier introduced by a macro template is systematically alpha-converted to a unique, globally non-colliding symbol name to prevent accidental local variable capture.
 
 ### B. Pattern Matcher and Structural Transformer
-The core macro compiler avoids the full complexity of an R6RS compile-time infrastructure by relying on a lightweight, deterministic pattern matching matrix:
+
+The expander avoids the full complexity of an R6RS compile-time infrastructure by relying on a lightweight, deterministic pattern matching matrix:
 * **Rules Parser:** Converts high-level `syntax-rules` definitions found within `define-syntax` forms into an internal, flat array structure organized strictly as `(pattern . template)` pairs.
-* **Structural Matcher:** A recursive, type-validated utility function that correlates an active input expression with a macro pattern pattern. It tests identifier positions, validates structural matches, and captures repeated elements bounded by ellipsis (`...`) constraints into uniform indexed vectors.
+* **Structural Matcher:** A recursive, type-validated utility function that correlates an active input expression with a macro pattern. It tests identifier positions, validates structural matches, and captures repeated elements bounded by ellipsis (`...`) constraints into uniform indexed vectors.
 * **Template Expander:** Replaces the captured pattern tokens back into the designated target template structure. The resulting tree is re-fed back into the transformer loop to evaluate deeply nested macro definitions.
 
-### C. Linear Expansion Pipeline
+### C. Expansion Pipeline
 
-The macro-expander executes its translation sequence across three distinct processing passes:
+Two passes. There is no third: compiling is the front end's job, not a pass of the expander.
 
-#### Pass 1: Library Ingestion (`read`)
-The program invokes Stage 1's native `read` primitive to ingest the R6RS target compiler source file. It validates the high-level `(library ...)` envelope structure, isolates the explicit `import` dependency declarations, and decouples the top-level syntax definitions from the active library body elements.
+#### Pass 1: Read (`read`)
+
+The reader loads the root source and splices every `include` textually, so the whole program is present as one tree before expansion begins. No macro can produce an `include`, and no include path can depend on expansion ([Koivu Scheme](03_language.md), Multi-File Programs).
 
 #### Pass 2: Recursive Tree-Walk Expansion (`expand`)
-The expander walks through the structured S-expression tree, querying identifiers against the active environment and updating states sequentially:
-1. **Core Keywords:** If an expression hits a native primitive (`lambda`, `if`, `set!`, `define`), the tag structure is skipped over, and the utility recurses directly into the nested sub-expressions.
-2. **Syntax Definitions:** If it encounters a `define-syntax` block, the pattern rules are parsed, the new macro definition is bound to the Global Environment Table, and the definition block is completely removed from the pipeline.
-3. **Macro Applications:** If an expression matches an active macro binding, the expression is passed to the Template Expander, and the generated target tree is recursively processed *again* to evaluate nested macros.
 
-#### Pass 3: Core S-Expression Emission (`write`)
-Once every macro identifier has been removed and all local variable conflicts are settled via alpha-conversion, the resulting data structure is pure, un-macroed, low-level Scheme code containing only foundational forms. Stage 2 invokes the basic `write` or `display` primitive to commit this clean code block to a final file, creating an optimized code asset ready for Stage 3 compilation.
+The expander walks the tree, querying identifiers against the active environment and updating state sequentially:
 
----
+1. **Core Keywords:** If an expression hits a native primitive (`lambda`, `if`, `set!`, `define`), the tag structure is skipped and the utility recurses into the nested sub-expressions.
+2. **Syntax Definitions:** If it encounters a `define-syntax` block, the pattern rules are parsed, the new macro definition is bound to the Global Environment Table, and the definition block is removed from the tree.
+3. **Macro Applications:** If an expression matches an active macro binding, the expression is passed to the Template Expander, and the generated tree is recursively processed *again* to evaluate nested macros.
 
-## 3. Scope Boundaries and Simplifications
+What comes out of Pass 2 is a tree with no macro identifiers and no identifier collisions. It is handed straight to the front end, which type-checks it and writes the image.
 
-To ensure the Stage 2 Sapling source remains compact, easily maintainable, and fully auditable, several high-level language capabilities are explicitly dropped from the expander framework:
-* **No `syntax-case` Expansion:** Stage 2 is built to parse only `syntax-rules` macros. Complex compile-time imperative computation inside macros is deferred to Stage 3.
-* **No Local Macros (`let-syntax` / `letrec-syntax`):** The expander only supports top-level macro declarations. This limits environment lookups to a uniform, clean global table workflow.
-* **Strict Monomorphic Assertions:** The expander does not manage structural dynamic types or implicit conversions; it expects structurally correct R6RS compiler source code layout and aborts via raw `(error)` traps upon encountering irregular code graphs.
+## 4. Scope Boundaries and Simplifications
 
+To keep the Stage 2 Sapling source compact, maintainable and fully auditable, several high-level language capabilities are explicitly dropped from the expander:
+* **No `syntax-case` Expansion:** Stage 2 parses only `syntax-rules` macros. Complex compile-time imperative computation inside macros is deferred to Stage 3.
+* **No Local Macros (`let-syntax` / `letrec-syntax`):** The expander supports top-level macro declarations only. This limits environment lookups to a uniform global table workflow.
+* **No Library System:** There is no `(library ...)` envelope, no `export` list and no `import` set. A program is one root source plus its `include`d files ([Koivu Scheme](03_language.md), Multi-File Programs).
+* **Strict Monomorphic Assertions:** The expander does not manage structural dynamic types or implicit conversions; it expects structurally correct Stage 3 source layout and aborts via raw `(error)` traps upon encountering irregular code graphs.
