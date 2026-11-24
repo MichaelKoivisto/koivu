@@ -34,7 +34,7 @@ Two further properties follow, and both are gains rather than side effects:
 | **Seed source, Scheme** | text | hand-written | repository | auditors, porters, new-platform bring-up | full human review; this is the source of truth |
 | **Seed image** `koivu-seed.pino` | text | printed from the seed source by a Koivu compiler | **release artifacts**, one file for all hosts | everyone - this is what the user lowers into a seed | reading it against the seed source; lowering it with Vesi |
 | **Vesi source, Scheme** | text | hand-written | repository | auditors, porters | full human review; this is the source of truth |
-| **Vesi `.s` per target** | text | rendered by Vesi from Vesi's own image | **repository** (see section 3) | auditors; porters; users checking the distributed binary | review of assembly; local reassembly with the platform assembler |
+| **Vesi `.s` per host** | text | rendered by Vesi from Vesi's own image, for that host's target | **repository** (see section 3) | auditors; porters; users checking the distributed binary | review of assembly; local reassembly with the platform assembler |
 | **Vesi binary** per host (Windows optionally digitally signed) | machine code | the Vesi source, built by a Koivu compiler or, before M2, by the C scaffold | **release artifacts** | everyone - this is the only machine binary the project ships | reassembly of the committed `.s`; hex review; antivirus scan; signature check |
 | **Seed source, C** | text | hand-written | repository until M2, then deleted | the authors, during early development | ordinary code review; never released |
 | **Sapling source** | text | hand-written | repository | everyone - the user builds the sapling with the seed | ordinary code review; never released as an artifact |
@@ -47,7 +47,7 @@ Every release publishes a Vesi binary for every supported platform, plus the one
 
 Committed assembly is an **educational and informative artifact, not a trust artifact.** Vesi's binary is what makes bootstrapping possible, and the assembly is there so that a person meeting Koivu for the first time can see what that binary is on a particular target without building anything: assembly is far more widely readable than a compiler's source, and "what is actually in there?" is the question newcomers ask first.
 
-Vesi's assembly is committed for the supported targets **as soon as `koivu-vesi` can render its own image as assembly that is reasonably easy to audit.** It is rendered by Vesi from the same image its binary is lowered from, so the two are outputs of one encoding pass rather than of two implementations that are supposed to agree ([Koivu Vesi](koivu-vesi.md), section 4). Neither Vesi nor any front end carries a separate assembly printer: a text form of the lowering would restate every byte template in a second representation, and that representation would have to be audited alongside the first.
+Vesi's assembly is committed for the supported hosts **as soon as `koivu-vesi` can render its own image as assembly that is reasonably easy to audit.** It is rendered by Vesi from the same image its binary is lowered from, so the two are outputs of one encoding pass rather than of two implementations that are supposed to agree ([Koivu Vesi](koivu-vesi.md), section 4). Neither Vesi nor any front end carries a separate assembly printer: a text form of the lowering would restate every byte template in a second representation, and that representation would have to be audited alongside the first.
 
 The seed's assembly is deliberately not committed, for the reason given in section 1: the user renders it themselves, with the Vesi they are checking, from the image they were given. Before the Scheme seed exists there is nothing worth committing in either case: the C scaffold is a prototype whose assembly would describe a program that is about to be deleted.
 
@@ -55,7 +55,7 @@ Rules that follow from committing Vesi's assembly:
 
 * **The Vesi source is the source of truth.** `.s` files are rendered by `koivu-vesi` and are never edited by hand.
 * **A stale `.s` is a defect.** Whenever Vesi's source changes, the `.s` files must be regenerated in the same change.
-* **Assembly is committed per target.** Adding a target adds an artifact, not a variant of an existing one.
+* **Assembly is committed per host, beside the binary it describes.** A host is added by adding two artifacts - a Vesi binary and its `.s` - not by adding a variant of an existing one. A target that is not a host adds neither: Vesi's `.s` is Vesi's own machine code, and no Vesi binary exists for a platform the chain does not run on.
 * **A missing `.s` is acceptable before the Scheme Vesi exists**, and is a defect afterwards.
 
 **CI regenerates both the `.s` files and the seed's image, and fails on a mismatch.** For the assembly it builds Vesi's image from the current source, renders it with Vesi on every change, compares the result with what is committed and fails if the two differ. For the seed's image it recompiles the seed's source, compares the printed image with the published one and fails on any difference. Neither file is ever edited by hand, so a stale one cannot be merged by an author who forgot to regenerate it.
