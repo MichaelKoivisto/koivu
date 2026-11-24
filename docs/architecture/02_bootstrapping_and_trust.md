@@ -72,7 +72,6 @@ Recorded so that they are not re-derived later.
 
 * **Writing the seed in Pino IR.** Rejected. Pino IR is a lowering target, not a programming language: a small fixed instruction set, an implicit operand stack, no structured control flow, no aggregates. Writing a compiler in it is assembly programming with S-expression syntax, and it would force the instruction set to grow into a real language before the seed could be written.
 * **Writing the seed in `.ll` and keeping it there permanently.** Rejected. The binary would always be the output of an optimizing translator, so machine code auditability - the top priority in late development - would never be reached.
-* **Writing the seed in `.ll` early and in Scheme later.** Rejected as dominated: the same end state as the C route, but a harder early scaffold. Emitting container headers and instruction templates in `.ll` is markedly more laborious than in C, and the existing `.ll` seed is an evaluator design that the stack-machine backend discards anyway.
 * **Writing the seed in Scheme from the start, built by an external Scheme compiler.** Rejected. It avoids the rewrite, but it requires choosing, installing and tracking a Scheme system, keeping the seed's source inside the intersection of that system's dialect and Koivu's own, and carrying a large opaque toolchain through the early phase.
 
 ## 3. Two Bootstrapping Paths
