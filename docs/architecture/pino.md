@@ -290,4 +290,4 @@ None. Both items previously listed here are settled, and recorded in the section
 | Mach-O container writer | Vesi writes an unsigned Mach-O; the user ad-hoc signs the result (section 6; [Platforms and Targets](01_platforms.md), section 6.2) |
 | Static stack-depth verifier | runs in `koivu-vesi` when it loads an image, before any byte is emitted ([Koivu Vesi](koivu-vesi.md), section 4) |
 
-Nothing remains open about macOS. The last item was release process rather than this document, and it is settled: every release publishes a binary for every supported platform ([Platforms and Targets](01_platforms.md), section 2).
+Nothing remains open about macOS. The last item was release process rather than this document, and it is settled: every release publishes a Vesi binary for every supported platform, plus the one target-independent seed image ([Platforms and Targets](01_platforms.md), section 2; [Seed Artifacts](08_seed_artifacts.md), section 1).

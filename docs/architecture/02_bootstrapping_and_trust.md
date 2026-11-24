@@ -22,7 +22,7 @@ The milestone names (M0 to M4) used below are defined in [Backend](backend.md), 
 
 ## 2. The Seed
 
-The seed and Vesi are the only binaries Koivu distributes. Every compiler in the chain is built from source on the machine that uses it. That asymmetry decides what has to be audited and what does not, and most of the reasoning in this document follows from it.
+Vesi is the only binary Koivu distributes. The seed is published as an image and lowered by the user, so no seed binary is shipped at all ([Seed Artifacts](08_seed_artifacts.md), section 1). Every compiler in the chain is built from source on the machine that uses it. That asymmetry decides what has to be audited and what does not, and most of the reasoning in this document follows from it.
 
 ### One implementation, not one per target
 
@@ -89,7 +89,7 @@ They are a trade-off, not competing claims. Each path is described below with wh
 > Capt. Barbossa: I must admit, Jack, I thought I had you figured. But it turns out you're a hard man to predict.<br>
 > Capt. Jack Sparrow: Me? I'm dishonest. And a dishonest man you can always trust to be dishonest. Honestly. It's the honest ones you want to watch out for, because you can never predict when they're going to do something incredibly... stupid.
 
-Simple Path is a convenience for the majority of developers and users. Every user downloads a seed binary and a Vesi binary for their platform, because the pair is what makes bootstrapping possible: the seed writes an image and Vesi lowers it. Linux and macOS users additionally have the committed seed assembly: they can assemble it with the platform assembler and compare the result against the binary they downloaded. Windows users have no such option, because a bare Windows OS has no assembler tool.
+Simple Path is a convenience for the majority of developers and users. Every user downloads two things: a Vesi binary for their platform, and the one target-independent `koivu-seed.pino` image. Vesi is what they check, because it is the only machine binary involved: on Linux and macOS they can reassemble the committed Vesi assembly and compare the result byte-for-byte against the binary they downloaded. Windows users have no such option, because a bare Windows OS has no assembler tool. With Vesi checked, the user runs it on the seed's image and produces the seed themselves, so there is no distributed seed binary to inspect ([Seed Artifacts](08_seed_artifacts.md), section 6).
 
 A small binary is still suitable for human inspection, at least in theory: it can be opened in a hex editor and compared against the assembly. More practical options exist as well: an antivirus scan, a digital signature check, an automated comparison of the binary against the source assembly, and so on. The smaller the binary, the easier the inspection. The available recipes are listed in [Seed Artifacts](08_seed_artifacts.md), section 6.
 
@@ -192,7 +192,8 @@ The same cycle is drawn as T-diagrams in [Roadmap to Self-hosting](selfhosting.m
 
 | Claim | Proved by |
 | :--- | :--- |
-| The seed does what its sources say | reading the seed source, then checking the distributed binary against it |
+| Vesi does what its sources say | reassembling its committed `.s` and comparing the result with the published binary |
+| The seed does what its sources say | reading the seed's image against the seed's source, then lowering that image locally with a checked Vesi |
 | Stage 3 reproduces itself | the B == C fixpoint |
 | The compiler is free of deliberately planted backdoors | **nothing in this chain** |
 

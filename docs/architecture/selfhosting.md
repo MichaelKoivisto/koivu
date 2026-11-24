@@ -210,13 +210,13 @@ The steps above answer *which compiler runs*. A second, independent axis answers
 | :--- | :--- | :--- | :--- |
 | Step 0, before M2 | an external C compiler | the host toolchain | not a Koivu artifact |
 | Step 0, from M2 | a Koivu compiler | built earlier in the chain by the same user | native binary, built on the user's machine |
-| Step 1 | the seed, then Vesi | **distributed** with the project | published binaries on every host, with committed `.s` for reading ([Seed Artifacts](08_seed_artifacts.md), section 2) |
+| Step 1 | the seed, then Vesi | the seed comes from the published image, lowered locally; Vesi is **published** per host | one shared `koivu-seed.pino`; a published Vesi binary per host, with committed `.s` for reading ([Seed Artifacts](08_seed_artifacts.md), section 2) |
 | Step 2 | the sapling, then Vesi | the sapling is produced by the seed in Step 1; Vesi is the same published binary | native binaries, built on the user's machine |
 | Steps 3 and 4 | Stage 3 Versions A and B | produced by the previous step | native binary, built on the user's machine |
 
-One row of this table is a distribution question. The seed and Vesi are the only binaries the project ships; everything after them is produced locally, so their form is decided by the platform rather than by the project's release process. The inventory of published forms, and what each of them proves and does not prove, is in [Seed Artifacts](08_seed_artifacts.md), sections 2 and 4.
+One row of this table is a distribution question, and the distribution is narrower than it looks: **Vesi is the only binary the project ships.** The seed arrives as an image and becomes a binary on the user's machine during Step 1, so everything after that point is produced locally and its form is decided by the platform rather than by the release process. The inventory of published forms, and what each of them proves and does not prove, is in [Seed Artifacts](08_seed_artifacts.md), sections 2 and 4.
 
-The axis matters here rather than in a footnote because the form of the seed is where the Simple and Secure Paths diverge. A user who assembles the committed `.s` file has performed a local build and can compare the result against the binary they downloaded; a user who only runs the published binary has not, and relies on inspection instead. Both are supported, and the difference between them is described in [Bootstrapping Paths and Trust](02_bootstrapping_and_trust.md), sections 4 and 5.
+The axis matters here rather than in a footnote because the form of Vesi is where the Simple and Secure Paths diverge. A user who reassembles the committed Vesi assembly has performed a local build and can compare the result against the binary they downloaded; a user who only runs the published binary has not, and relies on inspection instead. Both are supported, and the difference between them is described in [Bootstrapping Paths and Trust](02_bootstrapping_and_trust.md), sections 4 and 5.
 
 ---
 
@@ -230,6 +230,6 @@ What that means for the roadmap:
 * **macOS reaches bootstrap goal 1 with the other two hosts.** No step waits for a Mach-O writer, because Vesi has one, and no step needs an assembler or a linker.
 * **Signing is not part of the trust story.** An ad-hoc signature makes a binary runnable; it says nothing about who built it. Provenance remains the recorded non-goal of [Seed Artifacts](08_seed_artifacts.md), section 5, and the Secure Path is unaffected.
 
-The committed `.s` seed artifacts are a separate matter and are not affected by any of this: they are rendered by `koivu-vesi` from the same image the seed binary is lowered from, not by the seed itself ([Seed Artifacts](08_seed_artifacts.md), section 3).
+The committed assembly is a separate matter and is not affected by any of this: it is Vesi's own assembly, rendered by `koivu-vesi` from Vesi's image, and it is what a user reassembles to check the distributed binary ([Seed Artifacts](08_seed_artifacts.md), section 3).
 
 macOS is therefore a **Simple Path** platform in the sense of [Bootstrapping Paths and Trust](02_bootstrapping_and_trust.md), section 4 - and now for the same reason as the other two hosts, rather than in a weaker sense than them.
