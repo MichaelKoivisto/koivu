@@ -146,7 +146,7 @@ Vesi is the **per-host artifact** of the bootstrap chain. The seed is not.
 
 * **Shared POSIX source set.** Linux and macOS share one Vesi source set, with the seven primitives the only host-specific part, issued as a syscall instruction on Linux and as a `libSystem` call on macOS ([Platforms and Targets](01_platforms.md), section 6.1).
 * **Containers are per format, not per host.** ELF64, PE32+ and Mach-O are three writers; the first two are reached from different hosts, the third is the one that must also be signed by the user, never by Vesi ([Backend](backend.md), section 5).
-* **Porting.** Goal B in [Platforms and Targets](01_platforms.md), section 4 reduces to: write a Pino target description, write or extend a Vesi, cross-compile the seed. The seed itself needs no port.
+* **Porting.** Goal B in [Platforms and Targets](01_platforms.md), section 4 reduces to: write a Pino target description, write or extend a Vesi, and cross-compile **Vesi** for the new target with an existing Vesi. The seed itself needs no port: `koivu-seed.pino` is target-independent and is lowered by the new Vesi like any other image.
 
 ## 7. Bootstrapping
 
