@@ -6,7 +6,7 @@ can be resumed in a later session without re-deriving context.
 **Delete this file when the review is finished.** It is deliberately absent from
 the index in `docs/architecture.md`.
 
-Last updated after commit `7059f59`.
+Last updated after commit `4dadae7`.
 
 This file is a ledger, not a copy of the blueprints. Where a decision is written
 down in a blueprint, the entry points at it. The previous revision restated
@@ -71,7 +71,9 @@ Decisions about *how* the review is conducted, not about the architecture.
 | [Flat Vector](flat-vector.md) | Stage 3 only, because it exists for the frontends Stage 3 hosts. |
 | [README](../../README.md) | Stage list, directory overview and a Vesi paragraph. |
 | [Architecture Map](../architecture.md) | The index no longer describes the pre-split chain: the seed and the sapling emit images, the end-user flow downloads Vesi and lowers the seed image, the seed no longer "adds macros", and three documents that were missing from the table are indexed. |
-| [Koivu Language](03_language.md) | *Purpose and Scope*, the staging rule, the Stage 3 data types, and the statement that Koivu Scheme is a checked subset of R6RS rather than a different type discipline. |
+| [Koivu Language](03_language.md) | *Purpose and Scope*, the staging rule, the Stage 3 data types, the statement that Koivu Scheme is a checked subset of R6RS, the lexical-reader rule with `#llvm_ir{...}` as its one embedding, and the rule that a location carries its file. |
+| [Reader Macros Notes](notes_on_reader_macros.md) | Rewritten from an argument for embeddings into an argument for a small reader: the constraint, the lexical test, and the four anti-patterns as reasoning rather than as rules. |
+| [Auditability](auditability.md) | Rewritten: ecosystem practice separated from Koivu's position, the "10 KiB standard" removed, DDC shown to be out of reach, and the artifact table rebuilt from [Seed Artifacts](08_seed_artifacts.md). |
 
 The staging rule that came out of this work lives in
 [Koivu Language](03_language.md): each stage compiles a subset of the next
@@ -91,19 +93,19 @@ Queued in this order:
 1. [Frontends](07_frontends.md) - not checked against the staging rule in
    [Koivu Language](03_language.md).
 2. [Data-Oriented Design](data_oriented_design.md)
-3. [Reader Macros Notes](notes_on_reader_macros.md) - its "stay dynamic" claim is
-   gone as of `7059f59`; the rest of the document has not been reviewed.
-4. [Carbon Datatypes](carbon_datatypes.md)
-5. [Seed Sizes Notes](notes_on_seed_sizes.md) - probably overlaps the budgets in
+3. [Carbon Datatypes](carbon_datatypes.md)
+4. [Seed Sizes Notes](notes_on_seed_sizes.md) - probably overlaps the budgets in
    [Seed Artifacts](08_seed_artifacts.md), section 7; check before trusting
    either.
-6. The `s-llvm-ir` family - [S-LLVM IR](s-llvm-ir.md),
+5. The `s-llvm-ir` family - [S-LLVM IR](s-llvm-ir.md),
    [AST S-LLVM IR](ast-s-llvm-ir.md),
    [S-LLVM IR to LLVM IR AST Notes](notes_on_s-llvm-ir_to_llvm_ir_ast.md) and
    [LLVM IR Parsing Notes](notes_on_llvm_ir_parsing.md). They describe a
-   representation that Stages 1 and 2 no longer touch. Narrow to Stage 3 or
-   delete; that is a decision, not an edit.
-7. `docs/vision.md`, `docs/style-guide.md`
+   representation that Stages 1 and 2 no longer touch. The reader decision in
+   `1bffa0c` settled half of this: they no longer justify a reader macro, so the
+   remaining question is whether `koivu-llc`'s parser needs them at all. Narrow
+   to Stage 3 or delete.
+6. `docs/vision.md`, `docs/style-guide.md`
 
 No change needed: [Pino Interpreter Notes](notes_on_pino_interpreter.md) is the
 record of a rejected option and is cited by [Koivu Vesi](koivu-vesi.md), section
@@ -139,6 +141,9 @@ Commits from the session that produced the split, oldest first. All on `main`.
 | `52e5b65` | `architecture.md`: index gains `flat-vector`, the interpreter notes, the reader macros notes |
 | `a54a73b` | `architecture.md`: the seed does not add macros; the sapling carries the expander |
 | `7059f59` | Dropped the "stay dynamic" goal in `architecture.md` and the reader macros notes; `03` gains the checked-subset-of-R6RS statement |
+| `1bffa0c` | Reader macros: the lexical rule, `#llvm_ir{...}` kept for Stage 3, the four other embeddings and `#embed-json` dropped; `03` gains the file-identity rule; the reader macros note rewritten |
+| `0071998` | `auditability.md` rewritten: ecosystem practice separated from Koivu's position, DDC shown out of reach |
+| `4dadae7` | Index lists the auditability note |
 
 Earlier commits are in the log. The previous revision of this file described
 `811b5b4` through `83606d7`, which covered the first passes over `backend.md`,
@@ -177,6 +182,16 @@ spread across them. Where a decision has a home, the home is named.
 - **`build.sh` and `build.cmd` live in `bootstrap/`**, because they start two
   sibling programs. `04`, section 7. `bootstrap/pino/` keeps its name though it
   is now Vesi's source set: it is named for what it reads.
+- **The reader stays lexical.** `03`, and the argument in
+  `notes_on_reader_macros.md`. A reader macro that Stage 3's source may contain
+  is implemented by the compiler that reads it, which is the sapling, so an
+  embedded language becomes a parser inside the narrow waist. `#llvm_ir{...}`
+  survives because the production stack already parses `.ll` for `koivu-llc`;
+  `#c`, `#asm`, `#llvm_bc`, `#llvm_target` and `#embed-json` are refused.
+- **No size standard for the binary root.** `auditability.md`. The byte-audit
+  tradition is real and Koivu does not follow it: Vesi is ~600 KiB, and the
+  binding ceiling is `08`, section 7, not a borrowed "10 KiB". Strict DDC is a
+  non-goal for the same reason the project refuses a second lowerer.
 
 ## 6. Known remaining inconsistencies
 
