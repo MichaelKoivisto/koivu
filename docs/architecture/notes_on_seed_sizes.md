@@ -16,14 +16,15 @@ Confidence markers used below:
 * **[estimate]** - derived here from a stated basis;
 * **[unverified]** - an order of magnitude recalled from experience, to be measured before it is quoted anywhere else.
 
-## 1. Four Different Things Called "A Seed"
+## 1. Five Different Things Called "A Seed"
 
 Almost every disagreement about seed size is a disagreement about level.
 
 | Level | What the seed can do | Typical size | Example |
 | :--- | :--- | :--- | :--- |
 | **Bit-level seed** | read hexadecimal digits from a file and jump into the result | hundreds of bytes | GNU `hex0` |
-| **Compiler-level seed** | compile a real language, with no external tool | hundreds of KiB to a few MiB | Koivu seed, Mes, TinyCC |
+| **Interpreter-level seed** | run a real language with no external tool, but compile nothing | hundreds of bytes to hundreds of KiB | SectorLISP, Mes |
+| **Compiler-level seed** | compile a real language, with no external tool | hundreds of KiB to a few MiB | Koivu seed, TinyCC |
 | **Toolchain seed** | build an entire operating system or language ecosystem | tens to hundreds of MiB | GCC bootstrap tarball, JDK, a previous `rustc` |
 | **Image seed** | restore a heap image of a compiler that is already running | a few to tens of MiB | Chez boot files, `sbcl.core` |
 
@@ -33,7 +34,7 @@ A second axis matters just as much: is the quoted number machine code only, or t
 
 A third axis decides how the Koivu row should be read: is the artifact one a user downloads and trusts, or one they produce themselves from an image using a tool they have already reviewed? The Koivu seed is the second kind. What is published is `koivu-seed.pino`, one target-independent image; the seed binary exists only after a user lowers that image with `koivu-vesi`. So the Koivu row in this section, and the two Koivu rows in section 3, all describe a binary the user builds, and the trust question is asked of Vesi instead. Chez and SBCL sit on the other side of this axis: their boot files and cores are downloaded as-is and are the thing trusted.
 
-## 2. The Cases Named in the Question
+## 2. The Comparison Cases
 
 ### GNU Bootstrapping: stage0, Mes and MesCC
 
@@ -68,7 +69,7 @@ For our purposes the interesting consequence is that a boot-file architecture la
 
 ### SBCL
 
-The largest of the four. `make.sh` requires a **host Common Lisp** - historically CMU CL, in practice now an older SBCL - plus a C runtime, plus a `genesis` step that emits `sbcl.core`.
+The largest of all of these. `make.sh` requires a **host Common Lisp** - historically CMU CL, in practice now an older SBCL - plus a C runtime, plus a `genesis` step that emits `sbcl.core`.
 
 Order of magnitude **[unverified]**:
 
@@ -84,7 +85,23 @@ The C runtime is not the seed. The seed is "a complete Common Lisp implementatio
 * **Scheme 48:** a bytecode VM in C (roughly 10 KLOC) plus a heap image. Small kernel, big image - the pattern that keeps recurring.
 * **PicoLisp, TinyScheme, s7:** C cores of a few hundred KiB **[unverified]**, but they are *interpreters embedded in C*. Their seed is a C compiler, so the problem is moved rather than solved. This is the same objection that applies to any "small Lisp in C" claim.
 
-The recurring pattern across all of these is: **small kernel plus large image**, or **tiny seed plus long ladder**. Koivu chose a third shape - a single small compiler - and that choice is what fixes its size.
+### SectorLISP
+
+The smallest complete Lisp published to date is **~436 bytes [reported]** of hand-written `x86` machine code that fits inside a 512-byte boot sector, implements a Lisp with a garbage collector and a reader, and boots on bare metal. It is the extreme end of this note's subject, and it is worth being precise about what it is and is not.
+
+It is **an interpreter, not a compiler.** It evaluates Lisp expressions; it translates nothing. Nothing in it could produce an executable, and it has no notion of a target, a calling convention or a container. In the terms of section 1 it is not a seed for a compiler at all - it is a seed for a *runtime*, in the same family as `Mes` and the C-hosted Lisps above.
+
+Three properties explain the number, and none of them transfers to a compiler seed:
+
+* **It is one architecture, written by hand.** No source language, no compiler and no toolchain stand between the listing and the bytes, which is why the correspondence between them is total. Koivu's seed is one target-independent image lowered by Vesi for three hosts.
+* **It needs no operating system.** It *is* the boot path. Koivu's components run on three real hosts and use seven system calls ([Stage 1](04_stage1_seed.md), section 3).
+* **Its feature set and its cells are minimal by construction.** A 512-byte budget forces representations - and a primitive set - that no compiler front end could work in. Its garbage collector, the part most often cited, is the part Koivu cannot use at all: every Koivu stage is arena-allocated with no collector ([Stage 3](06_stage3_production_core.md)).
+
+What it does establish is a calibration point, and a sharper one than `hex0`: **the most complete language implementation anyone has squeezed into a few hundred bytes still compiles nothing.** That is this note's central claim, made by someone with no stake in Koivu's argument.
+
+One idea is worth borrowing, and only one. **The bound came from outside the project.** 512 bytes is a hardware fact, so the implementation had to fit rather than being declared to fit, and the constraint did the design work. Koivu's ceilings are self-imposed and three orders of magnitude looser, and [Auditability](auditability.md) already records why a byte-audit standard is not its goal. What survives is the habit rather than the number: a budget a reviewer can check against the artifact is worth more than a round figure chosen to look small.
+
+The recurring pattern across all of these is: **small kernel plus large image**, or **tiny seed plus long ladder**. SectorLISP is a third shape - **a tiny interpreter with no compiler at all** - and Koivu chose a fourth: a single small compiler. That choice is what fixes its size.
 
 ## 3. Sorted by Level
 
@@ -93,6 +110,7 @@ Machine code only, ascending, with what each number is a seed *for*:
 | System | Level | Size | Confidence |
 | :--- | :--- | :--- | :--- |
 | GNU `hex0` | bit-level | ~0.4 KB | reported |
+| SectorLISP | interpreter-level, Lisp with GC | ~436 B | reported |
 | `M0` | compiler-level, C subset | a few KiB | unverified |
 | GNU `Mes` | interpreter-level | hundreds of KiB | unverified |
 | `TinyCC` | compiler-level, C | ~100 KiB | unverified |
@@ -103,11 +121,11 @@ Machine code only, ascending, with what each number is a seed *for*:
 
 The two Koivu rows are the binary produced from an image, not an image: `koivu-vesi` from `koivu-vesi.pino`, the seed from `koivu-seed.pino`. Their ceilings are the pairs in [Seed Artifacts](08_seed_artifacts.md), section 7.
 
-Read down that table and the conclusion is unremarkable: a full compiler costs hundreds of KiB to a few MiB, and everything smaller is either a smaller job (a monitor, a C subset) or a bigger job dressed as a small one (an interpreter whose seed is a C compiler).
+Read down that table and the conclusion is unremarkable: a full compiler costs hundreds of KiB to a few MiB, and everything smaller is either a smaller job (a monitor, a C subset, a runtime) or a bigger job dressed as a small one (an interpreter whose seed is a C compiler).
 
 ## 4. What This Means for the Koivu Ceiling
 
-* **The 1.6 / 2.4 MiB ceiling is defensible.** It is the same order as a Chez boot file set, and it is smaller than the GNU prefix needed to reach a comparable compiler. The number that would be indefensible is a comparison against `hex0`, and nobody is proposing that.
+* **The 1.6 / 2.4 MiB ceiling is defensible.** It is the same order as a Chez boot file set, and it is smaller than the GNU prefix needed to reach a comparable compiler. The number that would be indefensible is a comparison against `hex0`, and nobody is proposing that - and the small-number calibration that actually matters is not `hex0` but SectorLISP (section 2): the most complete language implementation ever squeezed into a few hundred bytes is an interpreter that compiles nothing.
 * **The trust anchor is the smaller program, and that is deliberate.** Koivu asks a user to trust `koivu-vesi`, whose ceiling is 1200 KiB on `x86_64` and 1800 KiB on `arm64` - below the seed's own budget, because Vesi is a lowerer with no front end in it. The seed image is then lowered by the Vesi the user has already reviewed, so the unreviewed surface is the smaller of the two rather than the larger.
 * **The right comparison is capability, not bytes.** The question to ask of any competing seed is: what can it compile, with what external tools, and how many rungs must be trusted to get there. On that measure Koivu's single rung is a good trade: no external tool from M0, and a machine-code-to-source correspondence that is mechanically checkable ([Backend](backend.md), section 8, criterion 7).
 * **The interpreter is a Vesi variant, not a seed.** An earlier draft put a tiny Pino interpreter in the seed as a first rung; [Pino Interpreter Notes](notes_on_pino_interpreter.md) retargets the idea to Vesi. Vesi V1 interprets `.pino` instead of lowering it, V2 bundles the interpreter with the image, V3 is a development mode that skips the writer. None of this shrinks the seed - the front end is still the bulk of it - and it would shrink Vesi only by its encoder, its label table and its three container writers. Recorded here as considered and rejected, so it is not rediscovered as an idea: our auditability argument rests on correspondence between source and machine code, not on minimising bytes ([Bootstrapping Paths & Trust](02_bootstrapping_and_trust.md), section 2), and a second implementation of the same semantics would be a second thing to trust.
@@ -119,6 +137,7 @@ Sizes change between releases, and this note's numbers are estimates and recolle
 
 * `hex0` and `M0`: current GNU Mes / stage0 release;
 * `Mes`, `TinyCC`: current releases, stripped binaries;
+* SectorLISP: the current release, counted as the bytes the sector actually uses;
 * Chez: boot files for the current version on `x86_64` and `arm64`;
 * SBCL: `sbcl.core` for the current version;
 * Koivu: `koivu-vesi` and our own seed, once both can be built - which is the measurement [Seed Artifacts](08_seed_artifacts.md), section 7 is waiting for.
