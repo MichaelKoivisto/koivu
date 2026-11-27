@@ -6,7 +6,7 @@ can be resumed in a later session without re-deriving context.
 **Delete this file when the review is finished.** It is deliberately absent from
 the index in `docs/architecture.md`.
 
-Last updated after commit `da266b5`.
+Last updated after commit `7059f59`.
 
 This file is a ledger, not a copy of the blueprints. Where a decision is written
 down in a blueprint, the entry points at it. The previous revision restated
@@ -70,6 +70,8 @@ Decisions about *how* the review is conducted, not about the architecture.
 | [Roadmap to Self-hosting](selfhosting.md) | Two T's per front-end step. |
 | [Flat Vector](flat-vector.md) | Stage 3 only, because it exists for the frontends Stage 3 hosts. |
 | [README](../../README.md) | Stage list, directory overview and a Vesi paragraph. |
+| [Architecture Map](../architecture.md) | The index no longer describes the pre-split chain: the seed and the sapling emit images, the end-user flow downloads Vesi and lowers the seed image, the seed no longer "adds macros", and three documents that were missing from the table are indexed. |
+| [Koivu Language](03_language.md) | *Purpose and Scope*, the staging rule, the Stage 3 data types, and the statement that Koivu Scheme is a checked subset of R6RS rather than a different type discipline. |
 
 The staging rule that came out of this work lives in
 [Koivu Language](03_language.md): each stage compiles a subset of the next
@@ -78,9 +80,6 @@ corollary is written there too - the seed is not an unfinished Stage 3.
 
 ### Partially updated
 
-- [Koivu Language](03_language.md) - has its *Purpose and Scope* section, the
-  staging rule and the Stage 3 data types. The typing contradiction in section 6
-  is still open.
 - [Stage 3 (Production Core)](06_stage3_production_core.md) - SoA removed, but
   its *Stage 3 Library* section (extra syscalls for profiling and clock reads,
   "subject of ongoing research") was left untouched.
@@ -89,26 +88,22 @@ corollary is written there too - the seed is not an unfinished Stage 3.
 
 Queued in this order:
 
-1. [Architecture Map](../architecture.md) - the index, and **the most visible
-   stale document**. It still describes the pre-split chain: Stage 1 "builds Pino
-   IR, and lowers it to machine code with the Pino compiler library", and the
-   build is not described as two passes over one manifest. It is the entry point
-   for a new reader, so a wrong sentence here costs more than one anywhere else.
-2. [Frontends](07_frontends.md) - not checked against the staging rule.
-3. [Data-Oriented Design](data_oriented_design.md)
-4. [Reader Macros Notes](notes_on_reader_macros.md) - carries the "stay
-   traditional, dynamic" claim listed in section 6.
-5. [Carbon Datatypes](carbon_datatypes.md)
-6. [Seed Sizes Notes](notes_on_seed_sizes.md) - probably overlaps the budgets in
+1. [Frontends](07_frontends.md) - not checked against the staging rule in
+   [Koivu Language](03_language.md).
+2. [Data-Oriented Design](data_oriented_design.md)
+3. [Reader Macros Notes](notes_on_reader_macros.md) - its "stay dynamic" claim is
+   gone as of `7059f59`; the rest of the document has not been reviewed.
+4. [Carbon Datatypes](carbon_datatypes.md)
+5. [Seed Sizes Notes](notes_on_seed_sizes.md) - probably overlaps the budgets in
    [Seed Artifacts](08_seed_artifacts.md), section 7; check before trusting
    either.
-7. The `s-llvm-ir` family - [S-LLVM IR](s-llvm-ir.md),
+6. The `s-llvm-ir` family - [S-LLVM IR](s-llvm-ir.md),
    [AST S-LLVM IR](ast-s-llvm-ir.md),
    [S-LLVM IR to LLVM IR AST Notes](notes_on_s-llvm-ir_to_llvm_ir_ast.md) and
    [LLVM IR Parsing Notes](notes_on_llvm_ir_parsing.md). They describe a
    representation that Stages 1 and 2 no longer touch. Narrow to Stage 3 or
    delete; that is a decision, not an edit.
-8. `docs/vision.md`, `docs/style-guide.md`
+7. `docs/vision.md`, `docs/style-guide.md`
 
 No change needed: [Pino Interpreter Notes](notes_on_pino_interpreter.md) is the
 record of a rejected option and is cited by [Koivu Vesi](koivu-vesi.md), section
@@ -138,6 +133,12 @@ Commits from the session that produced the split, oldest first. All on `main`.
 | `db08b5b` | `koivu-vesi.md` section 6: Goal B cross-compiles Vesi, not the seed |
 | `ff21cc8` | Deleted `bootstrap/stage1-ll/` - the evaluator-shaped `.ll` prototype |
 | `da266b5` | `02` section 2: dropped the rejected "seed in `.ll` early" option |
+| `71ec0e9` | This file rewritten as a ledger rather than a copy of the blueprints |
+| `8d7147` | `architecture.md`: seed and sapling emit images; Stages 1 and 2 no longer "lower it themselves" |
+| `1a4d524` | `architecture.md`: end-user installation downloads Vesi and lowers the seed image |
+| `52e5b65` | `architecture.md`: index gains `flat-vector`, the interpreter notes, the reader macros notes |
+| `a54a73b` | `architecture.md`: the seed does not add macros; the sapling carries the expander |
+| `7059f59` | Dropped the "stay dynamic" goal in `architecture.md` and the reader macros notes; `03` gains the checked-subset-of-R6RS statement |
 
 Earlier commits are in the log. The previous revision of this file described
 `811b5b4` through `83606d7`, which covered the first passes over `backend.md`,
@@ -179,21 +180,16 @@ spread across them. Where a decision has a home, the home is named.
 
 ## 6. Known remaining inconsistencies
 
-**Confirmed still standing.**
-
-- [Architecture Map](../architecture.md) - "lowers it to machine code with the
-  Pino compiler library", plus a build description that predates the split. See
-  section 3.
-- **"Stay traditional, dynamic, and macro-rich"** ([Architecture
-  Map](../architecture.md), Goals; [Reader Macros
-  Notes](notes_on_reader_macros.md)) vs **"All Koivu stages are statically
-  typed"** ([Koivu Language](03_language.md)). This needs a decision about which
-  claim is meant, not an edit to one side.
+**None confirmed.** The two that were confirmed have been fixed and are listed
+under *Resolved* below.
 
 **Carried over from earlier passes, not re-checked since the split.**
 
 - Static typing vs runtime predicates (`integer?`, `pair?`), given that "Cons
-  Cells do not use value tagging".
+  Cells do not use value tagging". Possibly resolved by the checked-subset
+  statement in [Koivu Language](03_language.md), since a predicate over a
+  representation fixed at compile time folds to a constant; confirm rather than
+  assume.
 - Multi-file R6RS libraries vs a single input capped by `MAX_INPUT_BYTES`, with
   no import resolution.
 - Pass-arena reset destroying the pass's own output - there is no
@@ -206,6 +202,14 @@ spread across them. Where a decision has a home, the home is named.
 
 **Resolved, kept for the record.**
 
+- [Architecture Map](../architecture.md) described the pre-split chain: the seed
+  lowering with "the Pino compiler library", a pre-built seed published per host
+  in the end-user flow, and "Stage 1 compiles the source code of Stage 2 (adding
+  macros)". Fixed in `8d7147`, `1a4d524`, `52e5b65` and `a54a73b`.
+- **"Stay traditional, dynamic, and macro-rich"** vs **"All Koivu stages are
+  statically typed"**. The goal now asks for homoiconicity and macros rather than
+  dynamism, and [Koivu Language](03_language.md) states that Koivu Scheme is a
+  checked subset of R6RS. Fixed in `7059f59`.
 - "Exactly six host OS primitives" vs eight calls in the adjacent table. The
   documents now say **seven** ([Stage 1](04_stage1_seed.md), section 3;
   [Platforms and Targets](01_platforms.md), section 6.1; [Seed
@@ -220,10 +224,11 @@ spread across them. Where a decision has a home, the home is named.
 
 ## 7. Next step
 
-[Architecture Map](../architecture.md). Read it in full, produce the
-inconsistency list, then fix the index rows and the build description in one
-commit - the "Pino compiler library" sentence and the missing two-pass build are
-the same defect.
+[Frontends](07_frontends.md). Read it in full and produce the inconsistency list
+before editing anything, then check its staging claims against the rule in
+[Koivu Language](03_language.md): each stage compiles a subset of the next
+stage's language, and the subset is fixed by what that next stage's source
+actually uses.
 
 ## 8. Repository logistics
 
