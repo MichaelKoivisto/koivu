@@ -44,7 +44,7 @@ R6RS is selected over other specifications for three primary reasons:
 
 ## Data Types
 
-All Koivu stages are statically typed. 
+All Koivu stages are statically typed. Koivu Scheme is therefore a **checked subset of R6RS** rather than a different type discipline: R6RS is a dynamically typed specification, and Koivu keeps its syntax, its macro model and its phasing while requiring every value's representation to be fixed at compile time. A program that would need run-time type dispatch - a tagged value whose representation is known only once it is inspected - does not compile. That is the whole of the restriction, and it is why the dialect baseline above can be R6RS while this section can open with a claim R6RS does not make.
 
 ### Basic Data Types
 

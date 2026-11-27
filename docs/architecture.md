@@ -90,7 +90,7 @@ Bootstrap components must conform to one overriding priority:
 
 Koivu Scheme compilers (all stages) must conform to a very specific design priority:
 
-* **Maximum Language Expressiveness:**  Stay traditional, dynamic, and macro-rich. Provide maximum cognitive flexibility and clean, expressive notation to reason about code, transform graphs, and manipulate syntax.
+* **Maximum Language Expressiveness:**  Stay homoiconic and macro-rich. Code is data, so passes, transformations and syntax manipulation are ordinary procedures over ordinary structures, and the notation stays clean and expressive enough to reason about code and transform graphs. The expressiveness comes from the macro system and from homoiconicity, not from run-time type dispatch: Koivu has no value tagging and no evaluator, and wants neither ([Koivu Scheme](architecture/03_language.md), Data Types).
 
 Production modules (with the exception of Lisp compilers) must enforce performance-critical design priorities:
 

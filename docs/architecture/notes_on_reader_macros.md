@@ -72,7 +72,7 @@ Traditional reader macros allow you to read these external files **at compile ti
 
 Keeping Stage 3 traditional while writing DoD compilers creates a highly pragmatic division of labor:
 
-* **The Host Layer (Stage 3 Koivu Scheme):** Stays traditional, dynamic, and macro-rich. This gives you **maximum cognitive flexibility** and clean, expressive notation to reason about code, transform graphs, and manipulate syntax.
+* **The Host Layer (Stage 3 Koivu Scheme):** Stays traditional, homoiconic and macro-rich. This gives you **maximum cognitive flexibility** and clean, expressive notation to reason about code, transform graphs, and manipulate syntax. It does not become dynamically typed to get there: the flexibility comes from code being data and from transformers computing at compile time, while every value's representation stays fixed and untagged ([Koivu Scheme](03_language.md), Data Types).
 
 * **The Target Layer (The generated output):** Is pure Data-Oriented Design. Your traditional Stage 3 compiler emits tight, cache-aligned, flat-array representations for the downstream target infrastructure to execute at blistering speeds.
 
