@@ -6,7 +6,7 @@ can be resumed in a later session without re-deriving context.
 **Delete this file when the review is finished.** It is deliberately absent from
 the index in `docs/architecture.md`.
 
-Last updated after commit `078a00c`.
+Last updated after commit `f2c0339`.
 
 This file is a ledger, not a copy of the blueprints. Where a decision is written
 down in a blueprint, the entry points at it. The previous revision restated
@@ -88,6 +88,21 @@ Decisions about *how* the review is conducted, not about the architecture.
 | [Data-Oriented Design](data_oriented_design.md) | The `Lower` phase names the node layout it targets instead of ending at "translates into LLVM IR". |
 | [Style Guide](../style-guide.md) | Section 3A: `llvm` fences are for textual LLVM IR, not for a "Stage 1 `primitives.ll`" that does not exist; `lisp` is for Koivu Scheme in every stage. Section 4: the definition of an S-expression no longer names an interpreter as one of its processors - the reader, the macro expander and the compiler passes are, and no stage interprets, because Koivu has no evaluator. |
 
+### Reconciled for the encoding rule
+
+The rule is defined in [Koivu Language](03_language.md), *Character Encoding*, and referenced from everywhere else. The documents are listed here because the change touched eight of them in one commit (`f2c0339`).
+
+| Document | What the review changed |
+| :--- | :--- |
+| [Koivu Language](03_language.md) | New *Character Encoding* section: the rule in one sentence, the scope table, four reasons for ASCII over UTF-8, the text-versus-bytes boundary, the deviation from R6RS, and four rejected alternatives. |
+| [Pino IR](pino.md) | Section 3 states that an image is ASCII text and that a high byte is rejected. |
+| [Koivu Vesi](koivu-vesi.md) | ASCII is part of the interface (section 2), a rejection duty (section 4) and a hard error (section 8, criterion 2). |
+| [Stage 1 (Seed)](04_stage1_seed.md) | The seed is the enforcement point: sections 3, 6 and 8 gain the rejection, the diagnostic and the test. |
+| [Stage 2 (Sapling)](05_stage2_sapling.md) | Section 1: Stage 3's own source is ASCII because the sapling reads it. |
+| [Frontends](07_frontends.md) | New *Character Encoding* section: a frontend decides its own input encoding, Unicode at minimum in comments, decoding is the frontend's job, the emitted `.ll` stays ASCII. |
+| [Data-Oriented Design](data_oriented_design.md) | "Character" means byte until a frontend decodes. |
+| [S-LLVM IR](s-llvm-ir.md) | Section 3: the emitter writes a non-ASCII code point as a `\XX` escape. |
+
 The staging rule that came out of this work lives in
 [Koivu Language](03_language.md): each stage compiles a subset of the next
 stage's language, fixed by what that next stage's *source* actually uses. Its
@@ -103,18 +118,20 @@ corollary is written there too - the seed is not an unfinished Stage 3.
 
 Queued in this order:
 
-1. [Frontends](07_frontends.md) - not checked against the staging rule in
-   [Koivu Language](03_language.md).
-2. [Data-Oriented Design](data_oriented_design.md) - the `Lower` phase gained a
-   pointer to the in-memory IR, but the document has not had a full reading.
-   Open questions noted on the first pass: its `Component` line reads
-   `Frontends, Backend`, which is not the canonical vocabulary, and its lexer and
-   parser sections carry `TODO` markers that have not been resolved.
-3. [Carbon Datatypes](carbon_datatypes.md)
-4. `docs/vision.md`, `docs/style-guide.md` - `vision.md` is unreviewed beyond the
+1. [Data-Oriented Design](data_oriented_design.md) - the `Lower` phase gained a
+   pointer to the in-memory IR and the lexing section gained the encoding note,
+   but the document has not had a full reading. Open questions noted on the first
+   pass: its `Component` line reads `Frontends, Backend`, which is not the
+   canonical vocabulary, and its lexer and parser sections carry `TODO` markers
+   that have not been resolved.
+2. [Carbon Datatypes](carbon_datatypes.md)
+3. `docs/vision.md`, `docs/style-guide.md` - `vision.md` is unreviewed beyond the
    banner. The style guide has had sections 3A and 4 brought in line with the IR
    split and with the absence of an evaluator; the rest of it has not been read
    against the blueprints.
+
+[Frontends](07_frontends.md) left this queue in `f2c0339`: it was read in full,
+and it is three paragraphs that make no staging claims and contradict nothing.
 
 Nothing else in the directory is known to contradict the blueprints; the items
 above are queued for a first reading rather than for repair.
@@ -158,6 +175,7 @@ Commits from the session that produced the split, oldest first. All on `main`.
 | `1616dd3` | The `s-llvm-ir` family collapsed to one blueprint under one name; `ast-s-llvm-ir.md` and `notes_on_s-llvm-ir_to_llvm_ir_ast.md` deleted; parsing notes retargeted to `koivu-llc`; `backend.md` 7.1, the index, the `Lower` phase and the style guide follow |
 | `4047444` | This ledger follows the LLVM IR consolidation |
 | `078a00c` | Style guide: section 4 no longer names an interpreter as a processor of S-expressions |
+| `f2c0339` | ASCII-only bootstrap text across eight documents; the rule is defined in `03` and referenced everywhere else |
 
 Earlier commits are in the log. The previous revision of this file described
 `811b5b4` through `83606d7`, which covered the first passes over `backend.md`,
@@ -212,6 +230,22 @@ spread across them. Where a decision has a home, the home is named.
   decision and was wrong about the stage anyway. A second representation plus a
   conversion pass is a second thing to keep in step, so both documents that
   described one are gone.
+- **Bootstrap text is ASCII; what a frontend compiles need not be.** `03`, section
+  *Character Encoding*. The rule is derived rather than declared: a compiler's
+  source must be in the character set its reader accepts, and the bootstrap
+  readers accept ASCII only. Its sharpest consequence is that **Stage 3's own
+  source is ASCII**, because the sapling is what reads it - a step the original
+  request did not state. The reason is not size but the narrow waist: a UTF-8
+  reader must validate overlong encodings, surrogate halves and truncated
+  sequences, and that is a security-relevant decision in the compiler everything
+  else depends on. It also keeps the byte comparisons exact - determinism, golden
+  images, reassembling the committed `.s` - so normalisation never enters the
+  picture. Frontends hosted by Stage 3 decide their own input encoding and may
+  accept Unicode, at minimum in comments; the emitter writes what survives as
+  `\XX` escapes so `.ll` output stays ASCII. The rule covers text a Koivu reader
+  reads, not bytes a program handles: paths, byte buffers and program data are
+  outside it, which is what lets the seed print an I/O error naming a user's
+  directory. Prose in `docs/` is out of scope by decision.
 - **No size standard for the binary root.** `auditability.md`. The byte-audit
   tradition is real and Koivu does not follow it: Vesi is ~600 KiB, and the
   binding ceiling is `08`, section 7, not a borrowed "10 KiB". Strict DDC is a
@@ -270,11 +304,13 @@ under *Resolved* below.
 
 ## 7. Next step
 
-[Frontends](07_frontends.md). Read it in full and produce the inconsistency list
-before editing anything, then check its staging claims against the rule in
-[Koivu Language](03_language.md): each stage compiles a subset of the next
-stage's language, and the subset is fixed by what that next stage's source
-actually uses.
+[Data-Oriented Design](data_oriented_design.md). Read it in full and produce the
+inconsistency list before editing anything. Two things are already known to be
+waiting there: its `Component` line reads `Frontends, Backend`, which is not the
+canonical vocabulary, and its lexer and parser sections carry `TODO` markers that
+have never been resolved. Check its `flat-vector` layouts against
+[Flat Vector](flat-vector.md) and against the Stage 3 scope rule in
+[Koivu Language](03_language.md), Purpose and Scope.
 
 ## 8. Repository logistics
 
