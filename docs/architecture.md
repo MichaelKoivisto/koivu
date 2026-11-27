@@ -35,8 +35,8 @@ The complete technical design is distributed across the following specialized do
 
 Bootstrapping will work in multiple stages:
 
-* Stage 1 (Seed): A minimalist statically typed Lisp-1 compiler. It is written in C before M2 and in Scheme afterwards, builds Pino IR, and lowers it to machine code with the Pino compiler library. It contains no evaluator: it is a compiler and nothing else (see [Backend](architecture/backend.md), sections 2 and 3). 
-* Stage 2 (Sapling): A macro-expanding compiler written in Stage 1 Lisp. Its only purpose is to compile the Stage 3 compiler: it builds Pino IR and lowers it with the same Pino compiler library the seed carries, so no external tool is involved.
+* Stage 1 (Seed): A minimalist statically typed Lisp-1 compiler. It is written in C before M2 and in Scheme afterwards, builds Pino IR and prints it as a `.pino` image; `koivu-vesi` lowers that image to machine code and writes the executable container. The seed therefore carries no instruction encoder, no container writer and no target description, and it contains no evaluator: it is a compiler and nothing else (see [Koivu Vesi](architecture/koivu-vesi.md), section 1). 
+* Stage 2 (Sapling): A macro-expanding compiler written in Stage 1 Lisp. Its only purpose is to compile the Stage 3 compiler: it builds Pino IR and prints it as a `.pino` image, which `koivu-vesi` lowers exactly as it lowers the seed's, so no external tool is involved.
 * Stage 3 (Production Core): A statically typed, AOT-compiled Scheme dialect executing a highly modular pipeline of ~50 distinct Nanopass transformations.
 
 The **Koivu** project relies heavily on bootstrapping, but this happens in two distinct contexts: during the project's **initial development phase** and later during **end-user installation**.
@@ -49,7 +49,7 @@ This is the process the **core developers** use to build the compiler infrastruc
   * Stage 1 compiles the source code of Stage 2 (adding macros).
   * Stage 2 compiles the source code of Stage 3 (the production Scheme dialect).
 * **The Goal (Self-Hosting):** Developers write a native machine code backend (e.g., x86_64) directly *in Stage 3 Scheme*. Once Stage 3 can compile its own source code without invoking any external tool, the development bootstrap is complete and a **meta-circular, self-hosting language** is achieved.
-* **What is dropped, and what is not:** two different things are dropped, at different times. The **external C compiler** that builds the seed is dropped at M2, when a Koivu compiler produced by the chain can rebuild the seed from its own source. The **`llc` tool** is never in the chain to begin with: Stages 1 and 2 use Pino IR rather than LLVM IR and lower it themselves. The `.ll` **format** survives permanently, but only in Stage 3, as its debugging instrument and as `koivu-llc`'s input (see [Backend](architecture/backend.md), sections 1 and 7). The first bootstrap goal - the sapling build depending on no external tool - is met at M0.
+* **What is dropped, and what is not:** two different things are dropped, at different times. The **external C compiler** that builds the seed is dropped at M2, when a Koivu compiler produced by the chain can rebuild the seed from its own source. The **`llc` tool** is never in the chain to begin with: Stages 1 and 2 use Pino IR rather than LLVM IR, and that IR is lowered by `koivu-vesi`, which is Koivu's own program rather than an external tool. The `.ll` **format** survives permanently, but only in Stage 3, as its debugging instrument and as `koivu-llc`'s input (see [Backend](architecture/backend.md), sections 1 and 7). The first bootstrap goal - the sapling build depending on no external tool - is met at M0.
 
 ### Bootstrapping the Build (End-User Installation)
 Once Koivu is fully self-hosting, **end-users** will need a way to build it from source on their own machines without needing an existing Koivu binary pre-installed. 
