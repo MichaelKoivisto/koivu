@@ -70,7 +70,7 @@ Utilize GitHub’s blockquote markdown components to emphasize critical compilat
 
 To prevent semantic confusion, documentation must adhere to strict term boundaries:
 
-* **S-Expression:** Refers strictly to the symbolic nested lists processed by the interpreter and macros. Do not use generic "code trees."
+* **S-Expression:** Refers strictly to the nested-list notation itself - the form Koivu source is written in, and the form its intermediate representations take. It is processed by the reader, by the macro expander at compile time, and by compiler passes as ordinary data; no stage interprets it, because Koivu has no evaluator ([Backend](architecture/backend.md), decision 5) and no produced program contains an interpreter ([Stage 1 (Seed)](architecture/04_stage1_seed.md), section 5). Do not use generic "code trees."
 * **Pass-Based Arena:** Refers strictly to memory buffers that undergo a complete pointer reset to zero at the termination of a compilation pass. Do not call this a "heap partition."
 * **Lowering:** The explicit act of translating higher-level Intermediate Representation (IR) symbols down into raw target-specific hardware instructions.
 * **x86_64:** The 64-bit extension of the 32-bit x86 instruction set architecture. (Also known as amd64 and x64.) Please avoid using amd64 as it is too easy to misread, 
