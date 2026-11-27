@@ -6,7 +6,7 @@ can be resumed in a later session without re-deriving context.
 **Delete this file when the review is finished.** It is deliberately absent from
 the index in `docs/architecture.md`.
 
-Last updated after commit `f2c0339`.
+Last updated after commit `dcd5e78`.
 
 This file is a ledger, not a copy of the blueprints. Where a decision is written
 down in a blueprint, the entry points at it. The previous revision restated
@@ -80,7 +80,7 @@ Decisions about *how* the review is conducted, not about the architecture.
 
 | Document | What the review changed |
 | :--- | :--- |
-| [Seed Sizes Notes](notes_on_seed_sizes.md) | Ceilings restated as the real pairs - 1600 / 2400 KiB for the seed binary, 1200 / 1800 for Vesi; a `koivu-vesi` row added and the seed row relabelled as the binary produced from the image; the misleading C-scaffold row dropped; the interpreter bullet rewritten as a Vesi variant; section 1 gains the third axis, whether an artifact is downloaded or produced by the user. |
+| [Seed Sizes Notes](notes_on_seed_sizes.md) | Ceilings restated as the real pairs - 1600 / 2400 KiB for the seed binary, 1200 / 1800 for Vesi; a `koivu-vesi` row added and the seed row relabelled as the binary produced from the image; the misleading C-scaffold row dropped; the interpreter bullet rewritten as a Vesi variant; section 1 gains the third axis, whether an artifact is downloaded or produced by the user. Later (`dcd5e78`): SectorLISP added as the small-number calibration - an interpreter with a GC in ~436 bytes, not a compiler; section 1 gains an *interpreter-level* row and `Mes` moves into it; section 2 renamed *The Comparison Cases*. |
 | [S-LLVM IR](s-llvm-ir.md) | Rewritten as the single blueprint for LLVM IR as data in the production stack. Library renamed `(koivu backend llvm-ir)`; five node tags - `llvm-ir-module`, `-fn`, `-block`, `-instr`, `-val`; the instruction node is variadic, so `call`, `phi`, `gep` and `store` fit and the `void` / `none` padding symbols are gone; `%` and `@` moved out of the data into the emitter. Producers and consumers tabulated: constructors and the `.ll` parser in, emitter and lowering stack out. |
 | [LLVM IR Parsing Notes](notes_on_llvm_ir_parsing.md) | Retargeted from "how Stage 2 avoids parsing" to "what `koivu-llc`'s parser must accept". Component corrected from `Koivu Scheme` to `Koivu Backend`. The third instruction surface (`define-llvm-function`, `(assign %res (add i32 %a %b))`) and the reversed claim that Stage 3 would wrap constructors in `#llvm_ir{...}` macros are gone. |
 | [Backend](backend.md) | Section 7.1 no longer names a library and an in-memory scheme that are defined nowhere: `(koivu backend syntax llvm-ir)` and `flat-ast-llvm-ir` become `(koivu backend llvm-ir)` plus a link. |
@@ -176,6 +176,7 @@ Commits from the session that produced the split, oldest first. All on `main`.
 | `4047444` | This ledger follows the LLVM IR consolidation |
 | `078a00c` | Style guide: section 4 no longer names an interpreter as a processor of S-expressions |
 | `f2c0339` | ASCII-only bootstrap text across eight documents; the rule is defined in `03` and referenced everywhere else |
+| `dcd5e78` | SectorLISP added to the seed-size note as the small-number calibration; an interpreter-level row added to section 1, `Mes` moved into it, section 2 renamed |
 
 Earlier commits are in the log. The previous revision of this file described
 `811b5b4` through `83606d7`, which covered the first passes over `backend.md`,
@@ -301,6 +302,12 @@ under *Resolved* below.
   put `@` and `%` into symbols, and `'@koivu_fast_add` is not a readable R6RS
   identifier. `backend.md`, section 7.1 named a library and a
   `flat-ast-llvm-ir` scheme that existed nowhere. Fixed in `1616dd3`.
+- [Seed Sizes Notes](notes_on_seed_sizes.md) had no level for an interpreter: its
+  section 1 table called `Mes` a *compiler-level* seed while section 3 labelled
+  the same program *interpreter-level*. Fixed in `dcd5e78` by adding an
+  interpreter-level row, which also gave SectorLISP a home. The distinction is
+  not bookkeeping: an interpreter seed compiles nothing, so it cannot be compared
+  with a compiler seed on capability.
 
 ## 7. Next step
 
