@@ -1,7 +1,7 @@
 # Koivu Documentation Style Guide
 
-> **Status:** System Style Mandate  
-> **Target:** All `.md` files in `docs/` and root  
+**Status:** System Style Mandate  
+**Target:** All `.md` files in `docs/` and root  
 
 This document defines the structural, typographic, and stylistic rules for the Koivu project documentation. To maintain consistency with classic systems engineering design documents, our text must prioritize precision, brevity, and explicit data layout.
 
@@ -29,9 +29,11 @@ Documents inside the `docs/` repository may begin with a uniform header block su
 ```markdown
 # Document Title
 
-> **Status:** [Architecture Blueprint / Specification / Developer Notes]  
-> **Component:** [Stage 1 Core / Midend / Global / etc.]  
+**Status:** [Architecture Blueprint / Specification / Developer Notes]  
+**Component:** [Global / Koivu Scheme / Koivu Backend / Stage 1 / Stage 2 / Stage 3 / Production Compilers]  
 ```
+
+The banner is **plain text, not a blockquote.** A leading `>` is reserved for epigraphs and for alert blocks (section 3C); a metadata banner that is quoted reads as a citation of somebody else's words, which is the opposite of what it is.
 
 * *Architecture Blueprint* is a plan that outlines the most important design aspects of particular component. 
 

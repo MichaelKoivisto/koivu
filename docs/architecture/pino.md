@@ -1,7 +1,7 @@
 # Pino IR Architecture Blueprint
 
-> **Status:** Architecture Blueprint<br>
-> **Component:** Stage 1 Core / Stage 2 Sapling / Bootstrap Backend
+**Status:** Architecture Blueprint  
+**Component:** Global
 
 > Capt. Jack Sparrow: Put it away, son. It's not worth you getting beat again.<br>
 > Will Turner: You ignored the rules of engagement. In a fair fight, I'd kill you.<br>

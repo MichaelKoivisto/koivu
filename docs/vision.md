@@ -1,6 +1,6 @@
 # Architectural Rationale: The Koivu Compiler Infrastructure
 
-> **Status:** Project Vision Blueprint  
+**Status:** Project Vision Blueprint  
 
 ---
 

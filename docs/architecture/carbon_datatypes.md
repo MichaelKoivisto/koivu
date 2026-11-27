@@ -1,7 +1,7 @@
 # Data Type Examples
 
-> **Status:** [Developer Notes]  
-> **Component:** [Global]  
+**Status:** Developer Notes  
+**Component:** Global  
 
 Here are examples of domain-specific data structures, taken from Carbon documentation (examples are in LLVM IR):
 

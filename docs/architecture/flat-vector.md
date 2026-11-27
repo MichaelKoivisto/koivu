@@ -1,7 +1,7 @@
 # Koivu Scheme - Flat Vector
 
-> **Status:** [Architecture Blueprint]  
-> **Component:** [Koivu Scheme]  
+**Status:** Architecture Blueprint  
+**Component:** Koivu Scheme  
 
 `flat-vector` is a built-in data type designed for use in lexing, parsing and code emiting [data-oriented algorithms](data_oriented_design.md). 
 Koivu Scheme Stage 3 compiler supports `flat-vector`. Stages 1 and 2 do not. 

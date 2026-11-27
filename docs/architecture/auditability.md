@@ -1,7 +1,7 @@
 # Developer Note: Bootstrap Auditability - Ecosystem Practice and Koivu's Position
 
-> **Status:** Developer Note
-> **Component:** Security, Bootstrapping & Seed Verification
+**Status:** Developer Note  
+**Component:** Global  
 
 > "The only rules that really matter are these: what a man can do and what a man can't do."<br>
 > *— Captain Jack Sparrow*
