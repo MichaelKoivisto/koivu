@@ -6,7 +6,7 @@ can be resumed in a later session without re-deriving context.
 **Delete this file when the review is finished.** It is deliberately absent from
 the index in `docs/architecture.md`.
 
-Last updated after commit `4dadae7`.
+Last updated after commit `9b55958`.
 
 This file is a ledger, not a copy of the blueprints. Where a decision is written
 down in a blueprint, the entry points at it. The previous revision restated
@@ -73,7 +73,8 @@ Decisions about *how* the review is conducted, not about the architecture.
 | [Architecture Map](../architecture.md) | The index no longer describes the pre-split chain: the seed and the sapling emit images, the end-user flow downloads Vesi and lowers the seed image, the seed no longer "adds macros", and three documents that were missing from the table are indexed. |
 | [Koivu Language](03_language.md) | *Purpose and Scope*, the staging rule, the Stage 3 data types, the statement that Koivu Scheme is a checked subset of R6RS, the lexical-reader rule with `#llvm_ir{...}` as its one embedding, and the rule that a location carries its file. |
 | [Reader Macros Notes](notes_on_reader_macros.md) | Rewritten from an argument for embeddings into an argument for a small reader: the constraint, the lexical test, and the four anti-patterns as reasoning rather than as rules. |
-| [Auditability](auditability.md) | Rewritten: ecosystem practice separated from Koivu's position, the "10 KiB standard" removed, DDC shown to be out of reach, and the artifact table rebuilt from [Seed Artifacts](08_seed_artifacts.md). |
+| [Auditability](auditability.md) | Rewritten: ecosystem practice separated from Koivu's position, the "10 KiB standard" removed, DDC shown to be out of reach, and the artifact table rebuilt from [Seed Artifacts](08_seed_artifacts.md). It now also cites the interpreter note as the design that would have come closest to the byte-audit principle. |
+| [Pino Interpreter Notes](notes_on_pino_interpreter.md) | Retargeted from the seed to Vesi, which is where the encoder, the label table and the container writers actually live. Variants restated in current terms; the cost of making `.pino` a distribution format marked as already paid; the link to [Auditability](auditability.md) added. |
 
 The staging rule that came out of this work lives in
 [Koivu Language](03_language.md): each stage compiles a subset of the next
@@ -105,11 +106,13 @@ Queued in this order:
    `1bffa0c` settled half of this: they no longer justify a reader macro, so the
    remaining question is whether `koivu-llc`'s parser needs them at all. Narrow
    to Stage 3 or delete.
-6. `docs/vision.md`, `docs/style-guide.md`
+6. `docs/vision.md`, `docs/style-guide.md` - both received the banner
+   normalisation in `fd7d096`; nothing else in either has been reviewed. The
+   style guide's section 2 template was also brought onto the canonical component
+   vocabulary, and it now states that the banner is plain text.
 
-No change needed: [Pino Interpreter Notes](notes_on_pino_interpreter.md) is the
-record of a rejected option and is cited by [Koivu Vesi](koivu-vesi.md), section
-1.
+Nothing else in the directory is known to contradict the blueprints; the items
+above are queued for a first reading rather than for repair.
 
 ## 4. Session log
 
@@ -144,6 +147,8 @@ Commits from the session that produced the split, oldest first. All on `main`.
 | `1bffa0c` | Reader macros: the lexical rule, `#llvm_ir{...}` kept for Stage 3, the four other embeddings and `#embed-json` dropped; `03` gains the file-identity rule; the reader macros note rewritten |
 | `0071998` | `auditability.md` rewritten: ecosystem practice separated from Koivu's position, DDC shown out of reach |
 | `4dadae7` | Index lists the auditability note |
+| `fd7d096` | One metadata banner: plain everywhere, component names mapped onto Global / Koivu Scheme / Koivu Backend / Stage 1-3 / Production Compilers |
+| `9b55958` | Pino interpreter note retargeted from the seed to Vesi; `auditability.md` cites it as the closest attempt at a byte-auditable root |
 
 Earlier commits are in the log. The previous revision of this file described
 `811b5b4` through `83606d7`, which covered the first passes over `backend.md`,
