@@ -24,10 +24,13 @@ The complete technical design is distributed across the following specialized do
 | [**Seed Artifacts**](./architecture/08_seed_artifacts.md) | Seed artifacts, trust levels and verification recipes. |
 | [**Self-hosting**](./architecture/selfhosting.md) | Roadmap to self-hosting. |
 | [**Data-Oriented Design**](./architecture/data_oriented_design.md) | Data-Oriented Design for compiler passes. |
+| [**Flat Vector**](./architecture/flat-vector.md) | The `flat-vector` sugar, and why it is a Stage 3 data type. |
 | [**Pino IR**](./architecture/pino.md) | The bootstrap IR: instruction set, data layout, and the `.pino` image format. |
 | [**Backend**](./architecture/backend.md) | IR emission, machine-code lowering, target descriptions, `koivu-llc`. |
 | [**Koivu Vesi**](./architecture/koivu-vesi.md) | The Pino lowerer: the `.pino` interface, instruction encoding, containers, and the chain's per-host artifact. |
 | [**Seed Sizes**](./architecture/notes_on_seed_sizes.md) | Developer note: how large compiler seeds are in comparable chains, and why those figures are not directly comparable. |
+| [**Pino Interpreter Notes**](./architecture/notes_on_pino_interpreter.md) | Developer note: the interpreter alternative to lowering Pino, and why it was rejected. |
+| [**Reader Macros Notes**](./architecture/notes_on_reader_macros.md) | Developer note: which reader macros are worth having, and which are refused. |
 
 ---
 
