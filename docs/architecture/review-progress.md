@@ -6,7 +6,7 @@ can be resumed in a later session without re-deriving context.
 **Delete this file when the review is finished.** It is deliberately absent from
 the index in `docs/architecture.md`.
 
-Last updated after commit `1616dd3`.
+Last updated after commit `078a00c`.
 
 This file is a ledger, not a copy of the blueprints. Where a decision is written
 down in a blueprint, the entry points at it. The previous revision restated
@@ -86,7 +86,7 @@ Decisions about *how* the review is conducted, not about the architecture.
 | [Backend](backend.md) | Section 7.1 no longer names a library and an in-memory scheme that are defined nowhere: `(koivu backend syntax llvm-ir)` and `flat-ast-llvm-ir` become `(koivu backend llvm-ir)` plus a link. |
 | [Architecture Map](../architecture.md) | Index rows for [In-Memory LLVM IR](s-llvm-ir.md) and the parsing notes. Neither was indexed before. |
 | [Data-Oriented Design](data_oriented_design.md) | The `Lower` phase names the node layout it targets instead of ending at "translates into LLVM IR". |
-| [Style Guide](../style-guide.md) | Section 3A: `llvm` fences are for textual LLVM IR, not for a "Stage 1 `primitives.ll`" that does not exist; `lisp` is for Koivu Scheme in every stage. |
+| [Style Guide](../style-guide.md) | Section 3A: `llvm` fences are for textual LLVM IR, not for a "Stage 1 `primitives.ll`" that does not exist; `lisp` is for Koivu Scheme in every stage. Section 4: the definition of an S-expression no longer names an interpreter as one of its processors - the reader, the macro expander and the compiler passes are, and no stage interprets, because Koivu has no evaluator. |
 
 The staging rule that came out of this work lives in
 [Koivu Language](03_language.md): each stage compiles a subset of the next
@@ -112,10 +112,9 @@ Queued in this order:
    parser sections carry `TODO` markers that have not been resolved.
 3. [Carbon Datatypes](carbon_datatypes.md)
 4. `docs/vision.md`, `docs/style-guide.md` - `vision.md` is unreviewed beyond the
-   banner. The style guide's section 3A now matches the IR split, but section 4
-   still defines an S-expression as "the symbolic nested lists processed by the
-   interpreter and macros", and Koivu has no interpreter or evaluator
-   ([Backend](backend.md), decision 5). That needs a decision, not a silent fix.
+   banner. The style guide has had sections 3A and 4 brought in line with the IR
+   split and with the absence of an evaluator; the rest of it has not been read
+   against the blueprints.
 
 Nothing else in the directory is known to contradict the blueprints; the items
 above are queued for a first reading rather than for repair.
@@ -157,6 +156,8 @@ Commits from the session that produced the split, oldest first. All on `main`.
 | `9b55958` | Pino interpreter note retargeted from the seed to Vesi; `auditability.md` cites it as the closest attempt at a byte-auditable root |
 | `33411e4` | `notes_on_seed_sizes.md` reconciled with the split: real ceilings, a Vesi row, the trust anchor restated as the smaller program, the C-scaffold row dropped |
 | `1616dd3` | The `s-llvm-ir` family collapsed to one blueprint under one name; `ast-s-llvm-ir.md` and `notes_on_s-llvm-ir_to_llvm_ir_ast.md` deleted; parsing notes retargeted to `koivu-llc`; `backend.md` 7.1, the index, the `Lower` phase and the style guide follow |
+| `4047444` | This ledger follows the LLVM IR consolidation |
+| `078a00c` | Style guide: section 4 no longer names an interpreter as a processor of S-expressions |
 
 Earlier commits are in the log. The previous revision of this file described
 `811b5b4` through `83606d7`, which covered the first passes over `backend.md`,
