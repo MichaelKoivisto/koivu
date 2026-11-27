@@ -59,6 +59,8 @@ Before reading any grammatical tokens, the lexer performs a lightning-fast initi
 #### Sweep B: Greedy Structural Dispatch Loops
 
 With memory reserved, the lexer iterates over the character array via a fast dispatch loop. 
+
+**"Character" here means byte until a frontend says otherwise.** The layouts in this document are byte layouts: `pos` is a byte offset, and the string pool holds bytes. A frontend whose target language permits Unicode decodes before or during lexing and owns that decision; the bootstrap languages do not decode at all ([Koivu Scheme](03_language.md), Character Encoding; [Frontends](07_frontends.md)).
 Compiler uses standard **maximal munch (greedy consumption)**—constantly extracting the longest valid sequence of characters that forms a valid lexical construct.
 * Whitespaces and Comments: Stripped entirely via inline bit-character masks (`SkipWhitespace`).
 * Variable-Length Literals: If the loop encounters complex data like string literals or floating-point structures, it intercepts them, parses their exact values immediately, caches the string content in a deduplicated **`IdentifierList` string pool**, and yields a compact 12-byte token tracking a 32-bit handle to that pool.

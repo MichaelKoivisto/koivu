@@ -122,6 +122,8 @@ Constructors return nodes. They never emit text and never consult a target: what
 
 The emitter is the serialisation layer and the only place where spelling exists. It adds `%` to a register, `@` to a global, `entry:` to a block label, and the type suffixes LLVM requires. Emission is deterministic: stable ordering, no timestamps, no absolute paths, because the fixpoint check compares output byte for byte ([Backend](backend.md), section 8, criterion 4).
 
+**The emitter's output is ASCII.** A frontend compiled by Stage 3 may accept Unicode input ([Frontends](07_frontends.md)), and a non-ASCII code point that survives into the IR is written as a `\XX` byte escape, which the LLVM format provides for. So a `.ll` file is ASCII whatever the input encoding was, and the byte comparisons above stay exact.
+
 ```scheme
 (call-with-output-file "output.ll"
   (lambda (port)

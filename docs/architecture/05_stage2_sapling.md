@@ -40,6 +40,7 @@ Three consequences are worth stating:
 The sapling compiles Stage 3's source, so its language is the subset Stage 3's source actually uses, plus hygienic macros ([Koivu Scheme](03_language.md), Purpose and Scope).
 
 * **The wider integer types are in.** Stage 3's source uses them, so the sapling implements them ([Koivu Scheme](03_language.md), Stage 2 Data Types).
+* **Its input is ASCII.** The sapling's reader is the seed's reader, so Stage 3's own source is ASCII - identifiers, literals and comments alike ([Koivu Scheme](03_language.md), Character Encoding). This is a statement about the language Stage 3 is *written in*, not about the languages it compiles: a frontend built by Stage 3 may accept Unicode in its own input, and at minimum in comments ([Frontends](07_frontends.md)).
 * **`flat-vector` is not.** Stage 3's own source contains no `define-flat-vector` form, so the form never reaches the sapling and the sapling needs no support for it ([Flat Vector](flat-vector.md); [Koivu Scheme](03_language.md), Purpose and Scope).
 * **`syntax-case` is not.** `syntax-rules` is the whole of the macro language ([section 4](#4-scope-boundaries-and-simplifications)).
 

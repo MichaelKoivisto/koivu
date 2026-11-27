@@ -79,6 +79,7 @@ An image is a sequence of top-level forms, as defined in [Pino IR](pino.md), sec
 ### Rules that follow from being an interface
 
 * **Canonical printing.** A front end prints an image in exactly one way: one form per line, one instruction per line, a single space between a form and its operands, no trailing whitespace, `\n` line endings, decimal integers with no leading zeros and no `+` sign. Without this the fixpoint check and the committed-artifact check are not well defined.
+* **ASCII only.** No byte above `0x7F` may appear anywhere in an image, comments included. Symbol names arrive from source identifiers, which are ASCII ([Koivu Scheme](03_language.md), Character Encoding), so the restriction costs nothing in practice and makes the byte comparisons above exact.
 * **Comments are insignificant.** `;` to end of line is allowed and carries no meaning; a tool that rewrites an image may drop comments, and a comparison ignores them.
 * **Arity is explicit.** Every `(fn <name> (<n>) ...)` states its parameter count, because Vesi performs no inference.
 * **No target information.** An image is target-independent. Which target it becomes is decided when Vesi runs, not when the image is printed.
@@ -109,6 +110,7 @@ Every front end in the chain produces images; Vesi is the only thing that turns 
 Vesi does:
 
 * read an image and reject a malformed one with a diagnostic and exit code `1`;
+* **reject any image that contains a byte above `0x7F`**, comments included ([Koivu Scheme](03_language.md), Character Encoding);
 * **verify the stack balance of every function statically**, before any byte is emitted — with an implicit operand stack, an unbalanced sequence is silent memory corruption, and Vesi is the last place it can be caught;
 * **check that the first function of an image is `entry`**, so the container's fixed entry offset lands on the startup sequence rather than on whatever the front end emitted first ([Pino IR](pino.md), section 3);
 * bind `(label <sym>)` to byte offsets;
@@ -167,7 +169,7 @@ Both are needed. A chain whose compilers reach a fixpoint while its lowerer does
 ## 8. Acceptance Criteria
 
 1. **Determinism.** The same image and the same target produce a byte-identical executable, with stable ordering, no timestamps and no absolute paths.
-2. **No silent miscompilation.** An unknown instruction, a malformed image, a stack imbalance, a first function that is not `entry`, or a branch displacement that does not fit is a hard error with a diagnostic. Vesi never emits a guessed encoding.
+2. **No silent miscompilation.** An unknown instruction, a malformed image, a byte above `0x7F`, a stack imbalance, a first function that is not `entry`, or a branch displacement that does not fit is a hard error with a diagnostic. Vesi never emits a guessed encoding.
 3. **ISA membership.** Every instruction Vesi encodes belongs to the declared Pino ISA and has a template for the target; the conformance test of [Backend](backend.md), section 4 is run by Vesi on request.
 4. **Container validity.** An executable Vesi writes runs on its target with no assembler, linker or system toolchain.
 5. **Image independence.** The same image, lowered for two targets, produces two executables with identical behaviour.

@@ -64,6 +64,7 @@ Targeting hosts with at least 2 GiB of RAM, Koivu Seed uses a **Bump Allocator**
 Koivu Seed avoids streaming state machines by performing whole-file buffered I/O via flat **Byte buffer** structures (`{ ptr data, i32 len, i32 cap }`):
 
 * **Input (`SourceBuffer`):** Opens the `.scm` source file, verifies size $\le$ `MAX_INPUT_BYTES`, allocates `file_size + 1` bytes from the bump arena (appending a `0x00` sentinel byte), reads the entire file in one system call, and closes the handle.
+* **ASCII only:** the seed is where the character-encoding rule is enforced. Any byte above `0x7F` in any file it reads - the root source or anything reached through `include` - is a diagnostic naming the file, the line and the byte value, followed by exit code `1` ([Koivu Scheme](03_language.md), Character Encoding). There is no decoder to fall back on: the reader works on bytes, and a high byte is not a character it can classify.
 * **Output (`EmitBuffer`):** Appends the image text into the pre-allocated `EMIT_BUFFER_BYTES` slice. On successful compilation, flushes `data[0..len]` to disk in a single write call and closes the file. Overflowing `EMIT_BUFFER_BYTES` aborts with an error.
 
 ### Required Host System Calls
@@ -156,6 +157,7 @@ All errors must write a human-readable diagnostic message to `stderr` and termin
 | **Arena or Output Buffer Exhaustion** | All Builds | Print out-of-memory error to `stderr` and exit (`1`) |
 | **File Open / Read / Create Failure** | All Builds | Print I/O error with filename to `stderr` and exit (`1`) |
 | **Syntax / Malformed S-Expression** | All Builds | Print parse error to `stderr` and exit (`1`) |
+| **Non-ASCII Byte in Source** | All Builds | Print the file, line and byte value to `stderr` and exit (`1`) ([Koivu Scheme](03_language.md), Character Encoding) |
 | **Static Type Mismatch** | Development | Print type mismatch error to `stderr` and exit (`1`); may be stripped in production builds to minimize binary size |
 | **Compile-Time Step Limit Exceeded** | Development | Print infinite-loop warning to `stderr` and exit (`1`); stripped in production builds |
 | **Instruction Outside the Pino ISA** | All Builds | Print the offending instruction to `stderr` and exit (`1`); never write a partial image |
@@ -236,7 +238,7 @@ A manifest has to exist at all because of the rule in the [Architecture Map](../
 
 The Stage 1 regression suite in `tests/` must verify:
 
-1. **CLI & Error Handling Tests:** Missing files, oversized inputs, malformed S-expressions, type mismatches, zero-argument fallback behavior (`koivu-sapling.scm` vs. version print), and a rejected instruction outside the Pino ISA.
+1. **CLI & Error Handling Tests:** Missing files, oversized inputs, malformed S-expressions, a non-ASCII byte in a source file, type mismatches, zero-argument fallback behavior (`koivu-sapling.scm` vs. version print), and a rejected instruction outside the Pino ISA.
 2. **Lisp Unit Tests:** Isolated `.scm` programs testing fixnum arithmetic, Cons cell mutation, symbol interning (`eq?`), closures, tail-call recursion, and byte-buffer operations. Each is compiled to an image, lowered by Vesi and run, so a unit test takes the same path as test 3 and differs from it only in scope.
 3. **Integration Tests:** End-to-end compilation of multi-function Scheme programs to images, lowered by Vesi, each resulting executable run directly to verify runtime output. No assembler and no linker appear in the path, so a failure here is a failure of the seed, of Vesi, or of the image between them - and never of a tool nobody in this project wrote.
 4. **Production Smoke Self-Test:** Executing `koivu-seed` with no `koivu-sapling.scm` present in the working directory to verify that `Koivu Seed v0001` prints cleanly to `stdout` with exit code `0`.

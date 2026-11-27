@@ -130,6 +130,8 @@ A Pino module is a flat S-expression list containing top-level symbol declaratio
 
 Arity is always an explicit integer. Variable arity is not part of the ISA.
 
+**An image is ASCII text.** Its symbol names come from source identifiers, and the rest of it is parentheses, decimal integers, quotation marks, whitespace and comments. No byte above `0x7F` may appear, and `koivu-vesi` rejects an image that contains one ([Koivu Scheme](03_language.md), Character Encoding; [Koivu Vesi](koivu-vesi.md), section 2). The rule is what keeps a byte comparison of two images meaningful, which the determinism check depends on.
+
 ### The First Function Is `entry`
 
 An image always begins with a procedure named `entry`, which calls `main` and passes its return value to the host exit primitive. The container's entry field is a fixed offset at the start of the code (section 6), so the ordering rule is what makes the entry a fact of the image rather than a consequence of whatever the front end happened to emit first. Vesi checks the rule when it loads an image ([Koivu Vesi](koivu-vesi.md), section 4).

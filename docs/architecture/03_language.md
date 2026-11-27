@@ -42,6 +42,44 @@ R6RS is selected over other specifications for three primary reasons:
 * **Chez Scheme Alignment:** Basing the dialect on R6RS mirrors the architecture of Chez Scheme, allowing compiler logic, transformations and nanopasses to be prototyped on industrial tools during early development.
 
 
+## Character Encoding
+
+Every source that a bootstrap reader reads is **ASCII**, and nothing in the bootstrap chain decodes anything.
+
+The rule is one sentence: **a compiler's source must be in the character set its reader accepts, and the bootstrap readers accept ASCII only.** Its scope follows from the chain rather than from a list:
+
+| Text | Read by | Character set |
+| :--- | :--- | :--- |
+| The seed's source | a C compiler before M2, a Koivu reader after | ASCII |
+| The sapling's source | the seed | ASCII |
+| Stage 3's source | the sapling | ASCII |
+| `.pino` images, comments included | `koivu-vesi` | ASCII |
+| Vesi's source, target descriptions, `build.koivu` | the seed and Vesi | ASCII |
+
+Stage 3's own source is in that table for a reason that is easy to miss: the sapling is what reads it ([Stage 2](05_stage2_sapling.md), section 1), so a non-ASCII character anywhere in Stage 3's source is a character the seed's reader has to classify. What Stage 3 *compiles* is a different question, and it is answered by the frontend's own language ([Frontends](07_frontends.md)).
+
+### Why ASCII and not UTF-8
+
+* **There is no character type to decode into.** Stage 1's data types are fixnums, symbols, cons cells and byte buffers ([Stage 1](04_stage1_seed.md), section 4). A reader that accepts UTF-8 must validate it - rejecting overlong encodings, surrogate halves and truncated sequences - and that validation would be a security-relevant decision taken in the narrow waist of the chain.
+* **Bytes stay comparable.** The determinism test, the golden-image test and the "reassemble the committed `.s` and compare" recipe all compare bytes ([Stage 1](04_stage1_seed.md), section 8; [Seed Artifacts](08_seed_artifacts.md), section 6). With one byte per character, "the same text" and "the same bytes" cannot come apart, and Unicode normalisation never enters the picture.
+* **No locale, no code page.** Reading cannot depend on `LANG`, and the Windows source path is already the ANSI API (`CreateFileA`, [Stage 1](04_stage1_seed.md), section 3).
+* **It is checkable by a tool.** Any byte above `0x7F` in a covered file is a build failure. A rule a script can enforce beats a rule a reviewer has to remember.
+
+### What the restriction does not cover
+
+It governs *text that a Koivu reader reads*, not the bytes a program handles. A path the OS hands back, the contents of a byte buffer, and the data a compiled program reads or writes are all outside it and may be any bytes at all. A diagnostic that quotes a file name may therefore contain non-ASCII bytes; a diagnostic that quotes source text cannot.
+
+### Deviation from R6RS
+
+R6RS's identifier syntax is Unicode-aware: `<letter>` includes non-ASCII letters. Koivu restricts identifiers, comments and literals to ASCII, which narrows the checked subset described above by one more step. The restriction belongs to the bootstrap chain's readers, not to the production stack: a frontend compiled by Stage 3 decides its own input encoding ([Frontends](07_frontends.md)).
+
+### Rejected alternatives
+
+* **UTF-8 everywhere, including the seed.** Rejected: it puts a decoder and a validator in the narrow waist, for sources that contain no non-ASCII text.
+* **A single-byte legacy encoding such as Latin-1.** Rejected: still an encoding decision, and the byte-to-character mapping would rest on a table nobody would maintain.
+* **ASCII for identifiers but not for comments.** Rejected as *more* complex rather than less: the reader would still have to accept a high byte inside a comment, so the check would have to distinguish positions instead of testing one property.
+* **No rule, leaving it to each stage.** Rejected: the seed and the sapling share one reader, so an unwritten rule is a rule that differs between the C and the Scheme implementation.
+
 ## Data Types
 
 All Koivu stages are statically typed. Koivu Scheme is therefore a **checked subset of R6RS** rather than a different type discipline: R6RS is a dynamically typed specification, and Koivu keeps its syntax, its macro model and its phasing while requiring every value's representation to be fixed at compile time. A program that would need run-time type dispatch - a tagged value whose representation is known only once it is inspected - does not compile. That is the whole of the restriction, and it is why the dialect baseline above can be R6RS while this section can open with a claim R6RS does not make.
