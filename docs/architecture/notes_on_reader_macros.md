@@ -4,122 +4,82 @@
 
 **Component:** Koivu Scheme  
 
-There is immense value in keeping Koivu Stage 3 as a traditional Lisp-driven environment with true reader macros, even if its sole purpose is writing data-oriented compilers for other target languages (like C, C++, or custom DSLs).
-
-In fact, some of the most powerful compiler-writing systems in history (like many commercial Common Lisp toolchains) were built exactly this way: a highly dynamic, malleable host language used to reason about and emit ultra-rigid, highly optimized target machine structures.
-
-For a compiler-only infrastructure like Koivu, traditional reader macros provide several major superpowers:
-
-## 1. Seamless In-Line Embedding of Target Languages (Polyglot Syntax)
-
-When writing a compiler backend or frontend, you spend a lot of time writing trees or intermediate representations (IR) for the target language. Without reader macros, you are forced to construct these target syntax trees using verbose API calls or deeply nested lists.
-
-With traditional reader macros, you can alter the parser on the fly to write the target language **in its native syntax directly inside your compiler source code**.
-
-* **Example (Embedding C code inside Scheme):**
-
-    You can define a `#c{ ... }` reader macro. When the Koivu compiler sees it, it temporarily switches to a C lexer, parses the text inside the braces,
-    and automatically returns the corresponding Koivu AST nodes.
-
-```lisp
-;; Inside a Koivu pass optimizing a C loop:
-(define (inject-guard-condition loop-node)
-  (if (unsafe? loop-node)
-      ;; The reader macro compiles this C string into a Scheme AST object at read-time!
-      #c{ if (index >= max_bound) { return ERROR_BOUNDS; } }
-      loop-node))
-```
-
-## 2. Painless Writing of Complex Domain-Specific Languages (DSLs)
-
-Compilers thrive on custom sub-languages. You need domain-specific notations for things like pattern-matching instruction sets, declaring Nanopass tree grammars, or defining state machines for lexers.
-
-Instead of writing a separate external parser for these DSLs, you use reader macros to construct custom literal syntax.
-
-* **Example (Instruction Set Architecture Notation):**
-
-If you are writing a backend for x86_64 or ARM, you can create an assembly literal syntax:
-
-```lisp
-;; Define a block of literal machine instructions that parses straight into 
-;; a cache-aligned flat structure
-(define epilogue-sequence
-  #asm[
-    movq %rbp, %rsp
-    popq %rbp
-    ret
-  ])
-```
-
-## 3. Direct Compile-Time Data Ingestion and Validation
-
-When writing a compiler, you often need to bundle external specifications—such as a JSON/YAML file containing hardware register definitions, Unicode character tables, or architectural constraint tables.
-
-Traditional reader macros allow you to read these external files **at compile time** and transform them into native internal data structures before the compiler even begins code generation.
-
-* **Example (Ingesting an external architecture spec):**
-
-```
-;; The macro reads 'x86_64_specs.json' during the READ phase,
-;; validates it, and bakes it into a native structure.
-(define *register-mapping* 
-  #embed-json "specs/x86_64_specs.json")
-```
-
-* **The Benefit:** If the JSON file contains a typo or an invalid register name, the compiler fails instantly during the read/compilation phase, preventing silent runtime bugs in your compiler binary.
-
-## The Summary for Koivu's Architecture
-
-Keeping Stage 3 traditional while writing DoD compilers creates a highly pragmatic division of labor:
-
-* **The Host Layer (Stage 3 Koivu Scheme):** Stays traditional, homoiconic and macro-rich. This gives you **maximum cognitive flexibility** and clean, expressive notation to reason about code, transform graphs, and manipulate syntax. It does not become dynamically typed to get there: the flexibility comes from code being data and from transformers computing at compile time, while every value's representation stays fixed and untagged ([Koivu Scheme](03_language.md), Data Types).
-
-* **The Target Layer (The generated output):** Is pure Data-Oriented Design. Your traditional Stage 3 compiler emits tight, cache-aligned, flat-array representations for the downstream target infrastructure to execute at blistering speeds.
-
-This approach gives you the best of both worlds: you use the ultimate language-building tool (Lisp reader macros) to construct the ultimate performance engine (DoD frontends/backends).
-
-If you want the Stage 3 source code to use custom reader macros, the Stage 2 compiler's `READ` engine must be the one that defines and executes them. The compiler doing the work (Stage 2) must understand the text syntax of the file it is reading (Stage 3).
+This note records why Koivu's reader is as small as it is. The specification - which forms exist and which are illegal - is in [Koivu Scheme](03_language.md), *Reader Macros & Syntactic Extensions*. What is here is the argument behind it, so that the question is not reopened from scratch every time somebody wants to embed a language in a source file.
 
 ---
 
-## Reader Macros Prone to Misuse
+## 1. The constraint everything follows from
 
-However, because Stage 2 needs to stay strictly simple and human-auditable, you should be highly selective about which reader macros you allow. In a dedicated compiler infrastructure like Koivu, certain traditional reader macros are highly prone to misuse and can quickly ruin the codebase.
+The sapling is what reads Stage 3's source. Whatever reader macro Stage 3's source may contain therefore has to be implemented by the compiler that reads it - and the sapling is the narrow waist: the seed compiles the sapling, so the sapling's size is what keeps the first step of the chain feasible.
 
-Here are the reader macros most prone to misuse in compiler code, and how they disrupt your design goals:
+That inverts the usual intuition about reader macros. In a Common Lisp system the reader belongs to the language, and extending it is cheap because nothing above it has to be rebuilt. Here the reader is a component of the chain, and every extension is paid for twice: once in the reader's source, once in what the seed has to compile.
 
-1. The Global "State-Mutating" Reader Macros
+## 2. The test
 
-* The Trap: Reader macros that alter the global reader table *mid-file* or modify a global variable during the read phase (e.g., `#+(set-version! 3)`).
-* Why it's a nightmare for compilers: Compilers process source files, and a fundamental invariant of a reliable compiler is **idempotent, order-independent reading**. If reading line 50 changes how line 100 is parsed, you create hidden temporal coupling.
-* The Koivu Penalty: This makes Stage 2 incredibly complex to audit because tracking down syntax bugs requires simulating the exact time-sequence of the parser state, destroying simplicity.
+**A reader macro is admissible only if it is lexical** - if its payload becomes a node without a parser for some other language.
 
-2. Arbitrary Code Evaluation at Read-Time (`#.`)
+| Form | Payload | What it would put in the reader | Verdict |
+| :--- | :--- | :--- | :--- |
+| `42_u32` | a number | nothing | allowed |
+| `#+` / `#-` | a form, kept or skipped | nothing | allowed |
+| `#llvm_ir{...}` | LLVM IR text | a call into the production LLVM IR parser, which exists already | allowed, Stage 3 and above |
+| `#c{...}` | C source | a C lexer and parser | refused |
+| `#asm[...]` | target instructions | an instruction parser per target | refused |
+| `#llvm_bc[...]` | bitcode | a bitcode reader | refused |
+| `#llvm_target{...}` | a data-layout string | nothing, but nothing needs it either | refused |
+| `#embed-json` and relatives | an external file | file access during the scan | refused |
 
-* The Trap: In Common Lisp, the `#.` macro evaluates the following S-expression *during the read phase* 
-and replaces it with the result (e.g., `(define max-ports #.(calculate-hardware-ports))`).
-* Why it's a nightmare for compilers: This turns your static parser into a live, unpredictable execution engine. 
-If the code inside `#.` has a bug, infinite loop, or touches a missing environment path, your compiler crashes during the basic `READ` phase 
-before it can even give you a proper syntax error or line number.
-* The Koivu Penalty: It completely breaks the separation of concerns. The parser should strictly be an AST generator, not an open-ended code executor.
+The last two rows are refused on usefulness rather than on the lexical test, and both are worth stating explicitly, because "it would be cheap" is the argument that will be made for them.
 
-3. Read-Time Text Ingestion without Validation (`#include` equivalents)
+## 3. Why embedded C and target assembly are refused
 
-* The Trap: A macro that blindly injects raw text files or external strings straight into the token stream without syntactic sanitization.
-* Why it's a nightmare for compilers: If the external file has unescaped characters, mismatched parentheses, or formatting quirks, it will poison your AST. Because the injection happens at read-time, the resulting compiler error messages will point to the line numbers of your main source file, making it nearly impossible for a developer to figure out which external file actually caused the syntax breakage.
+Two arguments, and they agree.
 
-4. Overly Permissive Custom Infix / Operator Precedence Shifters
+**The chain contains no C and no hand-written target instructions.** Stage 3 emits portable LLVM IR, the production backend lowers that IR, Vesi lowers Pino. A compiler written in Koivu never produces C and never produces machine code by hand, so a form for writing C or assembly in its own source has nothing to feed.
 
-* The Trap: Implementing custom reader macros that change standard prefix Lisp syntax into inline mathematical expressions or custom bracket logic (e.g., writing `#infix(x + y * z)`).
-* Why it's a nightmare for compilers: When writing compiler passes (especially in a Nanopass architecture), you want your code transformations to look exactly like the tree structures they manipulate. Introducing arbitrary operator precedence rules at the text level creates cognitive dissonance. Team members reading the code have to mentally switch back and forth between Lisp tree-thinking and math-expression parsing rules.
+**They put a parser into the sapling.** `#c{...}` would require a C lexer and parser, written in Scheme, inside the narrow waist - beside the front end and the expander that [Stage 2 (Sapling)](05_stage2_sapling.md), section 1 says the sapling consists of. `#asm[...]` would require one instruction parser per supported target. Neither is a convenience worth a component.
 
-## The Recommended Scope for Koivu Stage 2
+`#c{...}` is, in addition, a leftover. It belongs to a draft in which the chain was C-shaped; with LLVM IR as the production output there is no C AST to construct.
 
-To achieve your goals without inviting misuse, restrict Stage 2's reader macros exclusively to pure syntactic literals that map directly to fixed AST nodes.
-Allow only:
+## 4. Why `#llvm_ir{...}` survives
 
-1. Conditional compilation: (`#+` / `#-`) to toggle targets.
-2. Target embeddings: (`#c{...}` or `#asm[...]`) that immediately dispatch to isolated, well-defined target parsers.
-3. Strict fixed-width typing flags: (`42_u32`).
+Because it passes the test cheaply. The production stack already contains a textual LLVM IR parser - `koivu-llc` takes `.ll` as a true drop-in ([Backend](backend.md), section 7.3) - so the form costs a dispatch entry into code that Stage 3 has anyway.
 
-Avoid any macro that allows the compiler code to dynamically rewrite its own host language grammar on the fly. This keeps your Stage 2 sapling small, beautiful, and completely auditable.
+It earns that entry three times over:
+
+* **Readability against the specification.** A fixed fragment of IR written as IR can be checked by eye against LLVM's own documentation, and reviewed in a diff. A constructed tree cannot be read that way.
+* **No escaping.** LLVM IR is dense with `%`, `@`, `{`, `}`, `[`, `]` and `"`. As a Koivu string literal it would need escaping throughout, and the readability that justified putting it in the source would be gone. The block exists because the alternative is not S-expressions - it is escaped strings.
+* **It is sugar, not a second semantics.** The text is parsed by the same parser that reads `.ll`, into the same AST the constructors build. There is no second representation to audit, which is the objection [Seed Artifacts](08_seed_artifacts.md), section 3 makes to an assembly printer.
+
+Two limits keep it from spreading:
+
+* **Literals only.** IR that a program builds at run time is built with constructors. The block is for fixed fragments - a prologue, a bounds check, a test case - not for generated code.
+* **Stage 3 and above, permanently.** The sapling reads Stage 3's source, and the bootstrap goes through the sapling every time, so the restriction is not lifted when Stage 3 self-hosts. The reader is one implementation shared by the whole chain, so the form is in its vocabulary everywhere; in the seed and in the sapling, where the parser is absent, the dispatch says so by name.
+
+One consequence to plan for: **Stage 3's own tests cannot use the form**, for the same reason. Tests of the parser read `.ll` from files, or live outside Stage 3's compiled source.
+
+## 5. Why external data ingestion is refused
+
+`#embed-json` and its relatives promise to read a specification file during the scan and bake it into a structure. The promise is real; the problem is not. Data of that kind - Unicode classes, case mappings, keyword tables - is generated once and then fixed.
+
+Commit the output instead: one `define` per table, in an ordinary source file. Then:
+
+* **One format.** The reader already parses it. No second syntax, no separate escaping rules, no separate error messages.
+* **The table is in the reviewed text.** It diffs, it can be quoted in review, and it cannot drift away from the source unnoticed.
+* **The image stays a function of the source set.** This is the decisive one. The determinism check in [Stage 1 (Seed)](04_stage1_seed.md), section 8 regenerates a committed golden image and compares; an embedded external file would make the image depend on something outside the source set, and the check would stop meaning what it says.
+* **Nothing is saved in the artifact.** The table is compiled into the binary either way, so ingestion buys no bytes where the budget applies. It only moves text out of the source set.
+
+The cost is one conversion step, run once, and a large source file. Neither complicates a frontend: writing its tables as S-expressions is the format it wants anyway.
+
+## 6. The anti-patterns, and why each is refused
+
+* **Global table mutation.** Reading must be a function of the text. If line 50 changes how line 100 parses, a syntax bug can only be found by replaying the parser's history, which is what makes such a bug expensive.
+* **`#.` and read-time evaluation.** It turns the parser into an execution engine: a bug in the evaluated code surfaces before any syntax error can be reported, and the reader stops being a parser at all.
+* **Blind read-time text ingestion.** Text spliced without validation poisons the tree, and because the splice happens during the scan, error locations point at the including file. This is not an objection to `include`, which is a reader directive resolved before expansion, with cycle and duplicate-definition checks - and a location carries the identity of the file it came from ([Koivu Scheme](03_language.md), *Multi-File Programs*).
+* **Infix and precedence shifters.** A pass should look like the tree it manipulates. Notation that reads as mathematics makes the reader translate twice.
+
+## 7. What this costs
+
+* A frontend that wants a fixed IR sequence writes a `#llvm_ir{...}` block or uses constructors. It does not write C or assembly.
+* A frontend that needs a specification table commits it as source, and keeps the generator out of the build.
+* The reader stays small enough that the seed can compile it, which is the property all of this is for.

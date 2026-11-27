@@ -186,9 +186,11 @@ to carry the values of kind, pos, and payload inside a hot loop without memory f
 ## Reader Macros & Syntactic Extensions
 
 ### Design Invariant
-To preserve the absolute auditability and simplicity of the Stage 2 sapling compiler, the lexical `READ` phase enforces a strict separation of concerns. While Koivu Scheme utilizes reader macros to ease polyglot compiler implementation, the reader environment remains completely static and order-independent. 
+The lexical `READ` phase stays a pure, static, order-independent translation from text to nodes. Koivu prohibits arbitrary execution of host-language code at read time (Common Lisp's `#.`), forbids mutation of the reader table during a source scan, and requires every reader extension to map text onto nodes without consulting anything but the text.
 
-Unlike traditional Common Lisp reader tables, Koivu explicitly prohibits arbitrary execution of host-language code at read-time (e.g., standard Common Lisp `#.` syntax) and forbids runtime mutation of the reader table during a source scan. All reader macros must act as pure syntactic literals that instantly map text blocks onto precise Intermediate Representation (IR) nodes.
+The reason is structural. **The sapling is what reads Stage 3's source**, so a reader macro that Stage 3's source may contain has to be implemented by the compiler that reads it - and the sapling is the narrow waist the chain rests on, with the seed behind it. An embedded foreign language therefore ends up as a parser inside the sapling.
+
+The rule that follows: **a reader macro is admissible only if it is lexical** - if its payload becomes a node without a parser for some other language. Fixed-width literals and feature filtering qualify. Embedded C, embedded target assembly, embedded bitcode and read-time data ingestion do not.
 
 ### R6RS Interoperability & Adaptations
 Koivu's base reader syntax derives from the **R6RS Lexical Structure (Chapter 4)**, extending the standard dispatch character (`#`) for specialized compiler pipelines. 
@@ -202,33 +204,34 @@ Koivu's base reader syntax derives from the **R6RS Lexical Structure (Chapter 4)
    Koivu adopts standard Lisp structural filtering via `#+` and `#-` directly inside the recursive-descent character stream.
    * `#+feature expression` $\rightarrow$ Evaluates the global compile-time symbol list. If the feature flag is absent, the reader completely skips the expression block at character level without allocating heap cells or pairs.
 
-3. **Isolated Target Language Embeddings:**
-   To facilitate writing frontends and backends for external languages, Koivu introduces custom block-dispatch macros. When encountered, the host reader pauses and immediately shifts context to a dedicated, stateless sub-parser.
-   * `#llvm_ir{ ... }` $\rightarrow$ for human-readable textual IR blocks. Invokes an isolated LLVM IR syntax lexer/parser, 
-   returning a structural LLVM IR AST node directly into the host Scheme tree.
-   * `#llvm_bc[ ... }]` $\rightarrow$ if you ever need to ingest raw compiled bitcode arrays.
-   * `#llvm_target{ ... }` $\rightarrow$ if you need to embed target data layouts.
-   * `#asm[ ... ]` $\rightarrow$ Invokes a strict machine-instruction parser to build cache-aligned instruction sequences.
-   * `#c{ ... }` $\rightarrow$ Invokes an isolated C syntax lexer/parser, returning a structural C-AST node directly into the host Scheme tree.
-   
-   Target language embeddings should use braces `{...}` for high-level languages with lexical block scoping, and square brackets `[...]` 
-   for flat, linear instruction sequences or binary data arrays.
-   
-   Example:
+3. **LLVM IR Literals (Stage 3 and above):**
+   To let a compiler write a fixed IR fragment as the text LLVM itself accepts, the reader accepts a raw IR block:
+
    ```scheme
-    ;; Inside a Stage 3 Nanopass lowering pass:
-    (define (lower-native-addition x y)
-      ;; The sub-lexer immediately tokenizes the raw text as LLVM IR instruction nodes
-      #llvm_ir{
-        %res = add i32 , %y
-        ret i32 %res
-      })
+   ;; Inside a Stage 3 pass:
+   (define (lower-native-addition x y)
+     #llvm_ir{
+       %res = add i32 %x, %y
+       ret i32 %res
+     })
    ```
 
+   The block is handed to the production LLVM IR parser and becomes a structural LLVM IR AST node in the surrounding tree. It is a notation for *literals*: IR that a program builds at run time is built with the ordinary constructors, not written as text.
+
+   Three rules bound it:
+
+   * **One parser, not two.** The block calls the same parser `koivu-llc` uses ([Backend](backend.md), section 7.3). A reduced parser for source embedding would be a dialect of its own: frontend authors would have to learn which LLVM IR Koivu accepts, and the two paths would drift.
+   * **Stage 3 and above, permanently.** The form is usable by Stage 3 and by the programs Stage 3 compiles, never by Stage 3's own source, because the sapling is what reads that source and the bootstrap goes through the sapling every time. The reader is one implementation shared by the whole chain, so the form is in its vocabulary everywhere; where the parser is absent - in the seed and in the sapling - the dispatch reports by name that the form needs the production stack, rather than failing as an unknown character.
+   * **Diagnostics point inside the block.** A malformed block reports the line and column of the offending text, not the line of the dispatch character, and the location carries the identity of the file the block was read from.
+
 ### Constraints & Anti-Patterns
-To protect code transparency and keep the parser loop predictable for human inspectors, the following extensions are strictly illegal in the Koivu codebase:
-* **Global Table Mutation** (code blocks that dynamically re-bind dispatch characters mid-file).
-* **Infix/Precedence Shifters** (syntactic sugar that alters standard Lisp prefix structural hierarchy into infix mathematical notation).
+
+The following are strictly illegal in the Koivu codebase:
+
+* **Global table mutation** - code that re-binds dispatch characters mid-file. Reading must stay order-independent; otherwise a syntax bug can only be found by replaying the parser's history.
+* **Infix and precedence shifters** - sugar that turns prefix Lisp structure into infix mathematical notation. A pass should look like the tree it manipulates.
+* **Embedded foreign languages** - `#c{...}`, `#asm[...]`, `#llvm_bc[...]` and `#llvm_target{...}`. Each would put a parser for another language into the sapling, and none is needed: Koivu emits portable LLVM IR and lowers it afterwards, so a compiler never writes C or target instructions in its own source. Target data layouts are data, read by Vesi at run time ([Koivu Vesi](koivu-vesi.md), section 4).
+* **Read-time data ingestion** - `#embed-json` and equivalents. A table a compiler needs - Unicode classes, keyword lists - is committed as source: one `define` per table, produced by a generator that runs once and is not part of the build. The build then reads one format, and the image stays a function of the source set, which is what the determinism check in [Stage 1 (Seed)](04_stage1_seed.md), section 8 depends on.
 
 ## Multi-File Programs
 
@@ -247,6 +250,7 @@ Koivu has no separate compilation: a program is compiled as one unit and nothing
 * **Top level only.** `include` is legal only where a top-level form is legal. R7RS also permits it in a body; Koivu does not, because splicing into an expression context buys nothing and complicates the reader.
 * **Paths are relative to the including file**, never to the working directory, so a program reads the same wherever it is invoked from.
 * **Cycles are an error.** An include that is already on the open-include stack is a diagnostic, not infinite recursion.
+* **A location carries its file.** Every node the reader produces remembers the file it came from, so a diagnostic raised inside an included file names that file and a line within it, never a line of the file that included it. Without this, textual inclusion would make error messages useless as soon as a program had more than one file.
 
 ### Duplicate Definitions
 
