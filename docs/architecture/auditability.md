@@ -22,6 +22,8 @@ What the tradition actually prescribes is a **principle**, not a threshold: the 
 
 So there is **no "under 10 KiB" standard**, and no Koivu ceiling derived from one. The number that binds Vesi is the one in [Seed Artifacts](08_seed_artifacts.md), section 7, and its purpose is the one [Bootstrapping Paths & Trust](02_bootstrapping_and_trust.md), section 2 gives it: size sets the limit below which review stays feasible, and below that limit a simpler, more regular instruction sequence is easier to verify even when it is larger. Size is a ceiling to stay under, not a quantity to minimise.
 
+One design would have come close to the byte-audit principle, and it is recorded rather than forgotten: interpreting the image instead of lowering it concentrates a produced program's machine code into an interpreter loop of roughly 10 KiB ([Pino Interpreter Notes](notes_on_pino_interpreter.md), section 2). It was not taken. It replaces a mechanical mapping with a semantic argument, and every produced program would then either need Vesi at run time or carry a copy of the interpreter inside it - retiring the property that a compiled Koivu program is self-contained code plus its container ([Stage 1 (Seed)](04_stage1_seed.md), section 5).
+
 What replaces the byte-by-byte guarantee is a set of recipes, ordered by strength, in [Seed Artifacts](08_seed_artifacts.md), section 6. Two of them carry most of the weight:
 
 * **Reassembly.** Vesi's assembly is committed beside each published binary, rendered by Vesi from the same image its binary is lowered from. A user reassembles it with the platform assembler and compares the result byte for byte with what they downloaded.

@@ -54,7 +54,7 @@ The total is **larger**, not smaller: the front end keeps its size, Vesi adds a 
 
 ### Rejected alternatives
 
-* **An interpreter instead of a lowerer.** Rejected; the full argument is in [Pino Interpreter Notes](notes_on_pino_interpreter.md). It does not shrink the front end, it replaces a mechanical mapping with a semantic one, and it puts a runtime into every produced executable.
+* **An interpreter instead of a lowerer.** Rejected; the full argument is in [Pino Interpreter Notes](notes_on_pino_interpreter.md). It would shrink this program by its encoder, its label table and its three container writers, but it replaces a mechanical mapping with a semantic one and puts a runtime into every produced executable.
 * **A bytecode form of Pino.** Rejected. A bytecode is compressed and non-symbolic: it inherits every readability problem of machine code while losing the one thing machine code has, an external specification enforced by hardware. Text is self-describing; bytecode is not.
 * **Keeping the library and adding Vesi.** Rejected. Two lowering paths mean two implementations of the same mapping, which is the mirror this project refuses everywhere else.
 
