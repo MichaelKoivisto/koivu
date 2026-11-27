@@ -6,7 +6,7 @@ can be resumed in a later session without re-deriving context.
 **Delete this file when the review is finished.** It is deliberately absent from
 the index in `docs/architecture.md`.
 
-Last updated after commit `9b55958`.
+Last updated after commit `1616dd3`.
 
 This file is a ledger, not a copy of the blueprints. Where a decision is written
 down in a blueprint, the entry points at it. The previous revision restated
@@ -76,6 +76,18 @@ Decisions about *how* the review is conducted, not about the architecture.
 | [Auditability](auditability.md) | Rewritten: ecosystem practice separated from Koivu's position, the "10 KiB standard" removed, DDC shown to be out of reach, and the artifact table rebuilt from [Seed Artifacts](08_seed_artifacts.md). It now also cites the interpreter note as the design that would have come closest to the byte-audit principle. |
 | [Pino Interpreter Notes](notes_on_pino_interpreter.md) | Retargeted from the seed to Vesi, which is where the encoder, the label table and the container writers actually live. Variants restated in current terms; the cost of making `.pino` a distribution format marked as already paid; the link to [Auditability](auditability.md) added. |
 
+### Reconciled after the split
+
+| Document | What the review changed |
+| :--- | :--- |
+| [Seed Sizes Notes](notes_on_seed_sizes.md) | Ceilings restated as the real pairs - 1600 / 2400 KiB for the seed binary, 1200 / 1800 for Vesi; a `koivu-vesi` row added and the seed row relabelled as the binary produced from the image; the misleading C-scaffold row dropped; the interpreter bullet rewritten as a Vesi variant; section 1 gains the third axis, whether an artifact is downloaded or produced by the user. |
+| [S-LLVM IR](s-llvm-ir.md) | Rewritten as the single blueprint for LLVM IR as data in the production stack. Library renamed `(koivu backend llvm-ir)`; five node tags - `llvm-ir-module`, `-fn`, `-block`, `-instr`, `-val`; the instruction node is variadic, so `call`, `phi`, `gep` and `store` fit and the `void` / `none` padding symbols are gone; `%` and `@` moved out of the data into the emitter. Producers and consumers tabulated: constructors and the `.ll` parser in, emitter and lowering stack out. |
+| [LLVM IR Parsing Notes](notes_on_llvm_ir_parsing.md) | Retargeted from "how Stage 2 avoids parsing" to "what `koivu-llc`'s parser must accept". Component corrected from `Koivu Scheme` to `Koivu Backend`. The third instruction surface (`define-llvm-function`, `(assign %res (add i32 %a %b))`) and the reversed claim that Stage 3 would wrap constructors in `#llvm_ir{...}` macros are gone. |
+| [Backend](backend.md) | Section 7.1 no longer names a library and an in-memory scheme that are defined nowhere: `(koivu backend syntax llvm-ir)` and `flat-ast-llvm-ir` become `(koivu backend llvm-ir)` plus a link. |
+| [Architecture Map](../architecture.md) | Index rows for [In-Memory LLVM IR](s-llvm-ir.md) and the parsing notes. Neither was indexed before. |
+| [Data-Oriented Design](data_oriented_design.md) | The `Lower` phase names the node layout it targets instead of ending at "translates into LLVM IR". |
+| [Style Guide](../style-guide.md) | Section 3A: `llvm` fences are for textual LLVM IR, not for a "Stage 1 `primitives.ll`" that does not exist; `lisp` is for Koivu Scheme in every stage. |
+
 The staging rule that came out of this work lives in
 [Koivu Language](03_language.md): each stage compiles a subset of the next
 stage's language, fixed by what that next stage's *source* actually uses. Its
@@ -93,23 +105,17 @@ Queued in this order:
 
 1. [Frontends](07_frontends.md) - not checked against the staging rule in
    [Koivu Language](03_language.md).
-2. [Data-Oriented Design](data_oriented_design.md)
+2. [Data-Oriented Design](data_oriented_design.md) - the `Lower` phase gained a
+   pointer to the in-memory IR, but the document has not had a full reading.
+   Open questions noted on the first pass: its `Component` line reads
+   `Frontends, Backend`, which is not the canonical vocabulary, and its lexer and
+   parser sections carry `TODO` markers that have not been resolved.
 3. [Carbon Datatypes](carbon_datatypes.md)
-4. [Seed Sizes Notes](notes_on_seed_sizes.md) - probably overlaps the budgets in
-   [Seed Artifacts](08_seed_artifacts.md), section 7; check before trusting
-   either.
-5. The `s-llvm-ir` family - [S-LLVM IR](s-llvm-ir.md),
-   [AST S-LLVM IR](ast-s-llvm-ir.md),
-   [S-LLVM IR to LLVM IR AST Notes](notes_on_s-llvm-ir_to_llvm_ir_ast.md) and
-   [LLVM IR Parsing Notes](notes_on_llvm_ir_parsing.md). They describe a
-   representation that Stages 1 and 2 no longer touch. The reader decision in
-   `1bffa0c` settled half of this: they no longer justify a reader macro, so the
-   remaining question is whether `koivu-llc`'s parser needs them at all. Narrow
-   to Stage 3 or delete.
-6. `docs/vision.md`, `docs/style-guide.md` - both received the banner
-   normalisation in `fd7d096`; nothing else in either has been reviewed. The
-   style guide's section 2 template was also brought onto the canonical component
-   vocabulary, and it now states that the banner is plain text.
+4. `docs/vision.md`, `docs/style-guide.md` - `vision.md` is unreviewed beyond the
+   banner. The style guide's section 3A now matches the IR split, but section 4
+   still defines an S-expression as "the symbolic nested lists processed by the
+   interpreter and macros", and Koivu has no interpreter or evaluator
+   ([Backend](backend.md), decision 5). That needs a decision, not a silent fix.
 
 Nothing else in the directory is known to contradict the blueprints; the items
 above are queued for a first reading rather than for repair.
@@ -149,6 +155,8 @@ Commits from the session that produced the split, oldest first. All on `main`.
 | `4dadae7` | Index lists the auditability note |
 | `fd7d096` | One metadata banner: plain everywhere, component names mapped onto Global / Koivu Scheme / Koivu Backend / Stage 1-3 / Production Compilers |
 | `9b55958` | Pino interpreter note retargeted from the seed to Vesi; `auditability.md` cites it as the closest attempt at a byte-auditable root |
+| `33411e4` | `notes_on_seed_sizes.md` reconciled with the split: real ceilings, a Vesi row, the trust anchor restated as the smaller program, the C-scaffold row dropped |
+| `1616dd3` | The `s-llvm-ir` family collapsed to one blueprint under one name; `ast-s-llvm-ir.md` and `notes_on_s-llvm-ir_to_llvm_ir_ast.md` deleted; parsing notes retargeted to `koivu-llc`; `backend.md` 7.1, the index, the `Lower` phase and the style guide follow |
 
 Earlier commits are in the log. The previous revision of this file described
 `811b5b4` through `83606d7`, which covered the first passes over `backend.md`,
@@ -193,6 +201,16 @@ spread across them. Where a decision has a home, the home is named.
   embedded language becomes a parser inside the narrow waist. `#llvm_ir{...}`
   survives because the production stack already parses `.ll` for `koivu-llc`;
   `#c`, `#asm`, `#llvm_bc`, `#llvm_target` and `#embed-json` are refused.
+- **One in-memory LLVM IR, one name.** `s-llvm-ir.md`. LLVM IR as data exists
+  in the production stack only, and it has two producers - the constructors, and
+  the `.ll` parser behind `#llvm_ir{...}` - and two consumers - the emitter, and
+  the lowering stack, which reads the same tree with no file in between. The
+  family used to describe it four times under three library names with four
+  shapes for a single instruction, and its justification was "the Stage 2
+  compiler avoids parsing raw LLVM IR", a premise that died with the reader
+  decision and was wrong about the stage anyway. A second representation plus a
+  conversion pass is a second thing to keep in step, so both documents that
+  described one are gone.
 - **No size standard for the binary root.** `auditability.md`. The byte-audit
   tradition is real and Koivu does not follow it: Vesi is ~600 KiB, and the
   binding ceiling is `08`, section 7, not a borrowed "10 KiB". Strict DDC is a
@@ -200,7 +218,7 @@ spread across them. Where a decision has a home, the home is named.
 
 ## 6. Known remaining inconsistencies
 
-**None confirmed.** The two that were confirmed have been fixed and are listed
+**None confirmed.** Everything that was confirmed has been fixed and is listed
 under *Resolved* below.
 
 **Carried over from earlier passes, not re-checked since the split.**
@@ -240,7 +258,14 @@ under *Resolved* below.
   and every release publishes for every supported host.
 - The numeric size budgets and the CI regeneration check are no longer open
   items; both are stated in [Seed Artifacts](08_seed_artifacts.md), sections 3
-  and 7, as estimates with ceilings.
+  and 7, as estimates with ceilings. [Seed Sizes Notes](notes_on_seed_sizes.md)
+  was still quoting the older 2-3 MiB pair until `33411e4`.
+- The `s-llvm-ir` family described one representation four times: three library
+  names, four node-tag schemes, four shapes for a single `add`, and a five-slot
+  instruction node that could not hold `call`, `phi`, `gep` or `store`. It also
+  put `@` and `%` into symbols, and `'@koivu_fast_add` is not a readable R6RS
+  identifier. `backend.md`, section 7.1 named a library and a
+  `flat-ast-llvm-ir` scheme that existed nowhere. Fixed in `1616dd3`.
 
 ## 7. Next step
 
