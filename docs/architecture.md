@@ -27,10 +27,12 @@ The complete technical design is distributed across the following specialized do
 | [**Flat Vector**](./architecture/flat-vector.md) | The `flat-vector` sugar, and why it is a Stage 3 data type. |
 | [**Pino IR**](./architecture/pino.md) | The bootstrap IR: instruction set, data layout, and the `.pino` image format. |
 | [**Backend**](./architecture/backend.md) | IR emission, machine-code lowering, target descriptions, `koivu-llc`. |
+| [**In-Memory LLVM IR**](./architecture/s-llvm-ir.md) | LLVM IR as data in the production stack: node layout, library, emitter. |
 | [**Koivu Vesi**](./architecture/koivu-vesi.md) | The Pino lowerer: the `.pino` interface, instruction encoding, containers, and the chain's per-host artifact. |
 | [**Seed Sizes**](./architecture/notes_on_seed_sizes.md) | Developer note: how large compiler seeds are in comparable chains, and why those figures are not directly comparable. |
 | [**Pino Interpreter Notes**](./architecture/notes_on_pino_interpreter.md) | Developer note: the interpreter alternative to lowering Pino, and why it was rejected. |
 | [**Reader Macros Notes**](./architecture/notes_on_reader_macros.md) | Developer note: which reader macros are worth having, and which are refused. |
+| [**LLVM IR Parsing Notes**](./architecture/notes_on_llvm_ir_parsing.md) | Developer note: why Koivu needs exactly one LLVM IR parser, and why no bootstrap stage has one. |
 | [**Auditability**](./architecture/auditability.md) | Developer note: what the bootstrappable ecosystem practises about auditing a binary root, and what Koivu adopts instead. |
 
 ---

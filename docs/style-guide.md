@@ -49,8 +49,8 @@ The banner is **plain text, not a blockquote.** A leading `>` is reserved for ep
 ### A. Code Blocks and Syntax Highlighting
 Always declare the explicit language identifier for code fences to ensure correct syntax rendering.
 
-* Use ````llvm```` for Stage 1 `primitives.ll` files.
-* Use ````lisp```` for Stage 2/3 Scheme-family code.
+* Use ````llvm```` for textual LLVM IR: `.ll` fragments, IR dumps and `koivu-llc` input. No bootstrap stage produces `.ll` - Stages 1 and 2 emit Pino IR ([Backend](architecture/backend.md), decision 1).
+* Use ````lisp```` for Koivu Scheme code, in every stage.
 * Use ````assembly```` for raw machine target snippets.
 
 ### B. Structural Data Presentation

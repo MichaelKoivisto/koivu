@@ -1,77 +1,54 @@
 # Parsing LLVM IR in Koivu Scheme
 
 **Status:** Developer Notes  
+**Component:** Koivu Backend  
 
-**Component:** Koivu Scheme  
+Koivu needs an LLVM IR parser, exactly one, and it lives in the production stack. This note records why the parser is expensive, what it produces, and why no bootstrap stage contains one.
 
 ## 1. Is LLVM IR Easy to Parse in Lisp?
 
-No, LLVM IR is notoriously tedious to parse. While it looks clean, it has a complex, monolithic context-sensitive grammar.
-* The Problem: LLVM IR requires looking at definitions elsewhere to understand individual lines. For example, to parse 
-a simple phi node (`%x = phi i32 [ %a, %block1 ], [ %b, %block2 ]`), or to know how many bytes an instruction operates on, the parser must actively track previously declared types, structure alignments, forward-declared basic blocks, and function signatures.
-* The Lisp Contrast: Lisp parsers excel at nested, tree-like structures. LLVM IR is a flat, explicit control-flow graph (CFG) with strict linear SSA (Static Single Assignment) invariants.
-* The Implementation Penalty: Writing a robust, error-resilient `#llvm_ir{ ... }` parser inside the minimalist Stage 2 compiler will result in massive code bloat. It will easily double or triple the size of your Stage 2 `READ` engine, severely violating your Simplicity & Auditability priority.
+No. LLVM IR looks clean and is not: it has a monolithic, context-sensitive grammar.
 
-## 2. The Solution: S-Expression Driven LLVM IR Emission (No Macros)
+* **The problem.** Understanding one line can require information defined elsewhere. A `phi` node (`%x = phi i32 [ %a, %block1 ], [ %b, %block2 ]`) names forward-declared basic blocks. Knowing how many bytes an instruction operates on requires a type table that has already been built. Function signatures, structure layouts and named types all have to be tracked before the instruction that uses them can be read.
+* **The Lisp contrast.** Lisp parsers excel at nested, tree-shaped input. LLVM IR is a flat control-flow graph with strict linear SSA invariants: the structure that makes it easy to read is the structure a Lisp reader has no use for.
+* **The cost.** A robust, error-resilient `.ll` parser is a substantial piece of code - the largest single component in the production front end that is not a pass. That cost is acceptable in Stage 3 and unacceptable anywhere in the bootstrap chain.
 
-Because Stage 1 lacks macros and Stage 2 must remain simple, you should **completely bypass text-parsing of raw LLVM IR statements**. Instead, represent the LLVM IR instructions natively as plain Lisp data structures (**S-Expressions**).
+## 2. Why Koivu Has a Parser At All
 
-Instead of writing a parser that turns raw LLVM string blocks into trees, write a simple compiler-pass function that maps clean Scheme S-expressions directly to flat LLVM string text.
+Two consumers need one, and they need the *same* one:
 
-### The Recommended Syntax: S-Expression IR (S-IR)
+| Consumer | Why it needs to read `.ll` |
+| :--- | :--- |
+| `koivu-llc` | it is a drop-in replacement for LLVM's `llc`, so it must accept what `llc` accepts ([Backend](backend.md), section 7.3) |
+| `#llvm_ir{...}` | a Stage 3 program writes a fixed IR fragment as text and the reader literal hands it to the parser ([Koivu Scheme](03_language.md), Reader Macros) |
 
-Model your LLVM instructions as simple lists where the first element is the instruction token, followed by explicit type and register parameters.
+The second consumer is why the parser cannot be optional. A single parser is also the reason the reader literal is admissible at all: the alternative to `#llvm_ir{...}` is not S-expressions, it is an escaped string literal, because LLVM IR is dense with `%`, `@`, `{`, `}`, `[`, `]` and `"` ([Reader Macros](notes_on_reader_macros.md), section 4).
 
-Here is a side-by-side comparison of the raw string layout vs. the **Koivu S-Expression layout** for a basic addition function:
+**One parser, not two.** A reduced parser for source embedding would be a dialect of its own: frontend authors would have to learn which LLVM IR Koivu accepts, and the two paths would drift apart. There is one parser, and both consumers call it.
 
-Raw LLVM IR String Syntax (Hard to Parse):
+## 3. What the Parser Produces
 
-```llvm
-define i32 @add_two(i32 %a, i32 %b) {
-entry:
-    %res = add i32 %a, %b
-    ret i32 %res
-}
-```
+The parser's output is the in-memory representation described in [In-Memory LLVM IR](s-llvm-ir.md): the same `llvm-ir-module`, `llvm-ir-fn`, `llvm-ir-block`, `llvm-ir-instr` and `llvm-ir-val` nodes the constructors build. That is the point of having one representation - an embedded literal and a computed instruction are indistinguishable to every pass downstream.
 
-Koivu Stage 2 S-Expression Syntax (Easiest to Process & Emit):
+Two rules follow from the parser being a producer of those nodes rather than of text:
 
-```scheme
-(define-llvm-function add-two ((i32 %a) (i32 %b)) i32
-  (label entry)
-  (assign %res (add i32 %a %b))
-  (ret i32 %res))
-```
+* **Sigils are stripped on the way in.** `%res` becomes `res`, `@koivu_fast_add` becomes `koivu_fast_add`; the emitter puts them back ([In-Memory LLVM IR](s-llvm-ir.md), section 4).
+* **Diagnostics point inside the block.** A malformed `#llvm_ir{...}` reports the line and column of the offending text, not the line of the dispatch character, and the location carries the identity of the file the block was read from ([Koivu Scheme](03_language.md), Reader Macros).
 
-## 3. How to Emit the IR Using Only Stage 1 Primitives
+## 4. Why the Bootstrap Chain Has No Parser
 
-Since you have no macros in Stage 1 to transform this code, `define-llvm-function`, `assign`, and `add` are not macros—they are **standard constructor functions**
-or **lists** that your Stage 2 compiler processes using basic recursive functions.
+Because the bootstrap chain never sees LLVM IR. Stage 1 and Stage 2 build Pino IR and write a `.pino` image, which `koivu-vesi` lowers ([Pino IR](pino.md); [Backend](backend.md), decision 1). Neither stage reads or writes `.ll`, and neither carries a type table, a function signature table or a forward-reference resolver for one.
 
-To emit the code into an output `.ll` file, you write a straightforward printer pass using basic Lisp string primitives (`display`, `write`, `format` equivalents):
+This is a size decision as much as an architectural one. A `.ll` parser in the sapling would be a parser for a language the sapling does not emit, in the compiler that everything else depends on - the narrow waist the chain rests on. The parser is never part of the seed, and it is never part of the sapling.
 
-```scheme
-;; A minimalist Stage 2 function that prints an assignment list to a file stream
-(define (emit-assignment instruction-list stream)
-  (let ((target-reg (cadr instruction-list))   ; %res
-        (operation  (caddr instruction-list))) ; (add i32 %a %b)
-    (display "    " stream)
-    (display target-reg stream)
-    (display " = " stream)
-    (display (car operation) stream)           ; add
-    (display " " stream)
-    (display (cadr operation) stream)          ; i32
-    (display " " stream)
-    (display (caddr operation) stream)         ; %a
-    (display ", " stream)
-    (display (cadddr operation) stream)        ; %b
-    (newline stream)))
-```
+The reader is one implementation shared by the whole chain, so `#llvm_ir{...}` is in the reader's vocabulary everywhere. Where the parser is absent - in the seed and in the sapling - the dispatch reports by name that the form needs the production stack, rather than failing as an unknown character.
 
-## Why This Approach Protects Koivu's Priorities
+## 5. What This Means in Practice
 
-1. Zero Text-Parsing Overhead: Your Stage 2 reader only uses its standard, basic S-expression parser. It doesn't need to know anything about LLVM rules; it just reads normal Lisp lists.
-2. Maintains Auditability: The code that maps these lists to raw LLVM string statements is written as standard, linear functional logic. A human auditor can easily verify that the list components match the text outputs.
-3. Clean Path to Stage 3: Once you bootstrap into Stage 3, you can use your new hygienic macro system to wrap these raw list constructors 
-into the beautiful `#llvm_ir{ ... }` syntax you designed for the final compiler blueprint.
-
+| Question | Answer |
+| :--- | :--- |
+| Does a front end have to write text to produce IR? | No. It builds nodes with the constructors ([In-Memory LLVM IR](s-llvm-ir.md), section 3). |
+| Does a front end have to build nodes to embed a fixed fragment? | No. It writes `#llvm_ir{...}`, which produces the same nodes. |
+| Can the two be mixed? | Yes, and nothing downstream can tell the difference. |
+| Is the parser on any bootstrap path? | No. Stages 1 and 2 never call it. |
+| Is the parser's cost bounded? | No, and that is accepted: it is production-stack code, where capability outranks size ([Bootstrapping Paths & Trust](02_bootstrapping_and_trust.md), section 2). |

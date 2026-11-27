@@ -195,4 +195,6 @@ enabling the LLVM backend to perform industrial-grade machine code optimization 
 This process is handled linearly by the compiler's LoweringLoop. 
 Because both SemIR instructions and LLVM's basic blocks are designed around Static Single Assignment (SSA) form, the translation maps almost perfectly 1:1.
 
+The target of that translation is the node layout in [In-Memory LLVM IR](s-llvm-ir.md): the LoweringLoop builds `llvm-ir-instr` nodes inside `llvm-ir-block` containers, and the production lowering stack consumes that tree directly, with no `.ll` file written in between.
+
 

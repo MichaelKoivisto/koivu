@@ -167,7 +167,7 @@ Everything in this section belongs to Stage 3 and later. None of it is in the se
 
 ### 7.1 Production LLVM IR Emitter
 
-Stage 3 and other production compilers emit LLVM IR via `(koivu backend syntax llvm-ir)`, using the `flat-ast-llvm-ir` in-memory scheme. Emitting `.ll` is a permanent capability: a textual IR dump is the primary debugging instrument for a compiler infrastructure, and it is never removed, including after full self-hosting.
+Stage 3 and other production compilers emit LLVM IR via `(koivu backend llvm-ir)`, building the nodes described in [In-Memory LLVM IR](s-llvm-ir.md). Emitting `.ll` is a permanent capability: a textual IR dump is the primary debugging instrument for a compiler infrastructure, and it is never removed, including after full self-hosting.
 
 ### 7.2 Production Lowering Stack
 
