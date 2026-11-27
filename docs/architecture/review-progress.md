@@ -6,7 +6,7 @@ can be resumed in a later session without re-deriving context.
 **Delete this file when the review is finished.** It is deliberately absent from
 the index in `docs/architecture.md`.
 
-Last updated after commit `dcd5e78`.
+Last updated after commit `aa823a8`.
 
 This file is a ledger, not a copy of the blueprints. Where a decision is written
 down in a blueprint, the entry points at it. The previous revision restated
@@ -338,16 +338,23 @@ Context that is not part of the architecture but affects how work is delivered.
   Direct commits are still allowed. There is no `.sourcecraft/review.yaml`, so
   review is not enforced on pull requests.
 - **GitHub.** <https://github.com/MichaelKoivisto/koivu> exists and its history is
-  meaningful. The SourceCraft `koivu` is a native repository, not an import, so
-  the two histories are independent.
-- **Do not enable mirroring** until the reconcile lands. Mirroring is one-way,
+  meaningful. The two histories are **related, not independent**: `cbbfe94` is a
+  common ancestor. The earlier note here called the SourceCraft repository
+  "native, not an import, so the two histories are independent" and was wrong.
+- **A plain push works.** As of `aa823a8`, `git log HEAD..github/main` is empty,
+  so GitHub's `main` is an ancestor of SourceCraft's and `git push github main`
+  is a clean fast-forward - purely additive, with no force and no merge. Check
+  that the range is still empty before pushing; if GitHub ever gains commits, they
+  have to be merged first.
+- **The reconcile plan is unnecessary.** It was written for unrelated histories and
+  assumed `--allow-unrelated-histories`, a conflict list and a side branch. With a
+  shared ancestor and a fast-forward none of that applies. The prohibition it
+  carried still stands: never force-push the GitHub side.
+- **Mirroring is a separate decision, still open.** Mirroring is one-way,
   GitHub -> SourceCraft, and overwrites the SourceCraft branch with a force push.
-  Once GitHub's `main` contains every SourceCraft commit, mirroring becomes
-  lossless and is the correct long-term sync.
-- **Reconcile plan:** clone locally, add GitHub as a second remote,
-  `git merge --allow-unrelated-histories --no-commit github/main`, resolve the
-  conflict list file by file, commit, push a side branch, then open a PR on
-  GitHub. Never force-push the GitHub side.
+  That is lossless only while GitHub is the side receiving commits; while work
+  lands on SourceCraft first, a mirror would overwrite it. Do not enable it
+  without deciding which side is authoritative.
 - **Incident, resolved:** an accidental discard in the web UI once wiped the
   uncommitted working tree, destroying this file and the first copy of
   `.sourcecraft/branches.yaml`. `branches.yaml` was recreated and committed in
