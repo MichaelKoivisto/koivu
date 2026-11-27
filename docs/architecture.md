@@ -49,8 +49,8 @@ This is the process the **core developers** use to build the compiler infrastruc
 
 * **The Starting Point:** The compiler does not exist yet. Developers write the seed (Stage 1) in C and build it with an external C compiler - the only external tool the project ever uses ([Bootstrapping Paths & Trust](architecture/02_bootstrapping_and_trust.md), section 2).
 * **The Multi-Stage Sapling:** 
-  * Stage 1 compiles the source code of Stage 2 (adding macros).
-  * Stage 2 compiles the source code of Stage 3 (the production Scheme dialect).
+  * Stage 1 compiles the source code of Stage 2 - the seed's own Scheme front end plus a macro expander - into the sapling binary.
+  * Stage 2 compiles the source code of Stage 3 (the production Scheme dialect), expanding its macros on the way.
 * **The Goal (Self-Hosting):** Developers write a native machine code backend (e.g., x86_64) directly *in Stage 3 Scheme*. Once Stage 3 can compile its own source code without invoking any external tool, the development bootstrap is complete and a **meta-circular, self-hosting language** is achieved.
 * **What is dropped, and what is not:** two different things are dropped, at different times. The **external C compiler** that builds the seed is dropped at M2, when a Koivu compiler produced by the chain can rebuild the seed from its own source. The **`llc` tool** is never in the chain to begin with: Stages 1 and 2 use Pino IR rather than LLVM IR, and that IR is lowered by `koivu-vesi`, which is Koivu's own program rather than an external tool. The `.ll` **format** survives permanently, but only in Stage 3, as its debugging instrument and as `koivu-llc`'s input (see [Backend](architecture/backend.md), sections 1 and 7). The first bootstrap goal - the sapling build depending on no external tool - is met at M0.
 
