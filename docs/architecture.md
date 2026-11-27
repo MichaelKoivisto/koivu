@@ -55,11 +55,11 @@ This is the process the **core developers** use to build the compiler infrastruc
 Once Koivu is fully self-hosting, **end-users** will need a way to build it from source on their own machines without needing an existing Koivu binary pre-installed. 
 
 * **The Problem:** A self-hosting compiler requires itself to build itself. An end-user downloading the source code only has text files, not the executable binary.
-* **The Solution (The Distributed Seed):** To break this chicken-and-egg problem, the project publishes a minimized, pre-built seed compiler for each host alongside the source code. Binaries are published, not committed; the assembly of the same seed is committed as a convenience for readers, never as a build input ([Seed Artifacts](architecture/08_seed_artifacts.md), sections 2 and 3).
+* **The Solution (The Distributed Seed):** To break this chicken-and-egg problem, the project publishes one target-independent seed image, `koivu-seed.pino`, together with a `koivu-vesi` binary for every supported host. Vesi is the only machine binary distributed: the user lowers the image themselves, so nothing about the seed's machine code has to be taken on faith. Binaries are published, not committed, and Vesi's assembly is committed beside its binary as a convenience for readers, never as a build input ([Seed Artifacts](architecture/08_seed_artifacts.md), sections 1 to 3).
 * **The End-User Build Flow:**
   1. The user downloads the Koivu source code repository.
-  2. The build system executes the minimal, pre-baked bootstrap seed.
-  3. The seed compiles the Stage 2 sapling source code into a working sapling binary. It lowers Pino IR and writes the executable container itself, so no external tool appears in this step (see [Backend](architecture/backend.md), section 1).
+  2. The user lowers `koivu-seed.pino` with the Vesi they have just checked, producing the seed.
+  3. The seed compiles the Stage 2 sapling source code into a `.pino` image, which Vesi lowers into a working sapling binary. The seed writes no container, so nothing outside Koivu appears in this step ([Koivu Vesi](architecture/koivu-vesi.md), section 3).
   4. The sapling compiles the Stage 3 Scheme source code into a basic, functioning Koivu compiler binary.
   5. The new compiler recompiles the full source code a second time to generate the optimized, production-ready compiler.
 
